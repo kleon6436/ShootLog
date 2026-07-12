@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"ls *.xcodeproj *.xcworkspace 2>/dev/null\",\"description\":\"Find Xcode project/workspace file\"}",
-  "error": "Exit code 1\n(eval):1: no matches found: *.xcworkspace",
-  "timestamp": "2026-07-11T14:00:30.262Z",
-  "retry_count": 1
-}

@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"osascript <<'EOF'\\ntell application \\\"System Events\\\"\\n    tell process \\\"ShootLog\\\"\\n        set w to window \\\"ShootLog\\\"\\n        set allEls to entire contents of w\\n        repeat with ...",
-  "error": "Exit code 1\n78:95: execution error: System Events got an error: Can’t get process \"ShootLog\". (-1728)",
-  "timestamp": "2026-07-07T03:39:29.474Z",
-  "retry_count": 1
-}
