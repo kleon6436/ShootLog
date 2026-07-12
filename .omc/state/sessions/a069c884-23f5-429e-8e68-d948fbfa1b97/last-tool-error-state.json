@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"bash \\\"${OMC_SETUP_PLUGIN_ROOT}/scripts/setup-claude-md.sh\\\" global\",\"description\":\"Update global CLAUDE.md with latest OMC content\"}",
+  "error": "Exit code 127\nbash: /scripts/setup-claude-md.sh: No such file or directory",
+  "timestamp": "2026-07-07T03:41:02.153Z",
+  "retry_count": 2
+}

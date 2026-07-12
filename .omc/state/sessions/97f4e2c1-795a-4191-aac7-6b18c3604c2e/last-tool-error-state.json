@@ -1,0 +1,7 @@
+{
+  "tool_name": "Agent",
+  "tool_input_preview": "{\"description\":\"Shut down idle team agents\",\"prompt\":\"placeholder\",\"subagent_type\":\"general-purpose\",\"run_in_background\":false,\"isolation\":\"worktree\"}",
+  "error": "Cannot create agent worktree: not in a git repository and no WorktreeCreate hooks are configured. Configure WorktreeCreate/WorktreeRemove hooks in settings.json to use worktree isolation with other VCS systems.",
+  "timestamp": "2026-07-06T23:44:37.977Z",
+  "retry_count": 1
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "entries": {
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1783826961190,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1783826778657,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1783826774240,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "220020f02c6fc50d680c7968560ccaad6a9e6d42edf8de34ddcdf6258dce7042": {
+      "last_emitted_at_ms": 1783826769037,
+      "message": "Spawning agent: Explore (inherit) | Task: Find sidebar close/drag code"
+    }
+  },
+  "updated_at": "2026-07-12T03:29:21.190Z"
+}

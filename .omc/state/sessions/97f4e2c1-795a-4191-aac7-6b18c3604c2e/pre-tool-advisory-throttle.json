@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "entries": {
+    "9f0584c26100bb5d9c0a3493c8f41d2865cf351498cc927e5ead48712ce565af": {
+      "last_emitted_at_ms": 1783381477889,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Shut down idle team agents"
+    },
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1783381207424,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1783381201878,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "df1408c62d7dde0b18ff521e1ebb102c28a41247253979fb2c23a12a4c6192ae": {
+      "last_emitted_at_ms": 1783381065486,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: LibraryView + PhotoListView tokens"
+    },
+    "86e19b8d8e0aea4e03299de423200d6d24f8cc9a3bcc4e254e1cfe14ebbb0cfc": {
+      "last_emitted_at_ms": 1783381056398,
+      "message": "Spawning agent: oh-my-claudecode:executor (opus) | Task: ContentView toolbar native buttons"
+    },
+    "dde2632a1d19f86265cace3c6a49cefdebfbcb7ff4ca258c604a2358f3f91dd2": {
+      "last_emitted_at_ms": 1783381045508,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Analysis view semantic colors"
+    },
+    "a5a7a25ca84911570969d93e539426e852b3274f9fb0b5325e02c9869aa2bb21": {
+      "last_emitted_at_ms": 1783381031679,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Editor toolbar + crop overlay tokens"
+    },
+    "b0d912249bd66cdef9a07fd7db0c2abccb4adeb62d6a7a5c26a9a3bdc9617ae8": {
+      "last_emitted_at_ms": 1783381020767,
+      "message": "Spawning agent: oh-my-claudecode:executor (opus) | Task: Fullscreen/Slideshow dark HUD tokens"
+    },
+    "d1d3e2701a90ac6feb00af620f62c317056382587e63206e4f34a2589516d2ad": {
+      "last_emitted_at_ms": 1783381003681,
+      "message": "Spawning agent: oh-my-claudecode:executor (inherit) | Task: Sidebar + EXIFPanel Glass rollout"
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1783380888918,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    }
+  },
+  "updated_at": "2026-07-06T23:44:37.889Z"
+}

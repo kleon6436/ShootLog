@@ -1,0 +1,45 @@
+{
+  "updatedAt": "2026-07-12T04:25:41.831Z",
+  "missions": [
+    {
+      "id": "session:e4362c2c-1579-4715-b9c0-d7d81dc60451:team",
+      "source": "session",
+      "name": "team",
+      "objective": "Session mission",
+      "createdAt": "2026-07-12T04:25:41.831Z",
+      "updatedAt": "2026-07-12T04:25:41.831Z",
+      "status": "running",
+      "workerCount": 1,
+      "taskCounts": {
+        "total": 1,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 1,
+        "completed": 0,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "worker-1:aworker",
+          "role": "worker-1",
+          "ownership": "aworker-1-f8699cca9c42516e",
+          "status": "running",
+          "currentStep": null,
+          "latestUpdate": null,
+          "completedSummary": null,
+          "updatedAt": "2026-07-12T04:25:41.831Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:aworker-1-f8699cca9c42516e:2026-07-12T04:25:41.831Z",
+          "at": "2026-07-12T04:25:41.831Z",
+          "kind": "update",
+          "agent": "worker-1:aworker",
+          "detail": "started worker-1:aworker",
+          "sourceKey": "session-start:aworker-1-f8699cca9c42516e"
+        }
+      ]
+    }
+  ]
+}

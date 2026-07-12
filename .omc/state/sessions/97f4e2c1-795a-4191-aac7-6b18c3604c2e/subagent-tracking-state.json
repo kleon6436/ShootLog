@@ -1,0 +1,134 @@
+{
+  "agents": [
+    {
+      "agent_id": "a3076eedb4de7a51e",
+      "agent_type": "Explore",
+      "started_at": "2026-07-05T08:53:29.125Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-05T08:56:15.512Z",
+      "duration_ms": 166387
+    },
+    {
+      "agent_id": "a2f790d7310eb9ffc",
+      "agent_type": "unknown",
+      "started_at": "2026-07-05T10:37:16.067Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-05T10:37:16.067Z",
+      "duration_ms": 0
+    },
+    {
+      "agent_id": "aphase0-mockup-7af6a0797a98e4e9",
+      "agent_type": "phase0-mockup",
+      "started_at": "2026-07-05T10:54:08.673Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:35:03.979Z",
+      "duration_ms": 132055306
+    },
+    {
+      "agent_id": "aphase1-designsystem-577ec4bd56a258cd",
+      "agent_type": "phase1-designsystem",
+      "started_at": "2026-07-05T10:54:31.090Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:35:27.063Z",
+      "duration_ms": 132055973
+    },
+    {
+      "agent_id": "aa3c1c9a12b628631",
+      "agent_type": "unknown",
+      "started_at": "2026-07-05T10:57:40.568Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-05T10:57:40.568Z",
+      "duration_ms": 0
+    },
+    {
+      "agent_id": "agroupA-sidebar-exif-d1f67fa2948bce65",
+      "agent_type": "groupA-sidebar-exif",
+      "started_at": "2026-07-06T23:36:43.785Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:37:34.732Z",
+      "duration_ms": 50947
+    },
+    {
+      "agent_id": "agroupB-fullscreen-slideshow-21a1499a18d33c23",
+      "agent_type": "groupB-fullscreen-slideshow",
+      "started_at": "2026-07-06T23:37:00.870Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:40:39.613Z",
+      "duration_ms": 218743
+    },
+    {
+      "agent_id": "agroupC-editor-5c9f9d7716ef3cf1",
+      "agent_type": "groupC-editor",
+      "started_at": "2026-07-06T23:37:11.784Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:39:57.404Z",
+      "duration_ms": 165620
+    },
+    {
+      "agent_id": "agroupD-analysis-adb6617323e18bc3",
+      "agent_type": "groupD-analysis",
+      "started_at": "2026-07-06T23:37:25.620Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:38:46.349Z",
+      "duration_ms": 80729
+    },
+    {
+      "agent_id": "agroupE-contentview-68548a187997073d",
+      "agent_type": "groupE-contentview",
+      "started_at": "2026-07-06T23:37:36.499Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:38:39.588Z",
+      "duration_ms": 63089
+    },
+    {
+      "agent_id": "agroupF-library-list-c7853f06754bfba2",
+      "agent_type": "groupF-library-list",
+      "started_at": "2026-07-06T23:37:45.590Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:38:44.318Z",
+      "duration_ms": 58728
+    },
+    {
+      "agent_id": "ac81a712be9c050e4",
+      "agent_type": "unknown",
+      "started_at": "2026-07-06T23:44:57.308Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:44:57.308Z",
+      "duration_ms": 0
+    },
+    {
+      "agent_id": "a5691063aec5b8b6a",
+      "agent_type": "unknown",
+      "started_at": "2026-07-06T23:45:02.372Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:45:02.372Z",
+      "duration_ms": 0
+    },
+    {
+      "agent_id": "a511461efaba1ac97",
+      "agent_type": "unknown",
+      "started_at": "2026-07-06T23:54:50.357Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-07-06T23:54:50.357Z",
+      "duration_ms": 0
+    }
+  ],
+  "total_spawned": 9,
+  "total_completed": 14,
+  "total_failed": 0,
+  "last_updated": "2026-07-06T23:54:50.790Z"
+}

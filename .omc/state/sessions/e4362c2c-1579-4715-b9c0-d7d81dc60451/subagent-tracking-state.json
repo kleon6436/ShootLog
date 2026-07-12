@@ -1,0 +1,15 @@
+{
+  "agents": [
+    {
+      "agent_id": "aworker-1-f8699cca9c42516e",
+      "agent_type": "worker-1",
+      "started_at": "2026-07-12T04:25:41.831Z",
+      "parent_mode": "team",
+      "status": "running"
+    }
+  ],
+  "total_spawned": 1,
+  "total_completed": 0,
+  "total_failed": 0,
+  "last_updated": "2026-07-12T04:25:42.018Z"
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"grep -rn \\\"\\\\.reduced\\\\|reduce\\\\(\\\" ShootLog --include=\\\"*.swift\\\" 2>/dev/null\"}",
+  "error": "Exit code 2",
+  "timestamp": "2026-06-27T23:30:10.550Z",
+  "retry_count": 1
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"rm -rf \\\"$HOME/Library/Caches/com.shootlog.app/thumbnails-v3\\\" 2>&1; ls \\\"$HOME/Library/Caches/com.shootlog.app/\\\" 2>&1\"}",
+  "error": "Exit code 1\nls: /Users/kiyo/Library/Caches/com.shootlog.app/: No such file or directory",
+  "timestamp": "2026-07-08T11:52:07.914Z",
+  "retry_count": 2
+}

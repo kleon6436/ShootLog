@@ -1,0 +1,10 @@
+opt_in_rules:
+  - force_unwrapping
+  - empty_count
+  - closure_spacing
+
+line_length: 120
+
+excluded:
+  - .build
+  - DerivedData

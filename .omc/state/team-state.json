@@ -1,0 +1,18 @@
+{
+  "active": true,
+  "current_phase": "team-exec",
+  "team_name": "shootlog-folder-reorg",
+  "agent_count": "2",
+  "agent_types": "executor,verifier",
+  "task": "ShootLogのXcodeプロジェクトフォルダ構成をView/ViewModel/Model/Coreの4層に再編成し、project.pbxprojをSynchronized Root Group方式へ移行する",
+  "fix_loop_count": "0",
+  "max_fix_loops": "3",
+  "linked_ralph": "false",
+  "stage_history": "team-plan:done-via-plan-skill,team-exec:start",
+  "_meta": {
+    "mode": "team",
+    "sessionId": null,
+    "updatedAt": "2026-07-12T04:23:44.668Z",
+    "updatedBy": "state_write_tool"
+  }
+}
