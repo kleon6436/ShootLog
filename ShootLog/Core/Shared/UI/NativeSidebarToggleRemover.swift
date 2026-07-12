@@ -1,9 +1,8 @@
 import AppKit
 import SwiftUI
 
-// SwiftUIの.toolbar(removing: .sidebarToggle)だけでは、macOS 26でAppKitが
-// ウィンドウのNSToolbarへ自動挿入するネイティブのサイドバートグルボタンを
-// 抑止できないケースがあるため、AppKit階層で継続的に除去する。
+// 独自の左サイドバー開閉ボタンを使うため、AppKitが自動挿入するネイティブの
+// サイドバートグル項目（折りたたみ時の >> を含む）を継続的に除去する。
 struct NativeSidebarToggleRemover: NSViewRepresentable {
     func makeNSView(context: Context) -> GuardView {
         GuardView()
@@ -44,10 +43,6 @@ struct NativeSidebarToggleRemover: NSViewRepresentable {
             startBootstrapRemovalPasses()
         }
 
-        override func layout() {
-            super.layout()
-        }
-
         func applyRemoval() {
             bindToolbarObserverIfNeeded()
             removeNativeSidebarToggleButtons()
@@ -57,8 +52,6 @@ struct NativeSidebarToggleRemover: NSViewRepresentable {
             bootstrapTask?.cancel()
             bootstrapTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                // ウィンドウ接続直後はNSToolbarの自動挿入が遅れて走ることがあるため、
-                // 数フレーム分だけ再試行して取りこぼしを防ぐ。
                 for _ in 0..<8 {
                     if Task.isCancelled { return }
                     self.applyRemoval()
@@ -81,57 +74,33 @@ struct NativeSidebarToggleRemover: NSViewRepresentable {
             removeObservers()
             observedToolbar = toolbar
 
-            // 項目追加時に再除去
             willAddObserver = NotificationCenter.default.addObserver(
                 forName: NSToolbar.willAddItemNotification,
                 object: toolbar,
                 queue: nil
             ) { [weak self] _ in
-                guard let self else { return }
-                if Thread.isMainThread {
-                    MainActor.assumeIsolated {
-                        self.removeNativeSidebarToggleButtons()
-                    }
-                } else {
-                    Task { @MainActor in
-                        self.removeNativeSidebarToggleButtons()
-                    }
+                Task { @MainActor in
+                    self?.removeNativeSidebarToggleButtons()
                 }
             }
 
-            // 項目削除後にも再評価
             didRemoveObserver = NotificationCenter.default.addObserver(
                 forName: NSToolbar.didRemoveItemNotification,
                 object: toolbar,
                 queue: nil
             ) { [weak self] _ in
-                guard let self else { return }
-                if Thread.isMainThread {
-                    MainActor.assumeIsolated {
-                        self.removeNativeSidebarToggleButtons()
-                    }
-                } else {
-                    Task { @MainActor in
-                        self.removeNativeSidebarToggleButtons()
-                    }
+                Task { @MainActor in
+                    self?.removeNativeSidebarToggleButtons()
                 }
             }
 
-            // 追加/削除を伴わない表示状態の変化（非表示→再表示）にも追従
             didChangeVisibleItemsObserver = NotificationCenter.default.addObserver(
                 forName: Notification.Name("NSToolbarDidChangeVisibleItemsNotification"),
                 object: toolbar,
                 queue: nil
             ) { [weak self] _ in
-                guard let self else { return }
-                if Thread.isMainThread {
-                    MainActor.assumeIsolated {
-                        self.removeNativeSidebarToggleButtons()
-                    }
-                } else {
-                    Task { @MainActor in
-                        self.removeNativeSidebarToggleButtons()
-                    }
+                Task { @MainActor in
+                    self?.removeNativeSidebarToggleButtons()
                 }
             }
         }
@@ -178,7 +147,6 @@ struct NativeSidebarToggleRemover: NSViewRepresentable {
                 if actionName.contains("togglesidebar") {
                     return true
                 }
-                // OS差分で識別子が変わっても、実際にサイドバー切替アクションを持つ項目のみ除去する
                 if rawID.contains("sidebar") && actionName.contains("sidebar") {
                     return true
                 }

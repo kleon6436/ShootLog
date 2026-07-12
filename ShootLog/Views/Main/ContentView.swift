@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -6,10 +7,50 @@ private struct OpenFolderActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+// FocusedValue キー: サイドバー開閉コマンドから sidebar モードの左カラム開閉を呼ぶために使う
+private struct ToggleSidebarActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+// FocusedValue キー: Viewメニューやツールバーから右EXIFパネル開閉を呼ぶために使う
+private struct ToggleInspectorActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+// FocusedValue キー: Viewメニューで表示/非表示の文言を出し分けるための状態
+private struct SidebarVisibilityStateKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+// FocusedValue キー: Viewメニューでインスペクタ表示状態の文言を出し分けるための状態
+private struct InspectorVisibilityStateKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
 extension FocusedValues {
     var openFolderAction: (() -> Void)? {
         get { self[OpenFolderActionKey.self] }
         set { self[OpenFolderActionKey.self] = newValue }
+    }
+
+    var toggleSidebarAction: (() -> Void)? {
+        get { self[ToggleSidebarActionKey.self] }
+        set { self[ToggleSidebarActionKey.self] = newValue }
+    }
+
+    var toggleInspectorAction: (() -> Void)? {
+        get { self[ToggleInspectorActionKey.self] }
+        set { self[ToggleInspectorActionKey.self] = newValue }
+    }
+
+    var sidebarVisibilityState: Bool? {
+        get { self[SidebarVisibilityStateKey.self] }
+        set { self[SidebarVisibilityStateKey.self] = newValue }
+    }
+
+    var inspectorVisibilityState: Bool? {
+        get { self[InspectorVisibilityStateKey.self] }
+        set { self[InspectorVisibilityStateKey.self] = newValue }
     }
 }
 
@@ -20,11 +61,38 @@ struct ContentView: View {
     @Environment(\.openSettings) private var openSettings
     @State private var isDropTargeted = false
 
+    private var sidebarToggleAction: (() -> Void)? {
+        guard vm.currentModeID == "sidebar" else { return nil }
+        return { vm.requestSidebarToggle() }
+    }
+
+    private var inspectorToggleAction: (() -> Void)? {
+        guard vm.currentModeID == "sidebar" else { return nil }
+        return { vm.requestInspectorToggle() }
+    }
+
+    private var sidebarVisibilityState: Bool? {
+        vm.currentModeID == "sidebar" ? vm.isSidebarVisible : nil
+    }
+
+    private var inspectorVisibilityState: Bool? {
+        vm.currentModeID == "sidebar" ? vm.isInspectorVisible : nil
+    }
+
     var body: some View {
         mainContent
             .toolbar { toolbarContent }
+            .focusedValue(\.toggleSidebarAction, sidebarToggleAction)
+            .focusedValue(\.toggleInspectorAction, inspectorToggleAction)
+            .focusedValue(\.sidebarVisibilityState, sidebarVisibilityState)
+            .focusedValue(\.inspectorVisibilityState, inspectorVisibilityState)
+            .background {
+                if vm.currentModeID == "sidebar" {
+                    NativeSidebarToggleRemover()
+                }
+            }
             // ツールバーが常に黒背景になるよう固定する、システムのマテリアル/アクセントカラーに依存させない
-            .toolbarBackground(Color.black, for: .windowToolbar)
+            .toolbarBackground(Color(nsColor: NSColor.black), for: .windowToolbar)
             .toolbarColorScheme(.dark, for: .windowToolbar)
     }
 
@@ -89,7 +157,17 @@ struct ContentView: View {
     // アクセント塗り＋前景色反転する（ToolbarButtonStyle側で処理）。
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
+        ToolbarItem(placement: .navigation) {
+            if vm.currentModeID == "sidebar" {
+                Button(action: vm.requestSidebarToggle) {
+                    Image(systemName: "sidebar.left")
+                }
+                .help(vm.isSidebarVisible ? "左サイドバーを隠す (⌘\\)" : "左サイドバーを表示 (⌘\\)")
+                .accessibilityLabel(vm.isSidebarVisible ? "左サイドバーを隠す" : "左サイドバーを表示")
+            }
+        }
+
+        ToolbarItem(placement: .navigation) {
             ModeToggleRow(
                 currentModeID: vm.currentModeID,
                 onSelect: { vm.currentModeID = $0 }
@@ -109,6 +187,16 @@ struct ContentView: View {
         // フォルダ・分析・共有は独立した単発アクションのため、装飾なしの
         // 素のButton/Menuに戻し、システム標準のホバー/押下ハイライトに
         // 委ねる（グループ選択専用のToolbarButtonStyle/toolbarButtonAppearanceは適用しない）。
+        ToolbarItem(placement: .primaryAction) {
+            if vm.currentModeID == "sidebar" {
+                Button(action: vm.requestInspectorToggle) {
+                    Image(systemName: vm.isInspectorVisible ? "sidebar.right" : "chevron.backward.to.line")
+                }
+                .help(vm.isInspectorVisible ? "EXIFパネルを隠す (⌘⌥E)" : "EXIFパネルを表示 (⌘⌥E)")
+                .accessibilityLabel(vm.isInspectorVisible ? "EXIFパネルを隠す" : "EXIFパネルを表示")
+            }
+        }
+
         ToolbarItemGroup(placement: .primaryAction) {
             Button { vm.openFolder() } label: {
                 Image(systemName: "folder.badge.plus")

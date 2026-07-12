@@ -1,10 +1,47 @@
+import AppKit
 import SwiftUI
+
+private enum SidebarColumnVisibilityState: String {
+    case automatic
+    case all
+    case doubleColumn
+    case detailOnly
+
+    init(_ visibility: NavigationSplitViewVisibility) {
+        switch visibility {
+        case .automatic:
+            self = .automatic
+        case .all:
+            self = .all
+        case .doubleColumn:
+            self = .doubleColumn
+        case .detailOnly:
+            self = .detailOnly
+        default:
+            self = .all
+        }
+    }
+
+    var navigationVisibility: NavigationSplitViewVisibility {
+        switch self {
+        case .automatic:
+            .automatic
+        case .all:
+            .all
+        case .doubleColumn:
+            .doubleColumn
+        case .detailOnly:
+            .detailOnly
+        }
+    }
+}
 
 // サイドバーモード。左=写真一覧 / 中央=ビューア / 右=EXIFパネル の3カラム構成
 struct SidebarModeView: View {
     @Bindable var vm: SidebarViewModel
     // サイドバー幅（Capture One風に可変・次回起動時の初期幅として近似復元する）
     @AppStorage("sidebarWidth") private var sidebarWidth: Double = 140
+    @AppStorage("sidebarColumnVisibility") private var storedColumnVisibility: String = SidebarColumnVisibilityState.all.rawValue
     @FocusState private var isSidebarFocused: Bool
     // サイドバー（左カラム）の表示状態。ユーザーが開閉トグルボタン・ドラッグ収縮で可変に制御する
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -75,37 +112,6 @@ struct SidebarModeView: View {
             }
         }
         .searchable(text: $vm.searchText)
-        .toolbar {
-            // サイドバー非表示時のみ表示する復帰ボタン（EXIFボタンの左側）
-            if columnVisibility != .all {
-                ToolbarItem(placement: .navigation) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            columnVisibility = .all
-                        }
-                    } label: {
-                        Image(systemName: "sidebar.left")
-                    }
-                    .help("サイドバーを表示")
-                    .accessibilityLabel("サイドバーを表示")
-                    .keyboardShortcut("\\", modifiers: .command)
-                }
-            }
-
-            // EXIF パネル（右カラム）の表示・非表示トグル
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        vm.isEXIFPanelVisible.toggle()
-                    }
-                } label: {
-                    Image(systemName: "sidebar.right")
-                }
-                .help("EXIFパネルを開閉 (⌘⌥E)")
-                .accessibilityLabel("EXIFパネルの表示/非表示切り替え")
-                .keyboardShortcut("e", modifiers: [.command, .option])
-            }
-        }
         .overlay(alignment: .bottom) {
             // トースト（お気に入り登録など）
             if let toast = vm.toastMessage {
@@ -115,7 +121,54 @@ struct SidebarModeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: vm.toastMessage)
+        .onAppear(perform: restoreColumnVisibility)
+        .onChange(of: columnVisibility) { _, newValue in
+            storedColumnVisibility = SidebarColumnVisibilityState(newValue).rawValue
+            vm.setSidebarVisible(newValue == .all)
+        }
+        .onChange(of: vm.sidebarToggleRequestID) { _, _ in
+            toggleSidebar()
+        }
+        .onChange(of: vm.inspectorToggleRequestID) { _, _ in
+            toggleInspector()
+        }
         // selectedPhotoのsetter（SidebarViewModel経由でContentViewModel.selectPhoto）が
         // EditInfo/EXIF遅延ロードを既に行うため、ここでの再ロードは不要（二重実行防止）
+    }
+
+    private func restoreColumnVisibility() {
+        guard let state = SidebarColumnVisibilityState(rawValue: storedColumnVisibility) else {
+            columnVisibility = .all
+            vm.setSidebarVisible(true)
+            return
+        }
+        columnVisibility = state.navigationVisibility
+        vm.setSidebarVisible(state.navigationVisibility == .all)
+        vm.setInspectorVisible(vm.isEXIFPanelVisible)
+    }
+
+    private func toggleSidebar() {
+        let selector = #selector(NSSplitViewController.toggleSidebar(_:))
+        let window = NSApp.keyWindow ?? NSApp.mainWindow
+
+        if window?.firstResponder?.tryToPerform(selector, with: nil) == true {
+            return
+        }
+
+        if window?.contentViewController?.tryToPerform(selector, with: nil) == true {
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            columnVisibility = columnVisibility == .all ? .doubleColumn : .all
+        }
+        vm.setSidebarVisible(columnVisibility == .all)
+    }
+
+    private func toggleInspector() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            vm.isEXIFPanelVisible.toggle()
+        }
+        vm.setInspectorVisible(vm.isEXIFPanelVisible)
     }
 }

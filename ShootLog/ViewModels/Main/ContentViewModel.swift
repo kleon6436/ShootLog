@@ -1,6 +1,7 @@
 import AppKit
 import SwiftData
 import UniformTypeIdentifiers
+import Foundation
 
 // アプリ全体の単一真実源。フォルダ管理・写真データ・表示モードをすべて管理する
 @Observable
@@ -22,6 +23,10 @@ final class ContentViewModel {
 
     // 表示モード
     var currentModeID: String = "sidebar"
+    var isSidebarVisible: Bool = true
+    var isInspectorVisible: Bool = true
+    var sidebarToggleRequestID = UUID()
+    var inspectorToggleRequestID = UUID()
 
     // 編集
     var currentEditInfo: EditInfo?
@@ -235,6 +240,22 @@ final class ContentViewModel {
     // MARK: - Mode
 
     func switchToSidebar() { currentModeID = "sidebar" }
+
+    func requestSidebarToggle() {
+        sidebarToggleRequestID = UUID()
+    }
+
+    func requestInspectorToggle() {
+        inspectorToggleRequestID = UUID()
+    }
+
+    func setSidebarVisible(_ isVisible: Bool) {
+        isSidebarVisible = isVisible
+    }
+
+    func setInspectorVisible(_ isVisible: Bool) {
+        isInspectorVisible = isVisible
+    }
 
     // MARK: - Private
 
