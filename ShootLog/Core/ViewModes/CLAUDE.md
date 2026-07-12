@@ -1,4 +1,4 @@
-# Viewer/ — 表示モードの拡張設計
+# Core/ViewModes/ — 表示モードの拡張設計
 
 新モードを追加するときは `ViewModeProtocol` に準拠した型を作り、`ViewModeRegistry` に1行追加するだけ。ツールバー・設定画面は変更不要。
 
