@@ -111,7 +111,7 @@ struct SidebarModeView: View {
                     .navigationSplitViewColumnWidth(156)
             }
         }
-        .searchable(text: $vm.searchText)
+        .toolbar(removing: .sidebarToggle)
         .overlay(alignment: .bottom) {
             // トースト（お気に入り登録など）
             if let toast = vm.toastMessage {
