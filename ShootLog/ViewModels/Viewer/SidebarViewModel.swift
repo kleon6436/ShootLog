@@ -10,7 +10,14 @@ final class SidebarViewModel {
     // 検索テキスト
     var searchText: String = ""
     // EXIFパネル可視性フラグ
-    var isEXIFPanelVisible: Bool = true
+    var isEXIFPanelVisible: Bool {
+        get { content.isInspectorVisible }
+        set { content.isInspectorVisible = newValue }
+    }
+
+    var isSidebarVisible: Bool { content.isSidebarVisible }
+    var sidebarToggleRequestID: UUID { content.sidebarToggleRequestID }
+    var inspectorToggleRequestID: UUID { content.inspectorToggleRequestID }
 
     // ツールバー（ContentView）のトグルとも同期する必要があるためContentViewModelを単一の真実源とし委譲する
     var showFavoritesOnly: Bool {
@@ -65,6 +72,8 @@ final class SidebarViewModel {
     func rotateSelectedPhoto() { content.rotateSelectedPhoto() }
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
+    func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
+    func setInspectorVisible(_ isVisible: Bool) { content.setInspectorVisible(isVisible) }
 
     // MARK: - サイドバー幅の保存
 

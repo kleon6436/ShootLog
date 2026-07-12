@@ -17,6 +17,14 @@ struct ShootLogApp: App {
             CommandGroup(after: .newItem) {
                 OpenFolderCommand()
             }
+            // Viewメニューの標準的なサイドバー区画に左サイドバー開閉を配置する
+            CommandGroup(replacing: .sidebar) {
+                ToggleSidebarCommand()
+            }
+            // 右側のEXIFパネルはインスペクタ相当として直後に配置する
+            CommandGroup(after: .sidebar) {
+                ToggleInspectorCommand()
+            }
         }
 
         // 設定画面（⌘,・アプリメニュー「設定…」はOSが自動配線する）
@@ -35,5 +43,29 @@ private struct OpenFolderCommand: View {
         Button("フォルダを開く…") { openFolder?() }
             .keyboardShortcut("o", modifiers: .command)
             .disabled(openFolder == nil)
+    }
+}
+
+// 表示メニュー相当の左サイドバー開閉コマンド
+private struct ToggleSidebarCommand: View {
+    @FocusedValue(\.toggleSidebarAction) private var toggleSidebar: (() -> Void)?
+    @FocusedValue(\.sidebarVisibilityState) private var isSidebarVisible: Bool?
+
+    var body: some View {
+        Button(isSidebarVisible == true ? "サイドバーを隠す" : "サイドバーを表示") { toggleSidebar?() }
+            .keyboardShortcut("\\", modifiers: .command)
+            .disabled(toggleSidebar == nil)
+    }
+}
+
+// ViewメニューのEXIFパネル開閉コマンド
+private struct ToggleInspectorCommand: View {
+    @FocusedValue(\.toggleInspectorAction) private var toggleInspector: (() -> Void)?
+    @FocusedValue(\.inspectorVisibilityState) private var isInspectorVisible: Bool?
+
+    var body: some View {
+        Button(isInspectorVisible == true ? "EXIFパネルを隠す" : "EXIFパネルを表示") { toggleInspector?() }
+            .keyboardShortcut("e", modifiers: [.command, .option])
+            .disabled(toggleInspector == nil)
     }
 }
