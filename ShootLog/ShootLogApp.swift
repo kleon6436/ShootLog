@@ -9,8 +9,8 @@ struct ShootLogApp: App {
         }
         // SwiftDataモデルをすべて登録
         .modelContainer(for: [Photo.self, EditInfo.self, FolderHistory.self])
-        // タイトルバー/ツールバーの二段表示を1行にまとめられないか試験適用(効果薄なら方針E不採用として記録)
-        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
+        // ネイティブのタイトルバー領域は使わず、ContentView側のカスタムヘッダーへ置き換える
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {}
             // 「ファイル」メニューに「フォルダを開く…」を追加する

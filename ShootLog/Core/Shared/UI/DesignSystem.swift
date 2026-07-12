@@ -134,6 +134,15 @@ extension Color {
 // フォルダ・分析・共有等のprimaryAction配置には適用しない
 // （それらは装飾なしのButton/Menuに戻し、システム標準ハイライトに委ねる）。
 
+// Xcodeのタイトルバー内ツールバー密度に寄せるための寸法トークン。
+// ヘッダーのアイコンサイズとヒットターゲットをここで一元管理する。
+enum ToolbarMetrics {
+    static let iconSize: CGFloat = 12.5
+    static let iconWeight: Font.Weight = .regular
+    static let buttonWidth: CGFloat = 27
+    static let buttonHeight: CGFloat = 21
+}
+
 extension View {
     // モード切替グループ内の各ボタンの見た目（固定ヒットターゲット＋選択時のみ塗り）を適用する。
     // グループとしての一体感（外周の共有カプセル/矩形背景）は呼び出し側
@@ -141,7 +150,8 @@ extension View {
     // 恒常的な枠を付けない。`Menu`のラベル等`ButtonStyle`が効かない箇所にも
     // 直接適用できるよう`ToolbarButtonStyle`本体からも切り出して共有している。
     func toolbarButtonAppearance(isSelected: Bool = false) -> some View {
-        frame(width: 28, height: 22)
+        font(.system(size: ToolbarMetrics.iconSize, weight: ToolbarMetrics.iconWeight))
+            .frame(width: ToolbarMetrics.buttonWidth, height: ToolbarMetrics.buttonHeight)
             .background(isSelected ? Color.onDarkCanvas.opacity(0.18) : Color.clear)
             .foregroundStyle(isSelected ? Color.onDarkCanvas : Color.onDarkCanvasSecondary)
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
