@@ -9,13 +9,11 @@ struct EditablePhotoView: View {
     let isCropMode: Bool
     let onCropApply: (CGRect) -> Void
     let onCropCancel: () -> Void
-    @State private var thumbnail: NSImage?
-    @State private var highRes: NSImage?
-    @State private var isLoadingHighRes = false
+    @State private var vm = PhotoImageViewModel()
 
     var body: some View {
         ZStack {
-            if let image = highRes ?? thumbnail {
+            if let image = vm.highRes ?? vm.thumbnail {
                 ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: image)
                         .resizable()
@@ -25,7 +23,7 @@ struct EditablePhotoView: View {
                         .rotationEffect(.degrees(Double(editInfo?.rotation ?? 0)))
 
                     // サムネイル表示中かつ高解像度ロード待ちのときスピナーを右下に表示
-                    if highRes == nil && isLoadingHighRes {
+                    if vm.highRes == nil && vm.isLoadingHighRes {
                         ProgressView()
                             .controlSize(.small)
                             .padding(8)
@@ -49,17 +47,7 @@ struct EditablePhotoView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: photo?.id) {
-            // 前の写真の残像をクリアしてから新しい写真をロード
-            thumbnail = nil
-            highRes = nil
-            isLoadingHighRes = false
-            guard let photo else { return }
-            thumbnail = await ImageLoader.shared.thumbnail(for: photo.fileURL)
-            // サムネイル取得後に写真が切り替わっていたら高解像度ロードをスキップする
-            guard !Task.isCancelled else { return }
-            isLoadingHighRes = true
-            highRes = await ImageLoader.shared.highResImage(for: photo.fileURL)
-            isLoadingHighRes = false
+            await vm.load(photo: photo)
         }
     }
 }

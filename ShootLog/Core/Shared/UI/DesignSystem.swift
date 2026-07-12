@@ -48,7 +48,7 @@ enum Spacing {
 
 // MARK: - シャドウ（Elevation）
 
-// 既存の2箇所（CropOverlayView のコーナーハンドル、LibraryView のお気に入りバッジ）の
+// 既存の2箇所（CropOverlayView のコーナーハンドル、PhotoListView のお気に入りバッジ）の
 // ドロップシャドウを単一トークンに統合したもの。どちらも黒背景/写真上に浮かぶ
 // 小要素の視認性確保が目的で、パラメータがほぼ同一のため card に集約する。
 enum Elevation {

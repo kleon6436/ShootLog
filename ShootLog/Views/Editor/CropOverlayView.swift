@@ -2,7 +2,7 @@ import SwiftUI
 
 // トリミング選択オーバーレイ。正規化座標（0.0〜1.0）でクロップ矩形を返す
 struct CropOverlayView: View {
-    @State private var normalizedRect: CGRect
+    @State private var vm: CropViewModel
     let onApply: (CGRect) -> Void
     let onCancel: () -> Void
 
@@ -11,7 +11,7 @@ struct CropOverlayView: View {
         onApply: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) {
-        self._normalizedRect = State(initialValue: initialRect)
+        self._vm = State(initialValue: CropViewModel(initialRect: initialRect))
         self.onApply = onApply
         self.onCancel = onCancel
     }
@@ -19,7 +19,7 @@ struct CropOverlayView: View {
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
-            let pixRect = toPixel(normalizedRect, in: size)
+            let pixRect = vm.toPixel(in: size)
 
             ZStack {
                 // クロップ外の半透明マスク（クロップ領域は透明に抜く）
@@ -59,7 +59,7 @@ struct CropOverlayView: View {
                         corner: corner,
                         pixRect: pixRect,
                         containerSize: size,
-                        normalizedRect: $normalizedRect
+                        vm: vm
                     )
                 }
 
@@ -69,22 +69,13 @@ struct CropOverlayView: View {
                     HStack(spacing: 10) {
                         Button("キャンセル") { onCancel() }
                             .buttonStyle(CropActionButtonStyle(isPrimary: false))
-                        Button("適用") { onApply(normalizedRect) }
+                        Button("適用") { onApply(vm.normalizedRect) }
                             .buttonStyle(CropActionButtonStyle(isPrimary: true))
                     }
                     .padding(.bottom, 20)
                 }
             }
         }
-    }
-
-    private func toPixel(_ rect: CGRect, in size: CGSize) -> CGRect {
-        CGRect(
-            x: rect.minX * size.width,
-            y: rect.minY * size.height,
-            width: rect.width * size.width,
-            height: rect.height * size.height
-        )
     }
 }
 
@@ -98,9 +89,7 @@ private struct CropHandleView: View {
     let corner: CropCorner
     let pixRect: CGRect
     let containerSize: CGSize
-    @Binding var normalizedRect: CGRect
-
-    private let minFraction: CGFloat = 0.05
+    let vm: CropViewModel
 
     var handlePosition: CGPoint {
         switch corner {
@@ -126,7 +115,7 @@ private struct CropHandleView: View {
                 .onChanged { value in
                     let nx = max(0.0, min(1.0, value.location.x / containerSize.width))
                     let ny = max(0.0, min(1.0, value.location.y / containerSize.height))
-                    applyDrag(nx: nx, ny: ny)
+                    vm.applyDrag(corner: corner, nx: nx, ny: ny)
                 }
         )
     }
@@ -138,25 +127,6 @@ private struct CropHandleView: View {
         case .bottomLeft:  "左下"
         case .bottomRight: "右下"
         }
-    }
-
-    private func applyDrag(nx: CGFloat, ny: CGFloat) {
-        var r = normalizedRect
-        switch corner {
-        case .topLeft:
-            let x = min(nx, r.maxX - minFraction)
-            let y = min(ny, r.maxY - minFraction)
-            r = CGRect(x: x, y: y, width: r.maxX - x, height: r.maxY - y)
-        case .topRight:
-            let y = min(ny, r.maxY - minFraction)
-            r = CGRect(x: r.minX, y: y, width: max(minFraction, nx - r.minX), height: r.maxY - y)
-        case .bottomLeft:
-            let x = min(nx, r.maxX - minFraction)
-            r = CGRect(x: x, y: r.minY, width: r.maxX - x, height: max(minFraction, ny - r.minY))
-        case .bottomRight:
-            r = CGRect(x: r.minX, y: r.minY, width: max(minFraction, nx - r.minX), height: max(minFraction, ny - r.minY))
-        }
-        normalizedRect = r
     }
 }
 

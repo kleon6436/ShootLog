@@ -24,29 +24,21 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7C1C3043D346BD4F3E2F0F48 /* Core */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Core;
 			sourceTree = "<group>";
 		};
 		9A72448DD58D8D4D23B3817D /* Models */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Models;
 			sourceTree = "<group>";
 		};
 		E6CFCDDC0AE8C53409F21009 /* ViewModels */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		F4EFA1B4A227EF6013BE4049 /* Views */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Views;
 			sourceTree = "<group>";
 		};
@@ -108,10 +100,10 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				F4EFA1B4A227EF6013BE4049 /* Views */,
-				E6CFCDDC0AE8C53409F21009 /* ViewModels */,
-				9A72448DD58D8D4D23B3817D /* Models */,
 				7C1C3043D346BD4F3E2F0F48 /* Core */,
+				9A72448DD58D8D4D23B3817D /* Models */,
+				E6CFCDDC0AE8C53409F21009 /* ViewModels */,
+				F4EFA1B4A227EF6013BE4049 /* Views */,
 			);
 			name = ShootLog;
 			productName = ShootLog;
