@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 // アプリ全体の単一真実源。フォルダ管理・写真データ・表示モードをすべて管理する
 @Observable
 @MainActor
-final class MainViewModel {
+final class ContentViewModel {
     // フォルダ
     var currentFolderURL: URL?
     var folderHistories: [FolderHistory] = []
@@ -16,6 +16,9 @@ final class MainViewModel {
     var isLoading = false
     var error: (any Error)?
     var toastMessage: String?
+
+    // お気に入りのみ表示フラグ。ツールバー（ContentView）とSidebarViewModelの絞り込み双方から参照される共有状態
+    var showFavoritesOnly: Bool = false
 
     // 表示モード
     var currentModeID: String = "sidebar"

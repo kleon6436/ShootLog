@@ -18,11 +18,16 @@ struct ShootLogApp: App {
                 OpenFolderCommand()
             }
         }
+
+        // 設定画面（⌘,・アプリメニュー「設定…」はOSが自動配線する）
+        Settings {
+            SettingsView()
+        }
     }
 }
 
 // ファイルメニューの「フォルダを開く…」コマンド
-// FocusedValue 経由でフォーカス中ウィンドウの MainViewModel.openFolder を呼ぶ
+// FocusedValue 経由でフォーカス中ウィンドウの ContentViewModel.openFolder を呼ぶ
 private struct OpenFolderCommand: View {
     @FocusedValue(\.openFolderAction) private var openFolder: (() -> Void)?
 

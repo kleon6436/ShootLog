@@ -6,5 +6,5 @@ protocol ViewModeProtocol: Identifiable {
     var displayName: String { get }
     var symbolName: String { get }           // SF Symbols 名
     var keyboardShortcut: KeyEquivalent? { get }
-    func makeView(vm: MainViewModel) -> AnyView
+    func makeView(vm: ContentViewModel) -> AnyView
 }

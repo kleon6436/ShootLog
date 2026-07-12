@@ -2,10 +2,9 @@ import SwiftUI
 
 // サイドバーモード。左=写真一覧 / 中央=ビューア / 右=EXIFパネル の3カラム構成
 struct SidebarModeView: View {
-    @Bindable var vm: MainViewModel
+    @Bindable var vm: SidebarViewModel
     // サイドバー幅（Capture One風に可変・次回起動時の初期幅として近似復元する）
     @AppStorage("sidebarWidth") private var sidebarWidth: Double = 140
-    @State private var widthSaveTask: Task<Void, Never>?
     @FocusState private var isSidebarFocused: Bool
     // サイドバー（左カラム）の表示状態。ユーザーが開閉トグルボタン・ドラッグ収縮で可変に制御する
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -13,7 +12,7 @@ struct SidebarModeView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // 左: 写真一覧（最小 120pt、理想 sidebarWidth pt、最大 400pt）
-            PhotoListView(photos: vm.photos, selection: $vm.selectedPhoto)
+            PhotoListView(photos: vm.displayedPhotos, selection: $vm.selectedPhoto)
                 .navigationSplitViewColumnWidth(min: 120, ideal: sidebarWidth, max: 400)
                 // 右カラム（EXIFPanelView）とのフラット材質を対にするための明示背景
                 .background(.regularMaterial)
@@ -23,15 +22,9 @@ struct SidebarModeView: View {
                     GeometryReader { geo in
                         Color.clear
                             .onChange(of: geo.size.width) { _, newWidth in
-                                scheduleWidthSave(newWidth)
+                                vm.scheduleWidthSave(newWidth, current: $sidebarWidth)
                             }
                     }
-                }
-                .background {
-                    // SwiftUIの.toolbar(removing: .sidebarToggle)だけではmacOS 26で
-                    // AppKitが自動挿入するネイティブのサイドバートグルが残り、自前の
-                    // 開閉トグルボタンと重複するため、AppKit階層から物理的に取り除く
-                    NativeSidebarToggleRemover()
                 }
                 .overlay(alignment: .trailing) {
                     // 中央カラム（ビューア）との境界線。右カラムのEXIFPanelViewと対になる表現
@@ -75,28 +68,44 @@ struct SidebarModeView: View {
                 }
             }
         } detail: {
-            // 右: EXIF パネル（156pt 固定）
-            EXIFPanelView(photo: vm.selectedPhoto)
-                .navigationSplitViewColumnWidth(156)
-        }
-        .toolbar {
-            // 自前のサイドバー開閉トグル。ネイティブトグルは除去しモード切替ボタンとも
-            // アイコンを分けているため、これが唯一の開閉手段になる
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    // .doubleColumn は左カラムのみを隠す（.detailOnly は中央カラムも隠すため不可）
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        columnVisibility = columnVisibility == .all ? .doubleColumn : .all
-                    }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .help("サイドバーを開閉 (⌘\\)")
-                .accessibilityLabel("サイドバーを開閉")
-                .keyboardShortcut("\\", modifiers: .command)
+            // 右: EXIF パネル（156pt 固定）。非表示トグル時はカラム自体を描画しない
+            if vm.isEXIFPanelVisible {
+                EXIFPanelView(photo: vm.selectedPhoto)
+                    .navigationSplitViewColumnWidth(156)
             }
         }
-        .toolbar(removing: .sidebarToggle) // macOS標準（AppKit自動挿入）のサイドバー切り替えボタンを除去し、自前トグルとの重複を防ぐ
+        .searchable(text: $vm.searchText)
+        .toolbar {
+            // サイドバー非表示時のみ表示する復帰ボタン（EXIFボタンの左側）
+            if columnVisibility != .all {
+                ToolbarItem(placement: .navigation) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            columnVisibility = .all
+                        }
+                    } label: {
+                        Image(systemName: "sidebar.left")
+                    }
+                    .help("サイドバーを表示")
+                    .accessibilityLabel("サイドバーを表示")
+                    .keyboardShortcut("\\", modifiers: .command)
+                }
+            }
+
+            // EXIF パネル（右カラム）の表示・非表示トグル
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        vm.isEXIFPanelVisible.toggle()
+                    }
+                } label: {
+                    Image(systemName: "sidebar.right")
+                }
+                .help("EXIFパネルを開閉 (⌘⌥E)")
+                .accessibilityLabel("EXIFパネルの表示/非表示切り替え")
+                .keyboardShortcut("e", modifiers: [.command, .option])
+            }
+        }
         .overlay(alignment: .bottom) {
             // トースト（お気に入り登録など）
             if let toast = vm.toastMessage {
@@ -106,23 +115,7 @@ struct SidebarModeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: vm.toastMessage)
-        .onChange(of: vm.selectedPhoto) { _, photo in
-            guard let photo else { return }
-            vm.loadEditInfo(for: photo)
-            Task { await vm.loadEXIFIfNeeded(for: photo) }
-        }
-    }
-
-    // MARK: - Private
-
-    // ドラッグ中の高頻度書き込みを避けるため、1pt未満の変化は無視し300msデバウンスしてから保存する
-    private func scheduleWidthSave(_ newWidth: Double) {
-        guard abs(newWidth - sidebarWidth) >= 1 else { return }
-        widthSaveTask?.cancel()
-        widthSaveTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            sidebarWidth = newWidth
-        }
+        // selectedPhotoのsetter（SidebarViewModel経由でContentViewModel.selectPhoto）が
+        // EditInfo/EXIF遅延ロードを既に行うため、ここでの再ロードは不要（二重実行防止）
     }
 }

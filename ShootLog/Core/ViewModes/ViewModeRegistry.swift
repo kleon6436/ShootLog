@@ -29,8 +29,9 @@ struct SidebarMode: @MainActor ViewModeProtocol {
     let displayName = "サイドバー"
     let symbolName = "rectangle.split.3x1"
     let keyboardShortcut: KeyEquivalent? = nil
+    private let box = ViewModelBox<SidebarViewModel>()
 
-    @MainActor func makeView(vm: MainViewModel) -> AnyView {
-        AnyView(SidebarModeView(vm: vm))
+    @MainActor func makeView(vm: ContentViewModel) -> AnyView {
+        AnyView(SidebarModeView(vm: box.get { SidebarViewModel(content: vm) }))
     }
 }

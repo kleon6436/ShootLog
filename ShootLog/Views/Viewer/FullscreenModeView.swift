@@ -2,7 +2,7 @@ import SwiftUI
 
 // フルスクリーンモード。黒背景・左右ナビ・お気に入り・Esc でサイドバーへ戻る
 struct FullscreenModeView: View {
-    var vm: MainViewModel
+    var vm: FullscreenViewModel
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -146,8 +146,9 @@ struct FullscreenMode: @MainActor ViewModeProtocol {
     let displayName = "フルスクリーン"
     let symbolName = "arrow.up.left.and.arrow.down.right"
     let keyboardShortcut: KeyEquivalent? = "f"
+    private let box = ViewModelBox<FullscreenViewModel>()
 
-    @MainActor func makeView(vm: MainViewModel) -> AnyView {
-        AnyView(FullscreenModeView(vm: vm))
+    @MainActor func makeView(vm: ContentViewModel) -> AnyView {
+        AnyView(FullscreenModeView(vm: box.get { FullscreenViewModel(content: vm) }))
     }
 }

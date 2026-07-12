@@ -32,7 +32,7 @@ private struct PhotoGridCell: View {
     let photo: Photo
     let isSelected: Bool
     let onSelect: () -> Void
-    @State private var thumbnail: NSImage?
+    @State private var vm = PhotoThumbnailViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -75,7 +75,7 @@ private struct PhotoGridCell: View {
         .onTapGesture { onSelect() } // Listの暗黙選択動作の代替
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityAddTraits(.isButton)
-        .task { thumbnail = await ImageLoader.shared.thumbnail(for: photo.fileURL) }
+        .task { await vm.load(url: photo.fileURL) }
     }
 
     private var accessibilityLabelText: String {
@@ -86,7 +86,7 @@ private struct PhotoGridCell: View {
 
     @ViewBuilder
     private var thumbnailView: some View {
-        if let thumbnail {
+        if let thumbnail = vm.thumbnail {
             Image(nsImage: thumbnail)
                 .resizable()
                 .interpolation(.high)
