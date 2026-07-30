@@ -127,51 +127,6 @@ extension Color {
 // MARK: - ツールバーボタンスタイル（モード切替グループ専用）
 //
 // 以前は全ツールバーボタン（モード切替＋フォルダ/分析/共有）に同一の
-// 「固定枠＋常時ボーダー」を適用していたが、Finder/写真.app等のネイティブ
-// ツールバーでは単発アクションのプレーンアイコンボタンは枠を持たず、
-// ホバー時のみシステムが自動でハイライトを出す。そのため本スタイルは
-// **モード切替のようにグループ化されたセグメント的操作専用**とし、
-// フォルダ・分析・共有等のprimaryAction配置には適用しない
-// （それらは装飾なしのButton/Menuに戻し、システム標準ハイライトに委ねる）。
-
-// Xcodeのタイトルバー内ツールバー密度に寄せるための寸法トークン。
-// ヘッダーのアイコンサイズとヒットターゲットをここで一元管理する。
-enum ToolbarMetrics {
-    static let iconSize: CGFloat = 12.5
-    static let iconWeight: Font.Weight = .regular
-    static let buttonWidth: CGFloat = 27
-    static let buttonHeight: CGFloat = 21
-}
-
-extension View {
-    // モード切替グループ内の各ボタンの見た目（固定ヒットターゲット＋選択時のみ塗り）を適用する。
-    // グループとしての一体感（外周の共有カプセル/矩形背景）は呼び出し側
-    // （ContentView.swiftのHStack）が担当するため、個々のボタンには
-    // 恒常的な枠を付けない。`Menu`のラベル等`ButtonStyle`が効かない箇所にも
-    // 直接適用できるよう`ToolbarButtonStyle`本体からも切り出して共有している。
-    func toolbarButtonAppearance(isSelected: Bool = false) -> some View {
-        font(.system(size: ToolbarMetrics.iconSize, weight: ToolbarMetrics.iconWeight))
-            .frame(width: ToolbarMetrics.buttonWidth, height: ToolbarMetrics.buttonHeight)
-            .background(isSelected ? Color.onDarkCanvas.opacity(0.18) : Color.clear)
-            .foregroundStyle(isSelected ? Color.onDarkCanvas : Color.onDarkCanvasSecondary)
-            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-    }
-}
-
-// モード切替グループ内の各ボタンで共有するスタイル。個別ボタンに恒常的な
-// 枠は持たせず、選択中のボタンのみアクセント色で塗って識別する。
-// グループ全体の背景（セグメントコントロールらしい一体感）は呼び出し側の
-// HStackが担当する。
-struct ToolbarButtonStyle: ButtonStyle {
-    var isSelected: Bool = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .toolbarButtonAppearance(isSelected: isSelected)
-            .opacity(configuration.isPressed ? 0.6 : 1.0)
-    }
-}
-
 // MARK: - リキッドグラスヘルパー（同一モジュール内で使用可能）
 //
 // ToastView.swift から移設。責務の所在をデザインシステムに一元化する。

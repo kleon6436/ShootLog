@@ -2,7 +2,8 @@ import SwiftUI
 
 // フルスクリーンモード。黒背景・左右ナビ・お気に入り・Esc でサイドバーへ戻る
 struct FullscreenModeView: View {
-    var vm: FullscreenViewModel
+    @Bindable var vm: FullscreenViewModel
+    @Environment(\.openSettings) private var openSettings
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -59,6 +60,49 @@ struct FullscreenModeView: View {
         .onKeyPress(.leftArrow)  { vm.selectPrevious(); return .handled }
         .onKeyPress(.rightArrow) { vm.selectNext();     return .handled }
         .onKeyPress(.escape)     { vm.switchToSidebar(); return .handled }
+        .toolbar { toolbarItems }
+    }
+
+    // MARK: - Toolbar
+
+    // sidebarモードと同一構成の標準ツールバー（OS標準の見た目に統一する）
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ModeTogglePicker(currentModeID: $vm.currentModeID)
+
+            Button { vm.showFavoritesOnly.toggle() } label: {
+                Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
+            }
+            .help("お気に入りのみ表示")
+            .accessibilityLabel("お気に入りのみ表示")
+            .disabled(vm.photos.isEmpty)
+        }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { vm.openFolder() } label: {
+                Image(systemName: "folder.badge.plus")
+            }
+            .help("フォルダを開く (⌘O)")
+            .accessibilityLabel("フォルダを開く")
+
+            Button { vm.openAnalysis() } label: {
+                Image(systemName: "chart.bar")
+            }
+            .help("撮影傾向を分析 (⌘I)")
+            .accessibilityLabel("分析")
+            .keyboardShortcut("i", modifiers: .command)
+            .disabled(vm.photos.isEmpty)
+
+            ExternalAppMenu(onSelect: { adapter in vm.openInExternalApp(adapter) })
+                .disabled(vm.selectedPhoto == nil)
+
+            Button { openSettings() } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("設定を開く")
+            .accessibilityLabel("設定を開く")
+        }
     }
 }
 
