@@ -290,42 +290,5 @@ struct SidebarModeView: View {
 }
 
 // MARK: - Toolbar Components
-
-// ツールバー内の表示モード切替（セグメント）。ForEach をツールバー式に直接書くと
-// 型検査がタイムアウトするため独立Viewへ切り出す
-private struct ModeTogglePicker: View {
-    @Binding var currentModeID: String
-
-    var body: some View {
-        Picker("表示モード", selection: $currentModeID) {
-            ForEach(ViewModeRegistry.shared.enabledModes, id: \.id) { mode in
-                Image(systemName: mode.symbolName)
-                    .accessibilityLabel(mode.displayName)
-                    .tag(mode.id)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .accessibilityLabel("表示モード")
-    }
-}
-
-// 外部アプリで開くメニュー。ForEach をツールバー式に直接書くと型検査が
-// タイムアウトするため独立Viewへ切り出す
-private struct ExternalAppMenu: View {
-    let onSelect: (any ExternalAppProtocol) -> Void
-
-    var body: some View {
-        Menu {
-            ForEach(ExternalAppRegistry.shared.availableAdapters, id: \.id) { adapter in
-                Button { onSelect(adapter) } label: {
-                    Label(adapter.displayName, systemImage: adapter.symbolName)
-                }
-            }
-        } label: {
-            Image(systemName: "square.and.arrow.up")
-        }
-        .help("外部アプリで開く")
-        .accessibilityLabel("外部アプリで開く")
-    }
-}
+// ModeTogglePicker / ExternalAppMenu は Core/Shared/UI/ModeToolbarComponents.swift に
+// 共通部品として切り出し、fullscreen/slideshowモードの標準ツールバーとも共有する

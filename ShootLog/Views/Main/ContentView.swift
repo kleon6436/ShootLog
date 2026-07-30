@@ -56,16 +56,8 @@ extension FocusedValues {
 
 // アプリのルートビュー。フォルダ選択状態と表示モードに応じてビューを切り替える
 struct ContentView: View {
-    private enum HeaderLayout {
-        static let trafficLightInset: CGFloat = 78
-        static let verticalPadding: CGFloat = 7
-        static let minHeight: CGFloat = 44
-        static let totalHeight: CGFloat = minHeight + (verticalPadding * 2)
-    }
-
     @State private var vm = ContentViewModel()
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.openSettings) private var openSettings
     @State private var isDropTargeted = false
 
     private var sidebarToggleAction: (() -> Void)? {
@@ -86,21 +78,10 @@ struct ContentView: View {
         vm.currentModeID == "sidebar" && vm.currentFolderURL != nil ? vm.isInspectorVisible : nil
     }
 
-    // sidebar モードは標準ツールバー（信号機・サイドバートグルの位置連動をOSに任せる）、
-    // fullscreen/slideshow モードは従来どおり独自ヘッダーバーを使う
-    private var usesStandardToolbar: Bool {
-        vm.currentModeID == "sidebar"
-    }
-
     var body: some View {
-        Group {
-            if usesStandardToolbar {
-                // ツールバーの中身は SidebarModeView 側が .toolbar で提供する
-                mainContent
-            } else {
-                customHeaderLayout
-            }
-        }
+        // 全モード共通で標準 NSToolbar を使う。ツールバーの中身は各モードビュー
+        // （SidebarModeView / FullscreenModeView / SlideshowModeView）が .toolbar で提供する
+        mainContent
             // ツールバーの表示/非表示は WindowChromeConfigurator が AppKit 側で行う。
             // .toolbar(.hidden, for: .windowToolbar) はタイトルバーごと消して
             // 信号機まで隠してしまうため使わない
@@ -108,19 +89,7 @@ struct ContentView: View {
             .focusedSceneValue(\.toggleInspectorAction, inspectorToggleAction)
             .focusedSceneValue(\.sidebarVisibilityState, sidebarVisibilityState)
             .focusedSceneValue(\.inspectorVisibilityState, inspectorVisibilityState)
-            .background { WindowChromeConfigurator(usesStandardToolbar: usesStandardToolbar) }
-    }
-
-    // 独自ヘッダーバー（黒背景）をタイトルバー領域に重ねる従来レイアウト
-    private var customHeaderLayout: some View {
-        ZStack(alignment: .top) {
-            mainContent
-                .padding(.top, HeaderLayout.totalHeight)
-
-            windowHeaderBar
-                .ignoresSafeArea(.container, edges: .top)
-        }
-        .ignoresSafeArea(.container, edges: .top)
+            .background { WindowChromeConfigurator() }
     }
 
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている
@@ -177,135 +146,6 @@ struct ContentView: View {
         }
     }
 
-    // fullscreen/slideshow モード用のヘッダーバー。黒背景のビューアと地続きに見せるため
-    // AppKitのネイティブtoolbarではなくアプリ管理のバーを描画する（sidebar モードでは使わない）。
-    private var windowHeaderBar: some View {
-        HStack(spacing: Spacing.medium) {
-            Color.clear
-                .frame(width: HeaderLayout.trafficLightInset, height: 1)
-
-            HStack(spacing: Spacing.small) {
-                // 表示モードボタン（レジストリから動的生成）。
-                // セグメントコントロール的な一体感を出すため、3ボタンを1つの
-                // HStackにまとめ、外側に共有のグループ背景を与える。個々の
-                // ボタンには恒常的な枠を付けず、選択中のボタンのみ内側で
-                // アクセント塗り＋前景色反転する（ToolbarButtonStyle側で処理）。
-                HStack(spacing: 0) {
-                    ModeToggleRow(
-                        currentModeID: vm.currentModeID,
-                        onSelect: { vm.currentModeID = $0 }
-                    )
-                }
-                .padding(2)
-                .background(Color.onDarkCanvas.opacity(0.12), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
-                .disabled(vm.currentFolderURL == nil)
-
-                Button { vm.showFavoritesOnly.toggle() } label: {
-                    Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
-                }
-                .help("お気に入りのみ表示")
-                .accessibilityLabel("お気に入りのみ表示")
-                .disabled(vm.photos.isEmpty)
-                .buttonStyle(WindowHeaderIconButtonStyle())
-            }
-
-            Spacer(minLength: Spacing.xLarge)
-
-            HStack(spacing: Spacing.small) {
-                Button { vm.openFolder() } label: {
-                    Image(systemName: "folder.badge.plus")
-                }
-                .help("フォルダを開く (⌘O)")
-                .accessibilityLabel("フォルダを開く")
-                .buttonStyle(WindowHeaderIconButtonStyle())
-
-                Button { vm.openAnalysis() } label: {
-                    Image(systemName: "chart.bar")
-                }
-                .help("撮影傾向を分析 (⌘I)")
-                .accessibilityLabel("分析")
-                .keyboardShortcut("i", modifiers: .command)
-                .disabled(vm.photos.isEmpty)
-                .buttonStyle(WindowHeaderIconButtonStyle())
-
-                Menu {
-                    ForEach(ExternalAppRegistry.shared.availableAdapters, id: \.id) { adapter in
-                        Button { vm.openInExternalApp(adapter) } label: {
-                            Label(adapter.displayName, systemImage: adapter.symbolName)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .toolbarButtonAppearance()
-                }
-                .help("外部アプリで開く")
-                .accessibilityLabel("外部アプリで開く")
-                .disabled(vm.selectedPhoto == nil)
-                .menuStyle(.borderlessButton)
-
-                Button { openSettings() } label: {
-                    Image(systemName: "gearshape")
-                }
-                .help("設定を開く")
-                .accessibilityLabel("設定を開く")
-                .buttonStyle(WindowHeaderIconButtonStyle())
-            }
-        }
-        .padding(.leading, Spacing.medium)
-        .padding(.trailing, Spacing.xLarge)
-        .padding(.vertical, HeaderLayout.verticalPadding)
-        .frame(maxWidth: .infinity, minHeight: HeaderLayout.minHeight, alignment: .leading)
-        .background(Color.black)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.controlBorder)
-                .frame(height: 0.5)
-        }
-    }
-
-}
-
-private struct WindowHeaderIconButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .toolbarButtonAppearance()
-            .opacity(configuration.isPressed ? 0.6 : 1.0)
-    }
-}
-
-// 表示モードボタン群。ForEachをContentView.body内に直接書くと式全体の型検査が
-// タイムアウトするため独立Viewへ切り出す
-private struct ModeToggleRow: View {
-    let currentModeID: String
-    let onSelect: (String) -> Void
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(ViewModeRegistry.shared.enabledModes, id: \.id) { mode in
-                ModeToggleButton(
-                    mode: mode,
-                    isSelected: currentModeID == mode.id,
-                    action: { onSelect(mode.id) }
-                )
-            }
-        }
-    }
-}
-
-// 表示モード切替ボタン。ForEach内に直接書くと式全体の型検査がタイムアウトするため独立Viewへ切り出す
-private struct ModeToggleButton: View {
-    let mode: any ViewModeProtocol
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: mode.symbolName)
-        }
-        .help(mode.displayName)
-        .accessibilityLabel(mode.displayName)
-        .buttonStyle(ToolbarButtonStyle(isSelected: isSelected))
-    }
 }
 
 #Preview {

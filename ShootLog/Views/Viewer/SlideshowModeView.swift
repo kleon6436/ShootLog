@@ -2,7 +2,8 @@ import SwiftUI
 
 // スライドショーモード。黒背景・自動再生・Space で一時停止・Esc でサイドバーへ戻る
 struct SlideshowModeView: View {
-    var vm: SlideshowViewModel
+    @Bindable var vm: SlideshowViewModel
+    @Environment(\.openSettings) private var openSettings
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -124,6 +125,49 @@ struct SlideshowModeView: View {
         .onDisappear { vm.timerTask?.cancel() }
         .onKeyPress(.space)  { vm.isPlaying.toggle(); if vm.isPlaying { vm.restartTimer() } else { vm.timerTask?.cancel() }; return .handled }
         .onKeyPress(.escape) { vm.switchToSidebar(); return .handled }
+        .toolbar { toolbarItems }
+    }
+
+    // MARK: - Toolbar
+
+    // sidebarモードと同一構成の標準ツールバー（OS標準の見た目に統一する）
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ModeTogglePicker(currentModeID: $vm.currentModeID)
+
+            Button { vm.showFavoritesOnly.toggle() } label: {
+                Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
+            }
+            .help("お気に入りのみ表示")
+            .accessibilityLabel("お気に入りのみ表示")
+            .disabled(vm.photos.isEmpty)
+        }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { vm.openFolder() } label: {
+                Image(systemName: "folder.badge.plus")
+            }
+            .help("フォルダを開く (⌘O)")
+            .accessibilityLabel("フォルダを開く")
+
+            Button { vm.openAnalysis() } label: {
+                Image(systemName: "chart.bar")
+            }
+            .help("撮影傾向を分析 (⌘I)")
+            .accessibilityLabel("分析")
+            .keyboardShortcut("i", modifiers: .command)
+            .disabled(vm.photos.isEmpty)
+
+            ExternalAppMenu(onSelect: { adapter in vm.openInExternalApp(adapter) })
+                .disabled(vm.selectedPhoto == nil)
+
+            Button { openSettings() } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("設定を開く")
+            .accessibilityLabel("設定を開く")
+        }
     }
 }
 

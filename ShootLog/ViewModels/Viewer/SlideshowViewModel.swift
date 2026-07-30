@@ -22,7 +22,22 @@ final class SlideshowViewModel {
     var selectedIndex: Int { content.selectedIndex }
     var photos: [Photo] { content.photos }
 
+    // ツールバー（Pickerの選択）から直接切り替えるためget/set両方必要
+    var currentModeID: String {
+        get { content.currentModeID }
+        set { content.currentModeID = newValue }
+    }
+
+    // ツールバーのトグルとも同期する必要があるためContentViewModelを単一の真実源とし委譲する
+    var showFavoritesOnly: Bool {
+        get { content.showFavoritesOnly }
+        set { content.showFavoritesOnly = newValue }
+    }
+
     func switchToSidebar() { content.switchToSidebar() }
+    func openFolder() { content.openFolder() }
+    func openAnalysis() { content.openAnalysis() }
+    func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
 
     // 「前へ」ボタン用。進捗バーもリセットする
     func selectPrevious() {
