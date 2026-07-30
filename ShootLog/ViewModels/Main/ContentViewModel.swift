@@ -253,10 +253,6 @@ final class ContentViewModel {
         isSidebarVisible = isVisible
     }
 
-    func setInspectorVisible(_ isVisible: Bool) {
-        isInspectorVisible = isVisible
-    }
-
     // MARK: - Private
 
     private func selectFolder(url: URL) async {

@@ -86,7 +86,33 @@ struct ContentView: View {
         vm.currentModeID == "sidebar" && vm.currentFolderURL != nil ? vm.isInspectorVisible : nil
     }
 
+    // sidebar モードは標準ツールバー（信号機・サイドバートグルの位置連動をOSに任せる）、
+    // fullscreen/slideshow モードは従来どおり独自ヘッダーバーを使う
+    private var usesStandardToolbar: Bool {
+        vm.currentModeID == "sidebar"
+    }
+
     var body: some View {
+        Group {
+            if usesStandardToolbar {
+                // ツールバーの中身は SidebarModeView 側が .toolbar で提供する
+                mainContent
+            } else {
+                customHeaderLayout
+            }
+        }
+            // ツールバーの表示/非表示は WindowChromeConfigurator が AppKit 側で行う。
+            // .toolbar(.hidden, for: .windowToolbar) はタイトルバーごと消して
+            // 信号機まで隠してしまうため使わない
+            .focusedSceneValue(\.toggleSidebarAction, sidebarToggleAction)
+            .focusedSceneValue(\.toggleInspectorAction, inspectorToggleAction)
+            .focusedSceneValue(\.sidebarVisibilityState, sidebarVisibilityState)
+            .focusedSceneValue(\.inspectorVisibilityState, inspectorVisibilityState)
+            .background { WindowChromeConfigurator(usesStandardToolbar: usesStandardToolbar) }
+    }
+
+    // 独自ヘッダーバー（黒背景）をタイトルバー領域に重ねる従来レイアウト
+    private var customHeaderLayout: some View {
         ZStack(alignment: .top) {
             mainContent
                 .padding(.top, HeaderLayout.totalHeight)
@@ -94,13 +120,7 @@ struct ContentView: View {
             windowHeaderBar
                 .ignoresSafeArea(.container, edges: .top)
         }
-            .ignoresSafeArea(.container, edges: .top)
-            .toolbar(removing: .sidebarToggle)
-            .focusedValue(\.toggleSidebarAction, sidebarToggleAction)
-            .focusedValue(\.toggleInspectorAction, inspectorToggleAction)
-            .focusedValue(\.sidebarVisibilityState, sidebarVisibilityState)
-            .focusedValue(\.inspectorVisibilityState, inspectorVisibilityState)
-            .background { WindowChromeConfigurator() }
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている
@@ -136,7 +156,7 @@ struct ContentView: View {
             Task { await vm.handleProviderDrop(provider: provider) }
             return true
         }
-        .focusedValue(\.openFolderAction, vm.openFolder)
+        .focusedSceneValue(\.openFolderAction, vm.openFolder)
         .task {
             vm.configure(context: modelContext)
         }
@@ -157,23 +177,14 @@ struct ContentView: View {
         }
     }
 
-    // AppKitのネイティブtoolbarではなく、アプリ管理のヘッダーバーを描画する。
-    // これによりシステム挿入のサイドバートグルへ依存せず、表示内容を完全に制御できる。
+    // fullscreen/slideshow モード用のヘッダーバー。黒背景のビューアと地続きに見せるため
+    // AppKitのネイティブtoolbarではなくアプリ管理のバーを描画する（sidebar モードでは使わない）。
     private var windowHeaderBar: some View {
         HStack(spacing: Spacing.medium) {
             Color.clear
                 .frame(width: HeaderLayout.trafficLightInset, height: 1)
 
             HStack(spacing: Spacing.small) {
-                if vm.currentModeID == "sidebar", vm.currentFolderURL != nil {
-                    Button(action: vm.requestSidebarToggle) {
-                        Image(systemName: "sidebar.left")
-                    }
-                    .help(vm.isSidebarVisible ? "左サイドバーを隠す (⌘\\)" : "左サイドバーを表示 (⌘\\)")
-                    .accessibilityLabel(vm.isSidebarVisible ? "左サイドバーを隠す" : "左サイドバーを表示")
-                    .buttonStyle(WindowHeaderIconButtonStyle())
-                }
-
                 // 表示モードボタン（レジストリから動的生成）。
                 // セグメントコントロール的な一体感を出すため、3ボタンを1つの
                 // HStackにまとめ、外側に共有のグループ背景を与える。個々の
@@ -201,15 +212,6 @@ struct ContentView: View {
             Spacer(minLength: Spacing.xLarge)
 
             HStack(spacing: Spacing.small) {
-                if vm.currentModeID == "sidebar", vm.currentFolderURL != nil {
-                    Button(action: vm.requestInspectorToggle) {
-                        Image(systemName: vm.isInspectorVisible ? "sidebar.right" : "chevron.backward.to.line")
-                    }
-                    .help(vm.isInspectorVisible ? "EXIFパネルを隠す (⌘⌥E)" : "EXIFパネルを表示 (⌘⌥E)")
-                    .accessibilityLabel(vm.isInspectorVisible ? "EXIFパネルを隠す" : "EXIFパネルを表示")
-                    .buttonStyle(WindowHeaderIconButtonStyle())
-                }
-
                 Button { vm.openFolder() } label: {
                     Image(systemName: "folder.badge.plus")
                 }

@@ -1,6 +1,7 @@
 import SwiftUI
 
-// 右カラムの EXIF パネル（156pt 固定幅）
+// 右の標準インスペクタに表示する EXIF パネル。
+// 幅・背景材質・区切り線は `.inspector` 側（SidebarModeView）が担当する
 struct EXIFPanelView: View {
     var photo: Photo?
 
@@ -41,15 +42,7 @@ struct EXIFPanelView: View {
             }
             .padding(Spacing.large)
         }
-        .frame(width: 156)
-        .background(.regularMaterial)
-        .overlay(alignment: .leading) {
-            // 中央カラム（ビューア）との境界線。列全体をフラット化したため
-            // 角丸グラスの代わりに細いボーダーで区切る（左カラムと対）
-            Rectangle()
-                .fill(Color.controlBorder)
-                .frame(width: 0.5)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var shutterSpeedText: String? {
