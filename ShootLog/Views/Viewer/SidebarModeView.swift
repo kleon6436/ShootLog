@@ -202,7 +202,19 @@ struct SidebarModeView: View {
             }
             .help("設定を開く")
             .accessibilityLabel("設定を開く")
+        }
 
+        // EXIFトグルはXcodeのインスペクタボタン同様、他アクションから切り離した
+        // 単独グループとしてツールバー末尾（＝ウィンドウ右端）に固定表示する。
+        // 左サイドバートグル（.navigation配置）と異なり、サイドバー境界にもEXIFパネルの
+        // 開閉状態にも追従させず、常に同じ位置に置く。
+        // 連続する ToolbarItemGroup は隙間なく詰めて描画されるため、
+        // macOS 26 以降は ToolbarSpacer で明示的に離す（Xcodeと同じ見た目の分離）
+        if #available(macOS 26, *) {
+            ToolbarSpacer(.flexible, placement: .primaryAction)
+        }
+
+        ToolbarItemGroup(placement: .primaryAction) {
             Button(action: toggleInspector) {
                 Image(systemName: "sidebar.right")
             }

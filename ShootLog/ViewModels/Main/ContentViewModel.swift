@@ -24,7 +24,7 @@ final class ContentViewModel {
     // 表示モード
     var currentModeID: String = "sidebar"
     var isSidebarVisible: Bool = true
-    var isInspectorVisible: Bool = true
+    var isInspectorVisible: Bool = false
     var sidebarToggleRequestID = UUID()
     var inspectorToggleRequestID = UUID()
 

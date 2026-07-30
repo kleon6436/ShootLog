@@ -7,34 +7,40 @@ struct EXIFPanelView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                EXIFRow(label: "ファイル名", value: photo?.fileURL.lastPathComponent)
-                Divider()
-                EXIFRow(label: "カメラ",    value: photo?.cameraModel)
-                EXIFRow(label: "レンズ",    value: photo?.lensModel)
-                Divider()
-                EXIFRow(label: "絞り",      value: photo?.aperture.map { String(format: "f / %.1f", $0) },      isNumeric: true)
-                EXIFRow(label: "SS",        value: shutterSpeedText,                                                  isNumeric: true)
-                EXIFRow(label: "ISO",       value: photo?.iso.map { "\($0)" },                                       isNumeric: true)
-                EXIFRow(label: "焦点距離",  value: photo?.focalLength.map { String(format: "%.0f mm", $0) },         isNumeric: true)
-                Divider()
-                // cameraModel がある = EXIF 読み込み済みのため撮影日時を表示する
-                EXIFRow(label: "撮影日時",  value: photo?.cameraModel != nil
-                    ? photo?.shootingDate.formatted(date: .abbreviated, time: .shortened)
-                    : nil)
+            VStack(alignment: .leading, spacing: Spacing.medium) {
+                EXIFCard {
+                    EXIFRow(label: "ファイル名", value: photo?.fileURL.lastPathComponent)
+                }
+                EXIFCard {
+                    EXIFRow(label: "カメラ",    value: photo?.cameraModel)
+                    EXIFRow(label: "レンズ",    value: photo?.lensModel)
+                }
+                EXIFCard {
+                    EXIFRow(label: "絞り",      value: photo?.aperture.map { String(format: "f / %.1f", $0) },      isNumeric: true)
+                    EXIFRow(label: "SS",        value: shutterSpeedText,                                                  isNumeric: true)
+                    EXIFRow(label: "ISO",       value: photo?.iso.map { "\($0)" },                                       isNumeric: true)
+                    EXIFRow(label: "焦点距離",  value: photo?.focalLength.map { String(format: "%.0f mm", $0) },         isNumeric: true)
+                }
+                EXIFCard {
+                    // cameraModel がある = EXIF 読み込み済みのため撮影日時を表示する
+                    EXIFRow(label: "撮影日時",  value: photo?.cameraModel != nil
+                        ? photo?.shootingDate.formatted(date: .abbreviated, time: .shortened)
+                        : nil)
 
-                // カラーモード（Sigma fp L 等）。"Off" / nil は非表示
-                if let mode = photo?.colorMode, mode != "Off" {
-                    EXIFColorModeBadge(mode: mode)
+                    // カラーモード（Sigma fp L 等）。"Off" / nil は非表示
+                    if let mode = photo?.colorMode, mode != "Off" {
+                        EXIFColorModeBadge(mode: mode)
+                    }
                 }
 
                 // お気に入り状態
-                EXIFFavoriteRow(isFavorite: photo?.isFavorite ?? false)
+                EXIFCard {
+                    EXIFFavoriteRow(isFavorite: photo?.isFavorite ?? false)
+                }
 
                 // メモ
                 if let note = photo?.note, !note.isEmpty {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 4) {
+                    EXIFCard {
                         Text("メモ").font(.caption2).foregroundStyle(.secondary)
                         Text(note).font(.caption)
                     }
@@ -54,6 +60,21 @@ struct EXIFPanelView: View {
 }
 
 // MARK: - Helper Views
+
+// EXIF情報グループを角丸カードとして視覚的に区切るラッパー
+// （左サイドバーのサムネイルカードと視覚言語を揃えるため）
+private struct EXIFCard<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.small) {
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.medium)
+        .glassOrMaterial(cornerRadius: CornerRadius.medium)
+    }
+}
 
 private struct EXIFRow: View {
     let label: String
