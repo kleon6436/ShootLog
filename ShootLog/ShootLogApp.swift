@@ -9,8 +9,10 @@ struct ShootLogApp: App {
         }
         // SwiftDataモデルをすべて登録
         .modelContainer(for: [Photo.self, EditInfo.self, FolderHistory.self])
-        // ネイティブのタイトルバー領域は使わず、ContentView側のカスタムヘッダーへ置き換える
-        .windowStyle(.hiddenTitleBar)
+        // sidebar モードは標準ツールバーを使うため .hiddenTitleBar は指定しない
+        // （.hiddenTitleBar はツールバー領域自体を潰すため）。タイトル文字の非表示と、
+        // fullscreen/slideshow モードでのタイトルバー透過は WindowChromeConfigurator が担当する
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {}
             // 「ファイル」メニューに「フォルダを開く…」を追加する

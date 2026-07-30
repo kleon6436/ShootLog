@@ -25,6 +25,12 @@ final class SidebarViewModel {
         set { content.showFavoritesOnly = newValue }
     }
 
+    // ツールバーの表示モード切替（Picker）から直接切り替えるためget/set両方必要
+    var currentModeID: String {
+        get { content.currentModeID }
+        set { content.currentModeID = newValue }
+    }
+
     private var widthSaveTask: Task<Void, Never>?
 
     init(content: ContentViewModel) {
@@ -73,7 +79,9 @@ final class SidebarViewModel {
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
-    func setInspectorVisible(_ isVisible: Bool) { content.setInspectorVisible(isVisible) }
+    func openFolder() { content.openFolder() }
+    func openAnalysis() { content.openAnalysis() }
+    func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
 
     // MARK: - サイドバー幅の保存
 
