@@ -41,8 +41,8 @@ struct EXIFPanelView: View {
                 // メモ
                 if let note = photo?.note, !note.isEmpty {
                     EXIFCard {
-                        Text("メモ").font(.caption2).foregroundStyle(.secondary)
-                        Text(note).font(.caption)
+                        Text("メモ").font(.caption).foregroundStyle(.secondary)
+                        Text(note).font(.subheadline)
                     }
                 }
             }
@@ -86,10 +86,10 @@ private struct EXIFRow: View {
         if let value {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(value)
-                    .font(.caption)
+                    .font(.subheadline)
                     .textSelection(.enabled)
                     .contentTransition(isNumeric ? .numericText() : .opacity)
                     .animation(.easeInOut(duration: 0.2), value: value)
@@ -104,10 +104,10 @@ private struct EXIFColorModeBadge: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("カラーモード")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
             Text(mode)
-                .font(.caption)
+                .font(.subheadline)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(Color.blue.opacity(0.15))
@@ -124,9 +124,9 @@ private struct EXIFFavoriteRow: View {
         HStack(spacing: 4) {
             Image(systemName: isFavorite ? "star.fill" : "star")
                 .foregroundStyle(isFavorite ? .yellow : .secondary)
-                .font(.caption)
+                .font(.subheadline)
             Text(isFavorite ? "お気に入り" : "未登録")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(isFavorite ? .primary : .secondary)
         }
     }

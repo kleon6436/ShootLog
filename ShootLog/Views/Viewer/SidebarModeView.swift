@@ -143,7 +143,7 @@ struct SidebarModeView: View {
         }
         .inspector(isPresented: $vm.isEXIFPanelVisible) {
             EXIFPanelView(photo: vm.selectedPhoto)
-                .inspectorColumnWidth(min: 156, ideal: 156, max: 300)
+                .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
         }
     }
 
