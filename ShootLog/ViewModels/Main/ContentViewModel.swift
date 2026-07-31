@@ -194,7 +194,7 @@ final class ContentViewModel {
 
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する
     func loadEXIFIfNeeded(for photo: Photo) async {
-        guard photo.cameraModel == nil else { return }
+        guard photo.exifFetchedAt == nil else { return }
         let url = photo.fileURL
         do {
             let exif = try await EXIFService.shared.readEXIF(from: url)
@@ -207,6 +207,7 @@ final class ContentViewModel {
             photo.focalLength  = exif.focalLength
             photo.colorMode    = exif.colorMode
             if let date = exif.shootingDate { photo.shootingDate = date }
+            photo.exifFetchedAt = Date()
             try? modelContext?.save()
         } catch {
             // EXIF 読み取り失敗は非致命的。無視する
@@ -231,7 +232,7 @@ final class ContentViewModel {
         guard !photos.isEmpty else { return }
         showAnalysis = true
         Task {
-            for photo in photos where photo.cameraModel == nil {
+            for photo in photos where photo.exifFetchedAt == nil {
                 await loadEXIFIfNeeded(for: photo)
             }
         }
