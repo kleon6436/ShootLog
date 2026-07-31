@@ -6,6 +6,7 @@ import ImageIO
 // ネットワークドライブ対応：埋め込みサムネイル優先＋ディスクキャッシュ＋同時実行スロット
 final class ImageLoader: Sendable {
     static let shared = ImageLoader()
+    // 起動時に ShootLogApp からMainActor外でウォームアップされる前提（MainActor上でのディスクI/Oを回避）
     private init() {
         try? FileManager.default.createDirectory(at: Self.diskCacheDir, withIntermediateDirectories: true)
     }
