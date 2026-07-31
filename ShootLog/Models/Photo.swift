@@ -17,6 +17,7 @@ final class Photo {
     var colorMode: String?      // Sigma fp L 等のカラーモード名（例: "PowderBlue"）
     var isFavorite: Bool
     var note: String
+    var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）
 
     init(id: UUID = UUID(), fileURL: URL) {
         self.id = id
