@@ -140,9 +140,6 @@ extension Color {
     static let controlBorder = Color.primary.opacity(0.15)
 }
 
-// MARK: - ツールバーボタンスタイル（モード切替グループ専用）
-//
-// 以前は全ツールバーボタン（モード切替＋フォルダ/分析/共有）に同一の
 // MARK: - リキッドグラスヘルパー（同一モジュール内で使用可能）
 //
 // ToastView.swift から移設。責務の所在をデザインシステムに一元化する。
