@@ -108,19 +108,6 @@ struct FullscreenModeView: View {
 
 // MARK: - Helper Views
 
-// 黒背景 HUD 上のボタン共通スタイル。押下時に軽く減光・縮小してネイティブな反応を出す
-private struct HUDButtonStyle: ButtonStyle {
-    var font: Font?
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(font)
-            .opacity(configuration.isPressed ? 0.55 : 1)
-            .scaleEffect(configuration.isPressed ? 0.92 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
 private struct NavButton: View {
     enum Direction { case prev, next }
     let direction: Direction

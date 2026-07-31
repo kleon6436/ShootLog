@@ -104,6 +104,22 @@ enum HUDTypography {
     static let controlLarge = Font.system(size: 20)
 }
 
+// MARK: - HUD 用ボタンスタイル
+
+// 黒背景 HUD 上のボタン共通スタイル。押下時に軽く減光・縮小してネイティブな反応を出す。
+// FullscreenModeView / SlideshowModeView で重複定義されていたものをここに集約。
+struct HUDButtonStyle: ButtonStyle {
+    var font: Font?
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(font)
+            .opacity(configuration.isPressed ? 0.55 : 1)
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
 // MARK: - 黒背景（ダークキャンバス）用カラー
 //
 // これらは意図的にセマンティック（ライト/ダーク適応）ではない固定色。
