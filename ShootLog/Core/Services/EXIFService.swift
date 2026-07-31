@@ -36,17 +36,57 @@ actor EXIFService {
 
     // MARK: - Private
 
-    // Sigma fp L の MakerNote から PictureMode を取得する
-    // Step 1: CGImageSourceCopyPropertiesAtIndex で直接取得を試みる
+    // Sigma fp L の MakerNote から PictureMode（カラーモード）を取得する
     private func extractColorMode(from props: [CFString: Any]) -> String? {
-        // DNG MakerNote は辞書キー "{MakerNote}" で取得できる場合がある
-        if let makerNote = props["{MakerNote}" as CFString] as? [String: Any],
+        let makerNoteValue = props["{MakerNote}" as CFString]
+
+        // Step 1: ImageIO が MakerNote を辞書として解釈できた場合はそのまま利用する
+        if let makerNote = makerNoteValue as? [String: Any],
            let mode = makerNote["PictureMode"] as? String,
            mode != "Off" {
             return mode
         }
+
+        // Step 2（未検証のフォールバック）:
+        // Sigma の MakerNote は非公開のバイナリ形式であり、ImageIO では
+        // [String: Any] へのキャストに失敗し常に Data のまま返ってくることが多いと考えられる。
+        // Sigma は独自IFD内の各タグID（PictureModeに対応するタグ番号など）を公開しておらず、
+        // オフセット構造を憶測でパースするのは危険なため本実装では行わない。
+        // 代わりに、Sigma fp / fp L のカメラメニューで選択できる「カラーモード」名は
+        // 公式マニュアルに載っている固定の文字列セットであり、MakerNoteバイナリ内に
+        // ASCII文字列としてそのまま埋め込まれているケースがあるという前提のヒューリスティックで、
+        // 既知のモード名がバイナリ中に含まれていないか走査する。
+        // 実機のSigma fp L DNG/JPEGサンプルでは検証できていないため、
+        // 一致しない場合・想定外の構造の場合は必ず nil を返し、誤ったカラーモード表示を避ける。
+        // TODO: 実機サンプルが手に入り次第、この一覧と判定方法の妥当性を検証すること
+        if let makerNoteData = makerNoteValue as? Data {
+            let text = String(decoding: makerNoteData, as: UTF8.self)
+            for mode in Self.knownSigmaColorModeNames where text.contains(mode) {
+                return mode
+            }
+        }
+
         return nil
     }
+
+    // Sigma fp / fp L のカメラメニューで選択可能な既知のカラーモード名（公式マニュアル記載の名称）。
+    // MakerNoteバイナリの内部構造は非公開のため、この一覧はASCII文字列の単純一致判定にのみ使用する
+    private static let knownSigmaColorModeNames: [String] = [
+        "FOV Classic Blue",
+        "FOV Classic Yellow",
+        "Teal and Orange",
+        "Powder Blue",
+        "Warm Gold",
+        "Sunset Red",
+        "Forest Green",
+        "Standard",
+        "Vivid",
+        "Neutral",
+        "Portrait",
+        "Landscape",
+        "Cinema",
+        "Monochrome"
+    ]
 
     private func parseDate(_ string: String?) -> Date? {
         guard let string else { return nil }
