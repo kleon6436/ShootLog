@@ -6,6 +6,13 @@ struct ShootLogApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                // MainActor外でImageLoaderを先行初期化し、初回サムネイル読み込み時の
+                // ディスクI/O（キャッシュディレクトリ作成）がMainActor上で走るのを防ぐ
+                .task {
+                    Task.detached(priority: .utility) {
+                        _ = ImageLoader.shared
+                    }
+                }
         }
         // SwiftDataモデルをすべて登録
         .modelContainer(for: [Photo.self, EditInfo.self, FolderHistory.self])
