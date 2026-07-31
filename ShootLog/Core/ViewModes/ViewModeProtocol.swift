@@ -8,3 +8,41 @@ protocol ViewModeProtocol: Identifiable {
     var keyboardShortcut: KeyEquivalent? { get }
     func makeView(vm: ContentViewModel) -> AnyView
 }
+
+// 各モード専用ViewModel（Fullscreen/Slideshow/Sidebar）がContentViewModelへ委譲するプロパティ・
+// メソッドの重複実装をなくすための共通プロトコル。準拠側はcontentを提供するだけでよい
+@MainActor
+protocol ContentViewModelProxy: AnyObject {
+    var content: ContentViewModel { get }
+}
+
+// 委譲のデフォルト実装。ContentViewModelを単一の真実源とする。
+// なおここでの委譲は @Observable の追跡を壊さない：@Observableマクロが計装するのは
+// 格納プロパティのみで、転送用の計算プロパティはクラス本体に書いても計装対象外。
+// 実際の追跡は content 側の格納プロパティ読み取りで登録されるため、
+// 定義場所をプロトコル拡張へ移しても観測の挙動は従来と同一である
+extension ContentViewModelProxy {
+    var selectedPhoto: Photo? { content.selectedPhoto }
+    var currentEditInfo: EditInfo? { content.currentEditInfo }
+    var selectedIndex: Int { content.selectedIndex }
+    var photos: [Photo] { content.photos }
+
+    // ツールバー（Pickerの選択）から直接切り替えるためget/set両方必要
+    var currentModeID: String {
+        get { content.currentModeID }
+        set { content.currentModeID = newValue }
+    }
+
+    // ツールバーのトグルとも同期する必要があるため委譲する
+    var showFavoritesOnly: Bool {
+        get { content.showFavoritesOnly }
+        set { content.showFavoritesOnly = newValue }
+    }
+
+    func selectNext() { content.selectNext() }
+    func selectPrevious() { content.selectPrevious() }
+    func switchToSidebar() { content.switchToSidebar() }
+    func openFolder() { content.openFolder() }
+    func openAnalysis() { content.openAnalysis() }
+    func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
+}

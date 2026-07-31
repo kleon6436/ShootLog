@@ -4,7 +4,7 @@ import SwiftUI
 // サイドバー固有の状態（検索・お気に入りフィルタ・EXIFパネル可視性）はここで管理する
 @Observable
 @MainActor
-final class SidebarViewModel {
+final class SidebarViewModel: ContentViewModelProxy {
     let content: ContentViewModel
 
     // 検索テキスト
@@ -19,17 +19,7 @@ final class SidebarViewModel {
     var sidebarToggleRequestID: UUID { content.sidebarToggleRequestID }
     var inspectorToggleRequestID: UUID { content.inspectorToggleRequestID }
 
-    // ツールバー（ContentView）のトグルとも同期する必要があるためContentViewModelを単一の真実源とし委譲する
-    var showFavoritesOnly: Bool {
-        get { content.showFavoritesOnly }
-        set { content.showFavoritesOnly = newValue }
-    }
-
-    // ツールバーの表示モード切替（Picker）から直接切り替えるためget/set両方必要
-    var currentModeID: String {
-        get { content.currentModeID }
-        set { content.currentModeID = newValue }
-    }
+    // showFavoritesOnly / currentModeID などの委譲は ContentViewModelProxy のデフォルト実装に任せる
 
     private var widthSaveTask: Task<Void, Never>?
 
@@ -50,7 +40,8 @@ final class SidebarViewModel {
 
     // MARK: - ContentViewModel への委譲
 
-    var photos: [Photo] { content.photos }
+    // 単純な委譲は ContentViewModelProxy のデフォルト実装に任せる。
+    // 以下はサイドバー固有のセマンティクスを持つため独自に定義する
 
     // PhotoListViewのselectionバインディングに使うため get/set 両方必要。
     // set時はContentViewModel.selectPhoto(_:)相当のロジック（EditInfo/EXIF遅延ロード）を必ず経由させる
@@ -58,8 +49,6 @@ final class SidebarViewModel {
         get { content.selectedPhoto }
         set { content.selectPhoto(newValue) }
     }
-
-    var currentEditInfo: EditInfo? { content.currentEditInfo }
 
     // onCropCancelから直接falseを代入するためget/set両方必要
     var isCropMode: Bool {
@@ -70,8 +59,6 @@ final class SidebarViewModel {
     var isLoading: Bool { content.isLoading }
     var toastMessage: String? { content.toastMessage }
 
-    func selectNext() { content.selectNext() }
-    func selectPrevious() { content.selectPrevious() }
     func loadEditInfo(for photo: Photo) { content.loadEditInfo(for: photo) }
     func loadEXIFIfNeeded(for photo: Photo) async { await content.loadEXIFIfNeeded(for: photo) }
     func setCropRect(_ rect: CGRect?) { content.setCropRect(rect) }
@@ -79,9 +66,6 @@ final class SidebarViewModel {
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
-    func openFolder() { content.openFolder() }
-    func openAnalysis() { content.openAnalysis() }
-    func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
 
     // MARK: - サイドバー幅の保存
 

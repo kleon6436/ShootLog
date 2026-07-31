@@ -3,7 +3,7 @@ import SwiftUI
 // スライドショーモードのViewModel。自動再生タイマー・進捗管理を担当する
 @Observable
 @MainActor
-final class SlideshowViewModel {
+final class SlideshowViewModel: ContentViewModelProxy {
     let content: ContentViewModel
 
     var isPlaying = true
@@ -17,27 +17,8 @@ final class SlideshowViewModel {
 
     // MARK: - Content Delegation
 
-    var selectedPhoto: Photo? { content.selectedPhoto }
-    var currentEditInfo: EditInfo? { content.currentEditInfo }
-    var selectedIndex: Int { content.selectedIndex }
-    var photos: [Photo] { content.photos }
-
-    // ツールバー（Pickerの選択）から直接切り替えるためget/set両方必要
-    var currentModeID: String {
-        get { content.currentModeID }
-        set { content.currentModeID = newValue }
-    }
-
-    // ツールバーのトグルとも同期する必要があるためContentViewModelを単一の真実源とし委譲する
-    var showFavoritesOnly: Bool {
-        get { content.showFavoritesOnly }
-        set { content.showFavoritesOnly = newValue }
-    }
-
-    func switchToSidebar() { content.switchToSidebar() }
-    func openFolder() { content.openFolder() }
-    func openAnalysis() { content.openAnalysis() }
-    func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
+    // 単純な委譲は ContentViewModelProxy のデフォルト実装に任せる。
+    // selectPrevious() のみ進捗リセットが必要なため独自実装で上書きする
 
     // 「前へ」ボタン用。進捗バーもリセットする
     func selectPrevious() {
