@@ -132,12 +132,6 @@ extension Color {
     static let onDarkCanvas = Color.white
     // 黒背景上の副次/減光テキスト・アイコン色（.white.opacity(0.7) の集約先）
     static let onDarkCanvasSecondary = Color.white.opacity(0.7)
-    // パネル区切り線・グループ枠等に使う薄いボーダー色。
-    // 0.08だとダークモードのツールバー背景（システムvibrancy、黒に近い）の上で
-    // ほぼ不可視になり「区切り/枠が見えず要素が背景と被る」原因になっていた。
-    // 実機（ライト/ダーク双方）でのコントラスト確認の結果、両モードで視認できる
-    // 下限値として0.15に引き上げた（toolbar-native-chrome-round3.md 参照）。
-    static let controlBorder = Color.primary.opacity(0.15)
 }
 
 // MARK: - リキッドグラスヘルパー（同一モジュール内で使用可能）
