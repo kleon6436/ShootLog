@@ -106,13 +106,20 @@ struct ContentView: View {
             } else {
                 // 表示モードに応じてビューを切り替える。VM取得はレジストリのキャッシュ経由
                 // （直接VMを生成すると状態がリセットされるため）。未登録IDはsidebarへフォールバック
-                switch vm.currentModeID {
-                case "fullscreen":
-                    FullscreenModeView(vm: ViewModeRegistry.shared.fullscreenViewModel(content: vm))
-                case "slideshow":
-                    SlideshowModeView(vm: ViewModeRegistry.shared.slideshowViewModel(content: vm))
-                default:
-                    SidebarModeView(vm: ViewModeRegistry.shared.sidebarViewModel(content: vm))
+                Group {
+                    switch vm.currentModeID {
+                    case "fullscreen":
+                        FullscreenModeView(vm: ViewModeRegistry.shared.fullscreenViewModel(content: vm))
+                    case "slideshow":
+                        SlideshowModeView(vm: ViewModeRegistry.shared.slideshowViewModel(content: vm))
+                    default:
+                        SidebarModeView(vm: ViewModeRegistry.shared.sidebarViewModel(content: vm))
+                    }
+                }
+                // モードの差し替えは即時に行い、親Viewやウィンドウクロームの
+                // 暗黙アニメーションによる一瞬の旧画面表示を防ぐ。
+                .transaction { transaction in
+                    transaction.animation = nil
                 }
             }
         }
