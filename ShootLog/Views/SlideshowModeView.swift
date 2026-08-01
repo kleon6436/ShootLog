@@ -43,18 +43,9 @@ struct SlideshowModeView: View {
             VStack {
                 HStack(spacing: 10) {
                     Spacer()
-                    Button {
+                    RotateButton(shortcut: KeyEquivalent("r")) {
                         vm.rotateSelectedPhoto()
-                    } label: {
-                        Image(systemName: "rotate.right")
-                            .foregroundStyle(Color.onDarkCanvasSecondary)
-                            .frame(width: 44, height: 44)
-                            .glassOrMaterialCircle()
                     }
-                    .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-                    .help("右に90度回転 (R)")
-                    .accessibilityLabel("写真を右に90度回転")
-                    .keyboardShortcut("r", modifiers: [])
                     .disabled(vm.selectedPhoto == nil)
 
                     Button {
@@ -129,11 +120,7 @@ struct SlideshowModeView: View {
                 Spacer()
                 HStack {
                     Spacer()
-                    Text(vm.visibleCounterText)
-                        .font(HUDTypography.label)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .glassOrMaterialCapsule()
+                    CounterBadge(text: vm.visibleCounterText)
                         .padding(.trailing, 14)
                         .padding(.bottom, 10)
                 }
@@ -160,38 +147,21 @@ struct SlideshowModeView: View {
         ToolbarItemGroup(placement: .primaryAction) {
             ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
 
-            Button { vm.showFavoritesOnly.toggle() } label: {
-                Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
-            }
-            .help("お気に入りのみ表示")
-            .accessibilityLabel("お気に入りのみ表示")
-            .disabled(vm.photos.isEmpty)
+            FavoritesOnlyToggleButton(
+                showFavoritesOnly: $vm.showFavoritesOnly,
+                isDisabled: vm.photos.isEmpty
+            )
         }
 
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { vm.openFolder() } label: {
-                Image(systemName: "folder.badge.plus")
-            }
-            .help("フォルダを開く (⌘O)")
-            .accessibilityLabel("フォルダを開く")
-
-            Button { vm.openAnalysis() } label: {
-                Image(systemName: "chart.bar")
-            }
-            .help("撮影傾向を分析 (⌘I)")
-            .accessibilityLabel("分析")
-            .keyboardShortcut("i", modifiers: .command)
-            .disabled(vm.photos.isEmpty)
-
-            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
-                .disabled(vm.selectedPhoto == nil)
-
-            Button { openSettings() } label: {
-                Image(systemName: "gearshape")
-            }
-            .help("設定を開く")
-            .accessibilityLabel("設定を開く")
-        }
+        ViewerToolbarTrailingGroup(
+            isPhotosEmpty: vm.photos.isEmpty,
+            hasSelectedPhoto: vm.selectedPhoto != nil,
+            externalApps: vm.externalApps,
+            openFolder: { vm.openFolder() },
+            openAnalysis: { vm.openAnalysis() },
+            openInExternalApp: { adapter in vm.openInExternalApp(adapter) },
+            openSettings: { openSettings() }
+        )
     }
 }
 

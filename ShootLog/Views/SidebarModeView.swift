@@ -143,32 +143,21 @@ struct SidebarModeView: View {
         ToolbarItemGroup(placement: .primaryAction) {
             ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
 
-            Button { vm.showFavoritesOnly.toggle() } label: {
-                Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
-            }
-            .help("お気に入りのみ表示")
-            .accessibilityLabel("お気に入りのみ表示")
-            .disabled(vm.photos.isEmpty)
+            FavoritesOnlyToggleButton(
+                showFavoritesOnly: $vm.showFavoritesOnly,
+                isDisabled: vm.photos.isEmpty
+            )
         }
 
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { vm.openAnalysis() } label: {
-                Image(systemName: "chart.bar")
-            }
-            .help("撮影傾向を分析 (⌘I)")
-            .accessibilityLabel("分析")
-            .keyboardShortcut("i", modifiers: .command)
-            .disabled(vm.photos.isEmpty)
-
-            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
-                .disabled(vm.selectedPhoto == nil)
-
-            Button { openSettings() } label: {
-                Image(systemName: "gearshape")
-            }
-            .help("設定を開く")
-            .accessibilityLabel("設定を開く")
-        }
+        // 「フォルダを開く」は.navigation配置の独立ボタンとして持つため、共有グループには渡さない
+        ViewerToolbarTrailingGroup(
+            isPhotosEmpty: vm.photos.isEmpty,
+            hasSelectedPhoto: vm.selectedPhoto != nil,
+            externalApps: vm.externalApps,
+            openAnalysis: { vm.openAnalysis() },
+            openInExternalApp: { adapter in vm.openInExternalApp(adapter) },
+            openSettings: { openSettings() }
+        )
 
         // EXIFトグルはXcodeのインスペクタボタン同様、他アクションから切り離した
         // 単独グループとしてツールバー末尾（＝ウィンドウ右端）に固定表示する。
