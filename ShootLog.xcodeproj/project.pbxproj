@@ -174,7 +174,6 @@
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"ShootLog/Preview Content\"";
 				DEVELOPMENT_TEAM = 235777R328;
 				INFOPLIST_FILE = ShootLog/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -193,7 +192,6 @@
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"ShootLog/Preview Content\"";
 				DEVELOPMENT_TEAM = 235777R328;
 				INFOPLIST_FILE = ShootLog/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
