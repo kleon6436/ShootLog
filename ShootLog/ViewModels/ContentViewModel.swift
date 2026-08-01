@@ -54,6 +54,15 @@ final class ContentViewModel {
         return photos.filter { $0.isFavorite }
     }
 
+    // visiblePhotos 内での選択中写真の位置。絞り込みによって選択中写真が一覧から
+    // 外れている場合（お気に入りのみ表示をONにした直後、表示中写真のお気に入りを
+    // 解除した直後）は nil を返す。0 へフォールバックするとカウンタ・ページドットが
+    // 実際の表示写真と異なる位置を指してしまうため
+    var visibleIndex: Int? {
+        guard let selectedPhoto else { return nil }
+        return visiblePhotos.firstIndex(where: { $0.id == selectedPhoto.id })
+    }
+
     private var modelContext: ModelContext?
     private var bookmarkScopedURL: URL?
     private var toastTask: Task<Void, Never>?

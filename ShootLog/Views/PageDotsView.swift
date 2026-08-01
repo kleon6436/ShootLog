@@ -2,7 +2,8 @@ import SwiftUI
 
 // フルスクリーン・スライドショー用のページドットインジケータ
 struct PageDotsView: View {
-    let current: Int
+    // 選択中写真が絞り込みで一覧から外れている場合は nil（どのドットも強調しない）
+    let current: Int?
     let total: Int
 
     // 20枚超えはドットが多すぎるためカウンターのみにする

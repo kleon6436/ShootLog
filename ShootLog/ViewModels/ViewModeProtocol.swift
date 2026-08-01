@@ -28,6 +28,21 @@ extension ContentViewModelProxy {
     var selectedIndex: Int { content.selectedIndex }
     var photos: [Photo] { content.photos }
 
+    // お気に入りのみ表示を適用した写真配列と、その中での選択中写真の位置。
+    // 写真切替（selectNext/selectPrevious・advanceSlideshow）が visiblePhotos 基準で
+    // 動くため、カウンタ・ページドットも同じ基準で表示する
+    var visiblePhotos: [Photo] { content.visiblePhotos }
+    var visibleIndex: Int? { content.visibleIndex }
+
+    // 「3 / 12」形式のカウンタ表示。選択中写真が絞り込みで一覧から外れている間は
+    // 位置を偽らずダッシュを表示する
+    var visibleCounterText: String {
+        let total = visiblePhotos.count
+        guard total > 0 else { return "0 / 0" }
+        guard let index = visibleIndex else { return "— / \(total)" }
+        return "\(index + 1) / \(total)"
+    }
+
     // ツールバー（Pickerの選択）から直接切り替えるためget/set両方必要
     var currentModeID: String {
         get { content.currentModeID }

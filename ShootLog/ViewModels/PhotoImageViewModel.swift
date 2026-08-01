@@ -17,14 +17,18 @@ final class PhotoImageViewModel {
         highRes = nil
         isLoadingHighRes = false
         guard let photo else { return }
-        thumbnail = await ImageLoader.shared.thumbnail(for: photo.fileURL)
-        // サムネイル取得後に写真が切り替わっていたら高解像度ロードをスキップする
+        let loadedThumbnail = await ImageLoader.shared.thumbnail(for: photo.fileURL)
+        // サムネイル取得中に写真が切り替わっていたら代入も高解像度ロードもスキップする
+        // （旧タスクが後から再開して前の写真のサムネイルを上書きするのを防ぐ）
         guard !Task.isCancelled else { return }
+        thumbnail = loadedThumbnail
         isLoadingHighRes = true
         let loadedHighRes = await ImageLoader.shared.highResImage(for: photo.fileURL)
-        isLoadingHighRes = false
-        // 高解像度画像取得中に写真が切り替わっていたら代入をスキップする（stale image代入防止）
+        // 高解像度画像取得中に写真が切り替わっていたら代入をスキップする（stale image代入防止）。
+        // isLoadingHighRes の解除もこのガードより後に行う。先に解除すると
+        // 新しい写真のロード中スピナーを旧タスクが消してしまう
         guard !Task.isCancelled else { return }
+        isLoadingHighRes = false
         highRes = loadedHighRes
     }
 }

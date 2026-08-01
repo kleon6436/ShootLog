@@ -21,8 +21,8 @@ final class FullscreenViewModel: ContentViewModelProxy {
     // 最終操作時刻を記録して単一のポーリングTaskで判定する
     private let idlePollInterval: Duration = .milliseconds(300)
 
-    // 自動的に隠してはいけない状態（ポインタがツールバー領域/メニュー上にある、
-    // 分析シートやエラーAlert表示中、HUD内要素にキーボードフォーカスがある等）。
+    // 自動的に隠してはいけない状態（分析シートやエラーAlert表示中、
+    // HUD内要素にキーボードフォーカスがある等）。
     // 高頻度で更新されるためObservationの追跡対象から外す
     @ObservationIgnored private var isHUDPinned = true
     @ObservationIgnored private var lastActivityAt = Date()
@@ -36,16 +36,8 @@ final class FullscreenViewModel: ContentViewModelProxy {
 
     func toggleFavorite() { content.toggleFavorite() }
 
-    // MARK: - Favorites フィルタ
-
-    // お気に入りのみ表示を適用した写真配列。カウンタ・ページドット・写真切替の基準にする
-    var visiblePhotos: [Photo] { content.visiblePhotos }
-
-    // visiblePhotos 内での選択中写真の位置。絞り込みで一覧から外れている場合は先頭扱いにする
-    var visibleIndex: Int {
-        guard let selectedPhoto = content.selectedPhoto else { return 0 }
-        return visiblePhotos.firstIndex(where: { $0.id == selectedPhoto.id }) ?? 0
-    }
+    // お気に入りのみ表示の絞り込み（visiblePhotos / visibleIndex / visibleCounterText）は
+    // ContentViewModelProxy のデフォルト実装を使う
 
     // MARK: - HUD 自動隠れ
 
