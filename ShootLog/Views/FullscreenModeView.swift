@@ -170,16 +170,3 @@ private struct KeyboardHintView: View {
     }
 }
 
-// MARK: - FullscreenMode 登録用
-
-struct FullscreenMode: @MainActor ViewModeProtocol {
-    let id = "fullscreen"
-    let displayName = "フルスクリーン"
-    let symbolName = "arrow.up.left.and.arrow.down.right"
-    let keyboardShortcut: KeyEquivalent? = "f"
-    private let box = ViewModelBox<FullscreenViewModel>()
-
-    @MainActor func makeView(vm: ContentViewModel) -> AnyView {
-        AnyView(FullscreenModeView(vm: box.get { FullscreenViewModel(content: vm) }))
-    }
-}

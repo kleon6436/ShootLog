@@ -1,12 +1,13 @@
 import SwiftUI
 
 // 全表示モードが準拠するプロトコル。新モードは準拠型を1つ作り ViewModeRegistry に登録するだけ
+// View生成(makeView)は持たない: ViewModelがView型を知る設計を避けるため、
+// モード切替はView側(ContentView)がcurrentModeIDを見てswitchする
 protocol ViewModeProtocol: Identifiable {
     var id: String { get }
     var displayName: String { get }
     var symbolName: String { get }           // SF Symbols 名
     var keyboardShortcut: KeyEquivalent? { get }
-    func makeView(vm: ContentViewModel) -> AnyView
 }
 
 // 各モード専用ViewModel（Fullscreen/Slideshow/Sidebar）がContentViewModelへ委譲するプロパティ・
