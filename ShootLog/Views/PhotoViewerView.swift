@@ -12,11 +12,7 @@ struct PhotoViewerView: View {
         Group {
             if let displayImage = vm.highRes ?? vm.thumbnail {
                 ZStack(alignment: .bottomTrailing) {
-                    Image(nsImage: displayImage)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .rotationEffect(.degrees(Double(editInfo?.rotation ?? 0)))
+                    rotatedImage(displayImage)
                         .accessibilityLabel(photo?.fileURL.lastPathComponent ?? "")
                     // サムネイル表示中かつ高解像度ロード待ちのときスピナーを右下に表示
                     if vm.highRes == nil && vm.isLoadingHighRes {
@@ -35,6 +31,27 @@ struct PhotoViewerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: photo?.id) {
             await vm.load(photo: photo)
+        }
+    }
+
+    // 90度/270度回転時はfit計算用のコンテナ幅高さを入れ替えてからrotationEffectを適用し、
+    // レイアウト境界からのはみ出し（クリッピング）を防ぐ
+    @ViewBuilder
+    private func rotatedImage(_ image: NSImage) -> some View {
+        let rotation = editInfo?.rotation ?? 0
+        GeometryReader { geometry in
+            let containerSize = geometry.size
+            let isQuarterTurn = rotation % 180 != 0
+            let fitSize = isQuarterTurn
+                ? CGSize(width: containerSize.height, height: containerSize.width)
+                : containerSize
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: fitSize.width, height: fitSize.height)
+                .rotationEffect(.degrees(Double(rotation)))
+                .frame(width: containerSize.width, height: containerSize.height)
         }
     }
 }
