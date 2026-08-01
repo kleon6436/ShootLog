@@ -110,12 +110,13 @@ struct SlideshowModeView: View {
                 .padding(.bottom, 12)
             }
 
-            // インデックスカウンター（右下）
+            // インデックスカウンター（右下）。自動送り（advanceSlideshow）が
+            // お気に入りのみ表示の絞り込みを基準に動くため、表示も同じ基準に揃える
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    Text("\(vm.selectedIndex + 1) / \(vm.photos.count)")
+                    Text(vm.visibleCounterText)
                         .font(HUDTypography.label)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)

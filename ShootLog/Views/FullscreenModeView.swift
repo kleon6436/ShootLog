@@ -24,11 +24,6 @@ struct FullscreenModeView: View {
     @State private var viewportSize: CGSize = .zero
     @State private var displayedImagePixelSize: CGSize = .zero
 
-    // ポインタがコンテンツ領域内にあるか。領域外（＝ツールバー上・メニュー展開中など）では
-    // HUDを隠さない。ウィンドウのタイトルバーはSwiftUIのコンテンツ外のため hover が届かず、
-    // 「.ended = ツールバー側へ抜けた」とみなせる
-    @State private var isPointerInsideContent = false
-
     // HUD内のフォーカス対象
     private enum HUDControl: Hashable {
         case previous, next, favorite, rotate, close
@@ -52,14 +47,11 @@ struct FullscreenModeView: View {
             }
         }
         .contentShape(Rectangle())
+        // .ended は「ツールバーへ抜けた」「ウィンドウ外へ出た」「アプリが非アクティブになった」を
+        // 区別できないため、HUDのpin判定には使わない（使うとマウスから手を離した状態で
+        // HUDが出たまま固定されてしまう）。ポインタ移動は操作通知としてのみ扱う
         .onContinuousHover { phase in
-            switch phase {
-            case .active:
-                isPointerInsideContent = true
-                vm.noteUserActivity()
-            case .ended:
-                isPointerInsideContent = false
-            }
+            if case .active = phase { vm.noteUserActivity() }
         }
         .onChange(of: shouldPinHUD, initial: true) { _, pinned in
             vm.setHUDPinned(pinned)
@@ -82,7 +74,13 @@ struct FullscreenModeView: View {
         .onKeyPress(.rightArrow) { vm.noteUserActivity(); vm.selectNext();     return .handled }
         .onKeyPress(.escape)     { vm.switchToSidebar(); return .handled }
         .onKeyPress(KeyEquivalent("r")) { rotateSelectedPhoto(); return .handled }
-        .onKeyPress(phases: .down) { press in handleZoomKeyPress(press) }
+        // どのキー入力でもHUDを復帰させる。HUDは非表示中ビュー階層から消えるため
+        // Tabでフォーカスを当てて呼び戻すことができず、キーボードのみの操作で
+        // HUDへ到達する手段がこれ以外にない
+        .onKeyPress(phases: .down) { press in
+            vm.noteUserActivity()
+            return handleZoomKeyPress(press)
+        }
         .toolbar { toolbarItems }
     }
 
@@ -110,15 +108,16 @@ struct FullscreenModeView: View {
         .gesture(magnifyGesture)
         .simultaneousGesture(panGesture)
         .onTapGesture(count: 2) { toggleZoom() }
-        // トラックパッド2本指スワイプでの写真切替。fit倍率（scale <= 1.0）の時だけ有効にし、
-        // ズーム中は2本指スクロールをパン操作へ譲る。
+        // トラックパッド2本指スクロールの振り分け。fit倍率（scale <= 1.0）では写真切替の
+        // スワイプとして扱い、ズーム中は同じスクロールをパン操作に使う。
         // hitTestがscrollWheel以外でnilを返す設計のため、overlayに重ねてもクリック・
         // ドラッグ・ピンチは下のビューへ完全に透過する
         .overlay {
             TrackpadSwipeCatcher(
-                isEnabled: effectiveScale <= 1.0,
+                isSwipeEnabled: effectiveScale <= 1.0,
                 onSwipeLeft: { vm.noteUserActivity(); vm.selectNext() },
-                onSwipeRight: { vm.noteUserActivity(); vm.selectPrevious() }
+                onSwipeRight: { vm.noteUserActivity(); vm.selectPrevious() },
+                onScrollDelta: { delta in panByScroll(delta) }
             )
         }
     }
@@ -174,7 +173,7 @@ struct FullscreenModeView: View {
                 Spacer()
                 PageDotsView(current: vm.visibleIndex, total: vm.visiblePhotos.count)
                 Spacer()
-                Text(counterText)
+                Text(vm.visibleCounterText)
                     .font(HUDTypography.label)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -188,20 +187,17 @@ struct FullscreenModeView: View {
     // MARK: - 派生値
 
     // HUDを自動的に隠してはいけない状態。VoiceOver判定はFullscreenViewModel側で
-    // 隠す直前に最新値を読むためここには含めない
+    // 隠す直前に最新値を読むためここには含めない。
+    // ツールバー上へポインタを移した場合は、ネイティブのNSToolbarがSwiftUIコンテンツの
+    // 外にあり hover が届かないため pin されないが、ツールバーは isToolbarVisible が
+    // false になるまで表示が続くうえ、操作すれば noteUserActivity() で即座に復帰する
     private var shouldPinHUD: Bool {
-        !isPointerInsideContent || vm.isModalPresented || focusedHUDControl != nil
+        vm.isModalPresented || focusedHUDControl != nil
     }
 
     // 絞り込み後に2枚以上ある場合だけ前後ナビゲーションを有効にする
     // （単一写真フォルダではシェブロンをno-opではなく無効表示にして意図を明確にする）
     private var canNavigate: Bool { vm.visiblePhotos.count > 1 }
-
-    private var counterText: String {
-        let total = vm.visiblePhotos.count
-        guard total > 0 else { return "0 / 0" }
-        return "\(vm.visibleIndex + 1) / \(total)"
-    }
 
     // ジェスチャー中の暫定値を含む実効ズーム倍率
     private var effectiveScale: CGFloat {
@@ -281,6 +277,18 @@ struct FullscreenModeView: View {
                 panOffset = clampedOffset(moved, scale: zoomScale)
                 vm.noteUserActivity()
             }
+    }
+
+    // ズーム中の2本指スクロールによるパン。スワイプ判定と違い閾値コミットは不要で、
+    // 受け取ったデルタを都度クランプしながら反映する
+    private func panByScroll(_ delta: CGSize) {
+        guard zoomScale > 1.0 else { return }
+        let moved = CGSize(
+            width: panOffset.width + delta.width,
+            height: panOffset.height + delta.height
+        )
+        panOffset = clampedOffset(moved, scale: zoomScale)
+        vm.noteUserActivity()
     }
 
     // MARK: - 操作
