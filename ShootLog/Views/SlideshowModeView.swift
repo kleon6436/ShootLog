@@ -32,10 +32,21 @@ struct SlideshowModeView: View {
                 Spacer()
             }
 
-            // 閉じるボタン（右上）
+            // 回転・閉じるボタン（右上）
             VStack {
-                HStack {
+                HStack(spacing: 10) {
                     Spacer()
+                    Button {
+                        vm.rotateSelectedPhoto()
+                    } label: {
+                        Image(systemName: "rotate.right")
+                            .foregroundStyle(Color.onDarkCanvasSecondary)
+                    }
+                    .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
+                    .accessibilityLabel("写真を右に90度回転")
+                    .keyboardShortcut("r", modifiers: [])
+                    .disabled(vm.selectedPhoto == nil)
+
                     Button {
                         vm.switchToSidebar()
                     } label: {
