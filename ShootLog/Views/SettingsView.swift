@@ -1,7 +1,7 @@
 import SwiftUI
 
 // アプリ設定画面（Settings Scene から⌘,またはアプリメニュー「設定…」で開かれる）
-// 現時点では設定項目の内容が未確定のため、最小構成のプレースホルダーとして「一般」タブのみを用意する
+// 「一般」タブは設定項目が未確定のためプレースホルダー、「連携アプリ」タブで外部アプリ連携を管理する
 struct SettingsView: View {
     var body: some View {
         TabView {
@@ -9,8 +9,13 @@ struct SettingsView: View {
                 .tabItem {
                     Label("一般", systemImage: "gearshape")
                 }
+
+            IntegrationSettingsTab()
+                .tabItem {
+                    Label("連携アプリ", systemImage: "app.connected.to.app.below.fill")
+                }
         }
-        .frame(width: 400, height: 200)
+        .frame(width: 460, height: 380)
     }
 }
 
@@ -27,4 +32,5 @@ private struct GeneralSettingsTab: View {
 
 #Preview {
     SettingsView()
+        .modelContainer(for: IntegrationAppSetting.self, inMemory: true)
 }

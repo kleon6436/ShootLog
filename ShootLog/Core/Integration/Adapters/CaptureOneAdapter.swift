@@ -7,6 +7,7 @@ struct CaptureOneAdapter: ExternalAppProtocol {
     let symbolName = "camera.filters"
 
     private static let bundleIDs = [
+        "com.captureone.captureone16",
         "com.captureone.captureone23",
         "com.captureone.captureone22",
         "com.captureone.captureone21",

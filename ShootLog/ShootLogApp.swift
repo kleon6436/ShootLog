@@ -3,6 +3,19 @@ import SwiftData
 
 @main
 struct ShootLogApp: App {
+    // SwiftDataモデルをすべて登録した共有コンテナ。
+    // メインウィンドウと設定画面（Settings シーン）が同じストアを参照するため App 側で1つだけ生成する
+    private let sharedModelContainer: ModelContainer = {
+        do {
+            return try ModelContainer(
+                for: Photo.self, EditInfo.self, FolderHistory.self, IntegrationAppSetting.self
+            )
+        } catch {
+            // コンテナを作れない場合はアプリとして動作できないため起動を継続しない
+            fatalError("SwiftDataコンテナの作成に失敗しました: \(error)")
+        }
+    }()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -14,8 +27,7 @@ struct ShootLogApp: App {
                     }
                 }
         }
-        // SwiftDataモデルをすべて登録
-        .modelContainer(for: [Photo.self, EditInfo.self, FolderHistory.self])
+        .modelContainer(sharedModelContainer)
         // sidebar モードは標準ツールバーを使うため .hiddenTitleBar は指定しない
         // （.hiddenTitleBar はツールバー領域自体を潰すため）。タイトル文字の非表示と、
         // fullscreen/slideshow モードでのタイトルバー透過は WindowChromeConfigurator が担当する
@@ -40,6 +52,8 @@ struct ShootLogApp: App {
         Settings {
             SettingsView()
         }
+        // 設定画面はメインウィンドウとは別シーンのため、共有コンテナを明示的に渡す
+        .modelContainer(sharedModelContainer)
     }
 }
 
