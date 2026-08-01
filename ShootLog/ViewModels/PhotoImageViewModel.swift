@@ -21,7 +21,10 @@ final class PhotoImageViewModel {
         // サムネイル取得後に写真が切り替わっていたら高解像度ロードをスキップする
         guard !Task.isCancelled else { return }
         isLoadingHighRes = true
-        highRes = await ImageLoader.shared.highResImage(for: photo.fileURL)
+        let loadedHighRes = await ImageLoader.shared.highResImage(for: photo.fileURL)
         isLoadingHighRes = false
+        // 高解像度画像取得中に写真が切り替わっていたら代入をスキップする（stale image代入防止）
+        guard !Task.isCancelled else { return }
+        highRes = loadedHighRes
     }
 }
