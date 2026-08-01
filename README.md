@@ -72,5 +72,3 @@ Sigma fp Lのカラーモード検出精度、ネットワークドライブで�
 ## 参考資料
 
 - 開発規約: [`CLAUDE.md`](CLAUDE.md)
-- 詳細設計: [`Docs/ShootLog_プロジェクト規約書.md`](Docs/ShootLog_プロジェクト規約書.md)
-- UIモックアップ: [`Docs/UI_モックアップ.html`](Docs/UI_モックアップ.html)
