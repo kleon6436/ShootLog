@@ -95,6 +95,7 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     var isLoading: Bool { content.isLoading }
     var toastMessage: String? { content.toastMessage }
+    var isSelectedPhotoFavorite: Bool { content.selectedPhoto?.isFavorite ?? false }
 
     func loadEditInfo(for photo: Photo) { content.loadEditInfo(for: photo) }
     func loadEXIFIfNeeded(for photo: Photo) async { await content.loadEXIFIfNeeded(for: photo) }
@@ -102,6 +103,7 @@ final class SidebarViewModel: ContentViewModelProxy {
     func rotateSelectedPhoto() { content.rotateSelectedPhoto() }
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
+    func toggleFavorite() { content.toggleFavorite() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
 
     // MARK: - サイドバー開閉の判定
