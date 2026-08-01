@@ -37,6 +37,10 @@ final class ContentViewModel {
         photos.firstIndex(where: { $0.id == selectedPhoto?.id }) ?? 0
     }
 
+    // 連携アプリ設定。ContentViewの@Queryから渡される（SwiftDataの変更をObservationで
+    // 検知しツールバーの外部アプリメニューへ反映するため、ここでの直接fetchは行わない）
+    private var integrationSettings: [IntegrationAppSetting] = []
+
     private var modelContext: ModelContext?
     private var bookmarkScopedURL: URL?
     private var toastTask: Task<Void, Never>?
@@ -47,6 +51,11 @@ final class ContentViewModel {
     func configure(context: ModelContext) {
         modelContext = context
         loadHistories()
+    }
+
+    // ContentViewの@Queryが検知したIntegrationAppSettingの変更を反映する
+    func updateIntegrationSettings(_ settings: [IntegrationAppSetting]) {
+        integrationSettings = settings
     }
 
     // MARK: - Folder
@@ -267,9 +276,44 @@ final class ContentViewModel {
         ViewModeRegistry.shared.enabledModes
     }
 
-    // ツールバーの外部アプリメニューに表示する、利用可能な外部アプリ一覧
+    // ツールバーの外部アプリメニューに表示する、利用可能な外部アプリ一覧。
+    // IntegrationAppSetting（有効/無効・表示順序・カスタムアプリ）とアダプター実装を突き合わせて組み立てる。
+    // settingsはContentViewの@Query経由でupdateIntegrationSettings(_:)により渡される
+    // （ここでmodelContext.fetchを直接呼ぶとObservationが変更を追跡できずツールバーに反映されない）
     var externalApps: [any ExternalAppProtocol] {
-        ExternalAppRegistry.shared.availableAdapters
+        let builtInAdapters = ExternalAppRegistry.shared.builtInAdapters
+        let settings = integrationSettings
+
+        // 設定が未作成の場合はビルトイン全てを有効とみなす（既存動作との後方互換）
+        guard !settings.isEmpty else {
+            return builtInAdapters.filter { $0.isAvailable }
+        }
+
+        var resolved: [any ExternalAppProtocol] = []
+        var configuredBuiltInIDs: Set<String> = []
+        for setting in settings {
+            if setting.isCustom {
+                guard setting.isEnabled else { continue }
+                resolved.append(
+                    CustomAppAdapter(
+                        id: setting.identifier,
+                        displayName: setting.customDisplayName ?? setting.identifier
+                    )
+                )
+            } else {
+                configuredBuiltInIDs.insert(setting.identifier)
+                guard setting.isEnabled,
+                      let adapter = builtInAdapters.first(where: { $0.id == setting.identifier })
+                else { continue }
+                resolved.append(adapter)
+            }
+        }
+
+        // 設定に存在しないビルトイン（アダプター追加直後など）は機能が消えたように見えないよう暗黙的に有効として末尾へ追加する
+        resolved.append(contentsOf: builtInAdapters.filter { !configuredBuiltInIDs.contains($0.id) })
+
+        // 最終的にインストール済みのアプリのみへ絞り込む（配列は sortOrder 昇順のまま）
+        return resolved.filter { $0.isAvailable }
     }
 
     // MARK: - Private

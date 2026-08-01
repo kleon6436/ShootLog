@@ -1,4 +1,5 @@
 import AppKit
+import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -59,6 +60,9 @@ struct ContentView: View {
     @State private var vm = ContentViewModel()
     @Environment(\.modelContext) private var modelContext
     @State private var isDropTargeted = false
+    // 連携アプリ設定の変更をSwiftDataから検知し、vmへ反映してツールバーの
+    // 外部アプリメニューに即時反映させる（vm側でmodelContext.fetchを直接呼ぶとObservationが追跡できないため）
+    @Query(sort: \IntegrationAppSetting.sortOrder) private var integrationSettings: [IntegrationAppSetting]
 
     private var sidebarToggleAction: (() -> Void)? {
         guard vm.isSidebarModeActive else { return nil }
@@ -140,6 +144,9 @@ struct ContentView: View {
         .focusedSceneValue(\.openFolderAction, vm.openFolder)
         .task {
             vm.configure(context: modelContext)
+        }
+        .onChange(of: integrationSettings, initial: true) { _, newValue in
+            vm.updateIntegrationSettings(newValue)
         }
         .sheet(isPresented: Binding(
             get: { vm.showAnalysis },
