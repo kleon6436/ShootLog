@@ -18,15 +18,15 @@ import SwiftUI
 // 使用例（フルスクリーンモードでの写真切替とズーム中のパン）:
 //
 //     PhotoViewerView(photo: vm.selectedPhoto, editInfo: vm.currentEditInfo)
-//         .overlay(
+//         .overlay {
 //             TrackpadSwipeCatcher(
 //                 // ズーム中（scale > 1.0）はスワイプではなくパンへ振り分ける
-//                 isSwipeEnabled: zoomScale <= 1.0,
-//                 onSwipeLeft: { vm.selectNext() },
-//                 onSwipeRight: { vm.selectPrevious() },
-//                 onScrollDelta: { delta in pan(by: delta) }
+//                 isSwipeEnabled: effectiveScale <= 1.0,
+//                 onSwipeLeft: { vm.noteUserActivity(); vm.selectNext() },
+//                 onSwipeRight: { vm.noteUserActivity(); vm.selectPrevious() },
+//                 onScrollDelta: { delta in panByScroll(delta) }
 //             )
-//         )
+//         }
 //
 // マウスイベントは一切奪わないため、重ねた PhotoViewerView や HUD のボタンは
 // これまで通りクリックできる（下記 hitTest の実装を参照）。
