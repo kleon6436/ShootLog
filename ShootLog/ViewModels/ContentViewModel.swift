@@ -28,6 +28,11 @@ final class ContentViewModel {
     var sidebarToggleRequestID = UUID()
     var inspectorToggleRequestID = UUID()
 
+    // ウィンドウツールバーの可視性。ContentViewが WindowChromeConfigurator へ渡す単一の真実源で、
+    // フルスクリーンのHUD自動隠れ（FullscreenViewModel）から更新される。
+    // フルスクリーン以外のモードでは常に true（FullscreenViewModel.endHUDSession が復帰させる）
+    var isToolbarVisible: Bool = true
+
     // 編集
     var currentEditInfo: EditInfo?
     var isCropMode: Bool = false
