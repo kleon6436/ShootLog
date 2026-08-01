@@ -124,38 +124,42 @@ struct FullscreenModeView: View {
 
     // MARK: - HUD
 
-    // 左右ナビゲーションボタン
+    // 左右ナビゲーションボタン。移動できない側（1枚目/最終枚目）は非表示にする。
+    // if分岐でView自体を消すとLiquid Glass（glassEffect）の暗黙コンテナ構成が崩れ、
+    // 無関係な他のガラスボタン（回転ボタン等）まで白背景で描画される不具合があったため、
+    // Viewは維持したままopacity/disabledで見た目のみ隠す
     private var navigationOverlay: some View {
         HStack {
             NavButton(direction: .prev) { vm.noteUserActivity(); vm.selectPrevious() }
                 .focused($focusedHUDControl, equals: .previous)
-                .disabled(!canNavigate)
+                .opacity(canGoPrevious ? 1 : 0)
+                .disabled(!canGoPrevious)
+                .accessibilityHidden(!canGoPrevious)
             Spacer()
             NavButton(direction: .next) { vm.noteUserActivity(); vm.selectNext() }
                 .focused($focusedHUDControl, equals: .next)
-                .disabled(!canNavigate)
+                .opacity(canGoNext ? 1 : 0)
+                .disabled(!canGoNext)
+                .accessibilityHidden(!canGoNext)
         }
         .padding(.horizontal, 8)
     }
 
-    // 上部 HUD: キーボードヒント / お気に入り・回転 / 閉じる
+    // 上部 HUD: お気に入り・回転（左上） / 閉じる（右上）
     private var topHUD: some View {
         VStack {
-            HStack {
-                KeyboardHintView(["← →", "R", "⌘0", "Esc"])
-                Spacer()
-                HStack(spacing: 14) {
-                    FavoriteButton(isFavorite: vm.selectedPhoto?.isFavorite ?? false) {
-                        vm.noteUserActivity()
-                        vm.toggleFavorite()
-                    }
-                    .focused($focusedHUDControl, equals: .favorite)
-
-                    RotateButton { rotateSelectedPhoto() }
-                        .focused($focusedHUDControl, equals: .rotate)
-                        .disabled(vm.selectedPhoto == nil)
+            HStack(spacing: 14) {
+                FavoriteButton(isFavorite: vm.selectedPhoto?.isFavorite ?? false) {
+                    vm.noteUserActivity()
+                    vm.toggleFavorite()
                 }
+                .focused($focusedHUDControl, equals: .favorite)
+
+                RotateButton { rotateSelectedPhoto() }
+                    .focused($focusedHUDControl, equals: .rotate)
+
                 Spacer()
+
                 CloseButton { vm.switchToSidebar() }
                     .focused($focusedHUDControl, equals: .close)
             }
@@ -197,7 +201,15 @@ struct FullscreenModeView: View {
 
     // 絞り込み後に2枚以上ある場合だけ前後ナビゲーションを有効にする
     // （単一写真フォルダではシェブロンをno-opではなく無効表示にして意図を明確にする）
-    private var canNavigate: Bool { vm.visiblePhotos.count > 1 }
+    private var canGoPrevious: Bool {
+        guard let index = vm.visibleIndex else { return false }
+        return index > 0
+    }
+
+    private var canGoNext: Bool {
+        guard let index = vm.visibleIndex else { return false }
+        return index < vm.visiblePhotos.count - 1
+    }
 
     // ジェスチャー中の暫定値を含む実効ズーム倍率
     private var effectiveScale: CGFloat {
@@ -433,6 +445,8 @@ private struct FavoriteButton: View {
         Button(action: action) {
             Image(systemName: isFavorite ? "star.fill" : "star")
                 .foregroundStyle(isFavorite ? Color.yellow : Color.onDarkCanvasSecondary)
+                .frame(width: 44, height: 44)
+                .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
         .accessibilityLabel(isFavorite ? "お気に入りを解除" : "お気に入りに追加")
@@ -447,6 +461,8 @@ private struct RotateButton: View {
         Button(action: action) {
             Image(systemName: "rotate.right")
                 .foregroundStyle(Color.onDarkCanvasSecondary)
+                .frame(width: 44, height: 44)
+                .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
         .help("右に90度回転 (R)")
@@ -461,26 +477,10 @@ private struct CloseButton: View {
         Button(action: action) {
             Image(systemName: "xmark.circle.fill")
                 .foregroundStyle(Color.onDarkCanvasSecondary)
+                .frame(width: 44, height: 44)
+                .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
         .accessibilityLabel("サイドバーに戻る")
-    }
-}
-
-private struct KeyboardHintView: View {
-    let hints: [String]
-    init(_ hints: [String]) { self.hints = hints }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(hints, id: \.self) { hint in
-                Text(hint)
-                    .font(HUDTypography.caption)
-                    .foregroundStyle(Color.onDarkCanvasSecondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .glassOrMaterial(cornerRadius: 4)
-            }
-        }
     }
 }
