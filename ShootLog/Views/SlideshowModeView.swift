@@ -16,14 +16,21 @@ struct SlideshowModeView: View {
             VStack {
                 HStack(spacing: 4) {
                     ForEach([2.0, 3.0, 5.0], id: \.self) { sec in
-                        Button("\(Int(sec))s") { vm.setInterval(sec) }
-                            .font(.system(size: 11, weight: vm.interval == sec ? .semibold : .regular))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .glassOrMaterial(cornerRadius: 5)
-                            .opacity(vm.interval == sec ? 1.0 : 0.55)
-                            .animation(.easeInOut(duration: 0.15), value: vm.interval)
-                            .buttonStyle(.plain)
+                        let isSelected = vm.interval == sec
+                        Button {
+                            vm.setInterval(sec)
+                        } label: {
+                            Text("\(Int(sec))s")
+                                .font(HUDTypography.label)
+                                .fontWeight(isSelected ? .semibold : .regular)
+                                .foregroundStyle(isSelected ? Color.onDarkCanvas : Color.onDarkCanvasSecondary)
+                                .frame(width: 44, height: 44)
+                                .glassOrMaterialCircle()
+                        }
+                        .buttonStyle(HUDButtonStyle(font: HUDTypography.label))
+                        .animation(.easeInOut(duration: 0.15), value: vm.interval)
+                        .accessibilityLabel("\(Int(sec))秒間隔")
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                     Spacer()
                 }
@@ -41,8 +48,11 @@ struct SlideshowModeView: View {
                     } label: {
                         Image(systemName: "rotate.right")
                             .foregroundStyle(Color.onDarkCanvasSecondary)
+                            .frame(width: 44, height: 44)
+                            .glassOrMaterialCircle()
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
+                    .help("右に90度回転 (R)")
                     .accessibilityLabel("写真を右に90度回転")
                     .keyboardShortcut("r", modifiers: [])
                     .disabled(vm.selectedPhoto == nil)
@@ -52,11 +62,14 @@ struct SlideshowModeView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.onDarkCanvasSecondary)
+                            .frame(width: 44, height: 44)
+                            .glassOrMaterialCircle()
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
                     .accessibilityLabel("サイドバーに戻る")
-                    .padding(12)
                 }
+                .padding(.trailing, 12)
+                .padding(.top, 10)
                 Spacer()
             }
 
