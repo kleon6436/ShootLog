@@ -93,7 +93,7 @@ struct ContentView: View {
             .focusedSceneValue(\.toggleInspectorAction, inspectorToggleAction)
             .focusedSceneValue(\.sidebarVisibilityState, sidebarVisibilityState)
             .focusedSceneValue(\.inspectorVisibilityState, inspectorVisibilityState)
-            .background { WindowChromeConfigurator() }
+            .background { WindowChromeConfigurator(isToolbarVisible: vm.isToolbarVisible) }
     }
 
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている

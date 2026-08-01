@@ -72,13 +72,23 @@ final class SlideshowViewModel: ContentViewModelProxy {
         restartTimer()
     }
 
+    // 次の写真へ進む。末尾まで来たら先頭へ戻る。
+    // お気に入りのみ表示が有効なときは visiblePhotos（絞り込み後）を基準にする。
+    // 未フィルタの photos で判定すると、最後のお気に入り写真が一覧末尾でない場合に
+    // selectNext() が絞り込み側の末尾でクランプされ、ループが止まってしまう
     func advanceSlideshow() {
         progress = 0
-        if content.selectedIndex + 1 < content.photos.count {
+        let list = content.visiblePhotos
+        guard !list.isEmpty else { return }
+        guard let selectedPhoto = content.selectedPhoto,
+              let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
+            content.selectPhoto(list.first)
+            return
+        }
+        if index + 1 < list.count {
             content.selectNext()
         } else {
-            // 最後まで来たら先頭に戻る
-            content.selectPhoto(content.photos.first)
+            content.selectPhoto(list.first)
         }
     }
 }

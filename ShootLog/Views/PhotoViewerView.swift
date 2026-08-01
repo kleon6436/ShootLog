@@ -6,6 +6,14 @@ import AppKit
 struct PhotoViewerView: View {
     let photo: Photo?
     var editInfo: EditInfo? = nil
+
+    // 補間品質。ズーム/パンのジェスチャー中は .medium へ落として拡大描画のコストを下げる
+    var interpolation: Image.Interpolation = .high
+
+    // 現在表示している画像のピクセルサイズを呼び出し元へ通知する。
+    // フルスクリーンのズーム上限（実ロード済み解像度でのキャップ）とパンのクランプ計算に使う
+    var onDisplayedImageSizeChange: ((CGSize) -> Void)? = nil
+
     @State private var vm = PhotoImageViewModel()
 
     var body: some View {
@@ -32,6 +40,9 @@ struct PhotoViewerView: View {
         .task(id: photo?.id) {
             await vm.load(photo: photo)
         }
+        // サムネイル→高解像度の差し替えでも実解像度が変わるため、両方の変化を通知する
+        .onChange(of: vm.thumbnail, initial: true) { _, _ in notifyDisplayedImageSize() }
+        .onChange(of: vm.highRes) { _, _ in notifyDisplayedImageSize() }
     }
 
     // 90度/270度回転時はfit計算用のコンテナ幅高さを入れ替えてからrotationEffectを適用し、
@@ -47,11 +58,27 @@ struct PhotoViewerView: View {
                 : containerSize
             Image(nsImage: image)
                 .resizable()
-                .interpolation(.high)
+                .interpolation(interpolation)
                 .aspectRatio(contentMode: .fit)
                 .frame(width: fitSize.width, height: fitSize.height)
                 .rotationEffect(.degrees(Double(rotation)))
                 .frame(width: containerSize.width, height: containerSize.height)
         }
+    }
+
+    private func notifyDisplayedImageSize() {
+        guard let onDisplayedImageSizeChange else { return }
+        guard let image = vm.highRes ?? vm.thumbnail else {
+            onDisplayedImageSizeChange(.zero)
+            return
+        }
+        onDisplayedImageSizeChange(Self.pixelSize(of: image))
+    }
+
+    // NSImage.size はポイント単位（EXIF DPI により実ピクセルと一致しない）ため、
+    // 表現（NSImageRep）から実ピクセル数を取得する
+    private static func pixelSize(of image: NSImage) -> CGSize {
+        guard let rep = image.representations.first else { return image.size }
+        return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
     }
 }
