@@ -119,7 +119,7 @@ struct SidebarModeView: View {
     // 標準ツールバーの中身。
     // サイドバートグルは OS 標準ボタンを外して独自ボタン1つに統一しているため常時表示する。
     // 配置は Xcode 同様の位置連動を得るため .navigation（サイドバー領域の先頭）とし、
-    // 他のアイテムは .primaryAction に置く
+    // フォルダを開くボタンをその右隣の独立ボタンとして続け、他のアイテムは .primaryAction に置く
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -128,6 +128,14 @@ struct SidebarModeView: View {
             }
             .help(isSidebarShown ? "左サイドバーを隠す (⌘\\)" : "左サイドバーを表示 (⌘\\)")
             .accessibilityLabel(isSidebarShown ? "左サイドバーを隠す" : "左サイドバーを表示")
+        }
+
+        ToolbarItem(placement: .navigation) {
+            Button { vm.openFolder() } label: {
+                Image(systemName: "folder.badge.plus")
+            }
+            .help("フォルダを開く (⌘O)")
+            .accessibilityLabel("フォルダを開く")
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
@@ -142,12 +150,6 @@ struct SidebarModeView: View {
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
-            Button { vm.openFolder() } label: {
-                Image(systemName: "folder.badge.plus")
-            }
-            .help("フォルダを開く (⌘O)")
-            .accessibilityLabel("フォルダを開く")
-
             Button { vm.openAnalysis() } label: {
                 Image(systemName: "chart.bar")
             }
