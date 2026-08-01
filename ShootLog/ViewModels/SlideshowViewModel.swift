@@ -31,12 +31,13 @@ final class SlideshowViewModel: ContentViewModelProxy {
     func restartTimer() {
         timerTask?.cancel()
         timerTask = Task { @MainActor [weak self] in
-            // 0.1 秒ごとに進捗を更新する（Combine 不使用）
+            // 0.2 秒ごとに進捗を更新する。切替直後の親View再評価を抑えつつ、
+            // プログレス表示として十分な粒度を維持する（Combine 不使用）。
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: .milliseconds(200))
                 guard !Task.isCancelled, let self else { break }
                 if self.isPlaying {
-                    self.progress += 0.1 / self.interval
+                    self.progress += 0.2 / self.interval
                     if self.progress >= 1.0 { self.advanceSlideshow() }
                 }
             }
@@ -67,6 +68,7 @@ final class SlideshowViewModel: ContentViewModelProxy {
 
     // スライドショー表示開始時にタイマーを起動する（ViewのonAppearから呼ぶ）
     func startPlayback() {
+        isPlaying = true
         restartTimer()
     }
 
