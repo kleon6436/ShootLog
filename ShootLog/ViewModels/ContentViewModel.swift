@@ -32,7 +32,7 @@ final class ContentViewModel {
     var currentEditInfo: EditInfo?
     var isCropMode: Bool = false
 
-    // 選択中写真のインデックス
+    // 選択中写真のインデックス（未フィルタの photos 基準）
     var selectedIndex: Int {
         photos.firstIndex(where: { $0.id == selectedPhoto?.id }) ?? 0
     }
@@ -40,6 +40,14 @@ final class ContentViewModel {
     // 連携アプリ設定。ContentViewの@Queryから渡される（SwiftDataの変更をObservationで
     // 検知しツールバーの外部アプリメニューへ反映するため、ここでの直接fetchは行わない）
     private var integrationSettings: [IntegrationAppSetting] = []
+
+    // showFavoritesOnly を適用した写真配列。フルスクリーン/スライドショーの写真切替・
+    // カウンタ表示、selectNext()/selectPrevious() の絞り込み基準として使う単一の真実源
+    // （searchText の絞り込みは SidebarViewModel.displayedPhotos 側の責務のためここには含めない）
+    var visiblePhotos: [Photo] {
+        guard showFavoritesOnly else { return photos }
+        return photos.filter { $0.isFavorite }
+    }
 
     private var modelContext: ModelContext?
     private var bookmarkScopedURL: URL?
@@ -131,14 +139,27 @@ final class ContentViewModel {
         Task { await loadEXIFIfNeeded(for: photo) }
     }
 
+    // visiblePhotos（showFavoritesOnly適用後）基準で次の写真を選択する。
+    // 選択中写真が未選択、または絞り込みで一覧から外れている場合は先頭要素を選ぶ
+    // （旧実装は selectedIndex の `?? 0` フォールバックにより未選択時に1枚飛ばすバグがあった）
     func selectNext() {
-        guard !photos.isEmpty else { return }
-        selectPhoto(photos[min(selectedIndex + 1, photos.count - 1)])
+        let list = visiblePhotos
+        guard !list.isEmpty else { return }
+        guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
+            selectPhoto(list.first)
+            return
+        }
+        selectPhoto(list[min(index + 1, list.count - 1)])
     }
 
     func selectPrevious() {
-        guard !photos.isEmpty else { return }
-        selectPhoto(photos[max(selectedIndex - 1, 0)])
+        let list = visiblePhotos
+        guard !list.isEmpty else { return }
+        guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
+            selectPhoto(list.first)
+            return
+        }
+        selectPhoto(list[max(index - 1, 0)])
     }
 
     // MARK: - Edit
