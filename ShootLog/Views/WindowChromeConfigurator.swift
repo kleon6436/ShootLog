@@ -88,8 +88,12 @@ struct WindowChromeConfigurator: NSViewRepresentable {
             }
 
             // NSToolbarはSwiftUIの構築順により後から差し替わる場合があるため、
-            // toolbarインスタンスが変わった時だけ可視性を同期する。
-            if let toolbar = window.toolbar, configuredToolbar !== toolbar {
+            // toolbarインスタンスが変わった時に加えて、要求値と実際の可視性が
+            // 食い違っている時（HUD自動隠れによるisToolbarVisibleの変化）も同期する。
+            // 値が一致している場合は何もしないため、layout()の頻繁な呼び出しで
+            // 隠した状態が強制的に戻されることはない
+            if let toolbar = window.toolbar,
+               configuredToolbar !== toolbar || toolbar.isVisible != isToolbarVisible {
                 toolbar.isVisible = isToolbarVisible
                 configuredToolbar = toolbar
             }
