@@ -9,13 +9,11 @@
 /* Begin PBXBuildFile section */
 		596A821645C828B7F53D0580 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A83DBE9107D998FD6C6C202 /* Assets.xcassets */; };
 		65CEFF017E625087AFECF9D9 /* ShootLogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B10FCC4FAA0641B5FDB6888 /* ShootLogApp.swift */; };
-		CE790564FBF01945B25FC499 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 218A38B05AAE99EEFA9AE862 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0875AA31E08C99CEEBFA3D73 /* ShootLog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShootLog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A83DBE9107D998FD6C6C202 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		218A38B05AAE99EEFA9AE862 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		3B10FCC4FAA0641B5FDB6888 /* ShootLogApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShootLogApp.swift; sourceTree = "<group>"; };
 		A122532B35DFC65BD2CCD4FD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C0F6FD2202EF7C6F0CBF8B3C /* ShootLog.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShootLog.entitlements; sourceTree = "<group>"; };
@@ -51,7 +49,6 @@
 				0A83DBE9107D998FD6C6C202 /* Assets.xcassets */,
 				A122532B35DFC65BD2CCD4FD /* Info.plist */,
 				C0F6FD2202EF7C6F0CBF8B3C /* ShootLog.entitlements */,
-				D7E62C48F6812CE6EB4CB576 /* Preview Content */,
 				F4EFA1B4A227EF6013BE4049 /* Views */,
 				E6CFCDDC0AE8C53409F21009 /* ViewModels */,
 				9A72448DD58D8D4D23B3817D /* Models */,
@@ -67,14 +64,6 @@
 				0875AA31E08C99CEEBFA3D73 /* ShootLog.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		D7E62C48F6812CE6EB4CB576 /* Preview Content */ = {
-			isa = PBXGroup;
-			children = (
-				218A38B05AAE99EEFA9AE862 /* Preview Assets.xcassets */,
-			);
-			path = "Preview Content";
 			sourceTree = "<group>";
 		};
 		F8C497C0CAECBB0C18C9F4E0 = {
@@ -149,7 +138,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				596A821645C828B7F53D0580 /* Assets.xcassets in Resources */,
-				CE790564FBF01945B25FC499 /* Preview Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
