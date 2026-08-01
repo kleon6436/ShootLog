@@ -43,6 +43,8 @@ extension ContentViewModelProxy {
     func selectNext() { content.selectNext() }
     func selectPrevious() { content.selectPrevious() }
     func switchToSidebar() { content.switchToSidebar() }
+    // 選択中写真を右へ90°回転する（Fullscreen/Slideshowなど独自状態を持たないモード向けの共通委譲）
+    func rotateSelectedPhoto() { content.rotateSelectedPhoto() }
     func openFolder() { content.openFolder() }
     func openAnalysis() { content.openAnalysis() }
     func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
