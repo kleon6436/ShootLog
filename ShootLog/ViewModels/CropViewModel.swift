@@ -22,7 +22,12 @@ final class CropViewModel {
         )
     }
 
-    func applyDrag(corner: CropCorner, nx: CGFloat, ny: CGFloat) {
+    // ドラッグ位置（コンテナ座標系）を正規化・クランプしてから、コーナーに応じてクロップ矩形を更新する
+    func applyDrag(corner: CropCorner, location: CGPoint, containerSize: CGSize) {
+        // コンテナがまだレイアウトされていない（幅または高さが0）場合、0除算によるNaNを避けて何もしない
+        guard containerSize.width > 0, containerSize.height > 0 else { return }
+        let nx = max(0.0, min(1.0, location.x / containerSize.width))
+        let ny = max(0.0, min(1.0, location.y / containerSize.height))
         var r = normalizedRect
         switch corner {
         case .topLeft:

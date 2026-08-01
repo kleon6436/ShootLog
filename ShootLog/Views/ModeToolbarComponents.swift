@@ -3,13 +3,15 @@ import SwiftUI
 // 全表示モード（sidebar/fullscreen/slideshow）の標準ツールバーで共有する部品群。
 // ForEachをツールバー式に直接書くと型検査がタイムアウトするため独立Viewへ切り出している
 
-// ツールバー内の表示モード切替（セグメント）
+// ツールバー内の表示モード切替（セグメント）。モード一覧は呼び出し元のVM経由で渡す
+// （ViewModeRegistry.sharedへのアクセスはVM層に閉じ、View層からは直接参照しない）
 struct ModeTogglePicker: View {
     @Binding var currentModeID: String
+    let modes: [any ViewModeProtocol]
 
     var body: some View {
         Picker("表示モード", selection: $currentModeID) {
-            ForEach(ViewModeRegistry.shared.enabledModes, id: \.id) { mode in
+            ForEach(modes, id: \.id) { mode in
                 Image(systemName: mode.symbolName)
                     .accessibilityLabel(mode.displayName)
                     .tag(mode.id)
@@ -21,13 +23,15 @@ struct ModeTogglePicker: View {
     }
 }
 
-// 外部アプリで開くメニュー
+// 外部アプリで開くメニュー。アプリ一覧は呼び出し元のVM経由で渡す
+// （ExternalAppRegistry.sharedへのアクセスはVM層に閉じ、View層からは直接参照しない）
 struct ExternalAppMenu: View {
+    let apps: [any ExternalAppProtocol]
     let onSelect: (any ExternalAppProtocol) -> Void
 
     var body: some View {
         Menu {
-            ForEach(ExternalAppRegistry.shared.availableAdapters, id: \.id) { adapter in
+            ForEach(apps, id: \.id) { adapter in
                 Button { onSelect(adapter) } label: {
                     Label(adapter.displayName, systemImage: adapter.symbolName)
                 }

@@ -113,9 +113,7 @@ private struct CropHandleView: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    let nx = max(0.0, min(1.0, value.location.x / containerSize.width))
-                    let ny = max(0.0, min(1.0, value.location.y / containerSize.height))
-                    vm.applyDrag(corner: corner, nx: nx, ny: ny)
+                    vm.applyDrag(corner: corner, location: value.location, containerSize: containerSize)
                 }
         )
     }

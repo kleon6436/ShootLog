@@ -61,21 +61,21 @@ struct ContentView: View {
     @State private var isDropTargeted = false
 
     private var sidebarToggleAction: (() -> Void)? {
-        guard vm.currentModeID == "sidebar", vm.currentFolderURL != nil else { return nil }
+        guard vm.isSidebarModeActive else { return nil }
         return { vm.requestSidebarToggle() }
     }
 
     private var inspectorToggleAction: (() -> Void)? {
-        guard vm.currentModeID == "sidebar", vm.currentFolderURL != nil else { return nil }
+        guard vm.isSidebarModeActive else { return nil }
         return { vm.requestInspectorToggle() }
     }
 
     private var sidebarVisibilityState: Bool? {
-        vm.currentModeID == "sidebar" && vm.currentFolderURL != nil ? vm.isSidebarVisible : nil
+        vm.isSidebarModeActive ? vm.isSidebarVisible : nil
     }
 
     private var inspectorVisibilityState: Bool? {
-        vm.currentModeID == "sidebar" && vm.currentFolderURL != nil ? vm.isInspectorVisible : nil
+        vm.isSidebarModeActive ? vm.isInspectorVisible : nil
     }
 
     var body: some View {
