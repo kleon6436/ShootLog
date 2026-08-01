@@ -173,16 +173,3 @@ struct SlideshowModeView: View {
 
 // MARK: - Helper Views
 
-// MARK: - SlideshowMode 登録用
-
-struct SlideshowMode: @MainActor ViewModeProtocol {
-    let id = "slideshow"
-    let displayName = "スライドショー"
-    let symbolName = "play.rectangle"
-    let keyboardShortcut: KeyEquivalent? = "p"
-    private let box = ViewModelBox<SlideshowViewModel>()
-
-    @MainActor func makeView(vm: ContentViewModel) -> AnyView {
-        AnyView(SlideshowModeView(vm: box.get { SlideshowViewModel(content: vm) }))
-    }
-}

@@ -104,11 +104,16 @@ struct ContentView: View {
                     }
                 )
             } else {
-                // 表示モードに応じてビューを切り替える（レジストリから動的解決）。
-                // 未登録IDでnilになった場合もsidebarモードのmakeView経由でフォールバックし、
-                // ViewModelBoxのキャッシュ経路を必ず通す（直接VMを生成すると状態がリセットされる）
-                let view = ViewModeRegistry.shared.mode(for: vm.currentModeID)?.makeView(vm: vm)
-                view ?? ViewModeRegistry.shared.mode(for: "sidebar")?.makeView(vm: vm) ?? AnyView(EmptyView())
+                // 表示モードに応じてビューを切り替える。VM取得はレジストリのキャッシュ経由
+                // （直接VMを生成すると状態がリセットされるため）。未登録IDはsidebarへフォールバック
+                switch vm.currentModeID {
+                case "fullscreen":
+                    FullscreenModeView(vm: ViewModeRegistry.shared.fullscreenViewModel(content: vm))
+                case "slideshow":
+                    SlideshowModeView(vm: ViewModeRegistry.shared.slideshowViewModel(content: vm))
+                default:
+                    SidebarModeView(vm: ViewModeRegistry.shared.sidebarViewModel(content: vm))
+                }
             }
         }
         .overlay {
