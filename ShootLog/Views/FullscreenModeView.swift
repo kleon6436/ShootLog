@@ -69,7 +69,7 @@ struct FullscreenModeView: View {
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            ModeTogglePicker(currentModeID: $vm.currentModeID)
+            ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
 
             Button { vm.showFavoritesOnly.toggle() } label: {
                 Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
@@ -94,7 +94,7 @@ struct FullscreenModeView: View {
             .keyboardShortcut("i", modifiers: .command)
             .disabled(vm.photos.isEmpty)
 
-            ExternalAppMenu(onSelect: { adapter in vm.openInExternalApp(adapter) })
+            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
                 .disabled(vm.selectedPhoto == nil)
 
             Button { openSettings() } label: {

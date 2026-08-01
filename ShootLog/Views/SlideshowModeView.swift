@@ -16,7 +16,7 @@ struct SlideshowModeView: View {
             VStack {
                 HStack(spacing: 4) {
                     ForEach([2.0, 3.0, 5.0], id: \.self) { sec in
-                        Button("\(Int(sec))s") { vm.interval = sec; vm.restartTimer() }
+                        Button("\(Int(sec))s") { vm.setInterval(sec) }
                             .font(.system(size: 11, weight: vm.interval == sec ? .semibold : .regular))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -65,8 +65,7 @@ struct SlideshowModeView: View {
 
                     // 再生・一時停止
                     Button {
-                        vm.isPlaying.toggle()
-                        if vm.isPlaying { vm.restartTimer() } else { vm.timerTask?.cancel() }
+                        vm.togglePlayback()
                     } label: {
                         Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
                             .foregroundStyle(Color.onDarkCanvas)
@@ -120,10 +119,10 @@ struct SlideshowModeView: View {
         .focused($isFocused)
         .onAppear {
             isFocused = true
-            vm.restartTimer()
+            vm.startPlayback()
         }
-        .onDisappear { vm.timerTask?.cancel() }
-        .onKeyPress(.space)  { vm.isPlaying.toggle(); if vm.isPlaying { vm.restartTimer() } else { vm.timerTask?.cancel() }; return .handled }
+        .onDisappear { vm.stopPlayback() }
+        .onKeyPress(.space)  { vm.togglePlayback(); return .handled }
         .onKeyPress(.escape) { vm.switchToSidebar(); return .handled }
         .toolbar { toolbarItems }
     }
@@ -134,7 +133,7 @@ struct SlideshowModeView: View {
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            ModeTogglePicker(currentModeID: $vm.currentModeID)
+            ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
 
             Button { vm.showFavoritesOnly.toggle() } label: {
                 Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
@@ -159,7 +158,7 @@ struct SlideshowModeView: View {
             .keyboardShortcut("i", modifiers: .command)
             .disabled(vm.photos.isEmpty)
 
-            ExternalAppMenu(onSelect: { adapter in vm.openInExternalApp(adapter) })
+            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
                 .disabled(vm.selectedPhoto == nil)
 
             Button { openSettings() } label: {

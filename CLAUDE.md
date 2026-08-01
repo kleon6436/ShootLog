@@ -242,3 +242,28 @@ Sigma fp L の PictureMode（EXIF/DNGカラーモード読み取り・表示）�
 - ハードコードされた色値
 - サブフォルダの再帰読み込み
 - セキュリティスコープブックマークなしでの履歴フォルダアクセス
+
+## その他
+### 表示モードの拡張設計
+
+新モードを追加するときは `ViewModeProtocol` に準拠した型を作り、`ViewModeRegistry` に1行追加するだけ。ツールバー・設定画面は変更不要。
+
+`ViewModeProtocol` は `makeView` を持たない。ViewModelがView型を直接生成するとMVVM違反になるため、
+モード切替はView側（`ContentView`）が `currentModeID` を見てswitchする設計になっている。
+
+```swift
+// 全表示モードが準拠するプロトコル。View生成(makeView)は持たない:
+// ViewModelがView型を知る設計を避けるため、モード切替はView側(ContentView)が
+// currentModeIDを見てswitchする
+protocol ViewModeProtocol: Identifiable {
+    var id: String { get }
+    var displayName: String { get }
+    var symbolName: String { get }           // SF Symbols名
+    var keyboardShortcut: KeyEquivalent? { get }
+}
+
+// 初期登録モード
+// SidebarMode     (id: "sidebar")   ← デフォルト
+// FullscreenMode  (id: "fullscreen")
+// SlideshowMode   (id: "slideshow")
+```

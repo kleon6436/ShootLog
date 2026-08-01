@@ -5,6 +5,43 @@ import SwiftUI
 @Observable
 @MainActor
 final class SidebarViewModel: ContentViewModelProxy {
+    // サイドバー（左カラム）表示状態の永続化用。
+    // 2カラムの NavigationSplitView では「サイドバー+詳細」が .doubleColumn、
+    // 「詳細のみ」が .detailOnly（.all は3カラム用のため使わない）
+    enum ColumnVisibilityState: String {
+        case visible
+        case hidden
+
+        init(_ visibility: NavigationSplitViewVisibility) {
+            self = visibility == .detailOnly ? .hidden : .visible
+        }
+
+        var navigationVisibility: NavigationSplitViewVisibility {
+            switch self {
+            case .visible:
+                .doubleColumn
+            case .hidden:
+                .detailOnly
+            }
+        }
+
+        // 旧バージョン（3カラム構成）の保存値との互換変換。
+        // 当時は「左+中央+右」= "all"、「中央+右（サイドバー非表示）」= "doubleColumn"、
+        // 「右のみ」= "detailOnly" を保存していたため、サイドバー非表示にあたる旧値は
+        // 明示的に .hidden へ写像する。それ以外（"all"・"automatic"・未知の値）のみ .visible にフォールバックする
+        static func restored(from stored: String) -> ColumnVisibilityState {
+            if let state = ColumnVisibilityState(rawValue: stored) {
+                return state
+            }
+            switch stored {
+            case "detailOnly", "doubleColumn":
+                return .hidden
+            default:
+                return .visible
+            }
+        }
+    }
+
     let content: ContentViewModel
 
     // 検索テキスト
@@ -66,6 +103,34 @@ final class SidebarViewModel: ContentViewModelProxy {
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
+
+    // MARK: - サイドバー開閉の判定
+
+    // 起動時にAppStorageの保存値からサイドバー可視状態を復元する。
+    // NSViewController走査等のAppKit操作自体はView側の責務のため、ここでは
+    // 「保存値から表示状態をどう判定するか」という純粋なロジックのみを担う。
+    // 戻り値はSwiftUI非依存の ColumnVisibilityState とし、NavigationSplitViewVisibilityへの
+    // 変換はView側の責務とする
+    func restoreColumnVisibility(from stored: String) -> ColumnVisibilityState {
+        let state = ColumnVisibilityState.restored(from: stored)
+        setSidebarVisible(state == .visible)
+        return state
+    }
+
+    // columnVisibilityの変更（トグルボタン・ドラッグ収縮・メニューコマンド起因）を
+    // AppStorage保存値とContentViewModelの可視状態フラグへ同期する。
+    // NavigationSplitViewVisibility → ColumnVisibilityState の変換はView側で行ってから渡す
+    func syncColumnVisibility(_ state: ColumnVisibilityState) -> String {
+        setSidebarVisible(state == .visible)
+        return state.rawValue
+    }
+
+    // サイドバートグル操作（メニューコマンド・ツールバーボタン）でのトグル後の期待表示状態を判定する。
+    // AppKit側の実状態（畳まれているか）はView側でNSSplitViewItemから取得済みの値を渡してもらい、
+    // ここでは「いつ・どちらの状態にすべきか」の判定のみ行う。実際のAppKit API呼び出し自体はView側で行う
+    func resolveSidebarToggleTarget(wasCollapsed: Bool) -> ColumnVisibilityState {
+        wasCollapsed ? .visible : .hidden
+    }
 
     // MARK: - サイドバー幅の保存
 

@@ -4,42 +4,40 @@ import SwiftUI
 // 幅・背景材質・区切り線は `.inspector` 側（SidebarModeView）が担当する
 struct EXIFPanelView: View {
     var photo: Photo?
+    @State private var vm = EXIFPanelViewModel()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.medium) {
                 EXIFCard {
-                    EXIFRow(label: "ファイル名", value: photo?.fileURL.lastPathComponent)
+                    EXIFRow(label: "ファイル名", value: vm.fileNameText)
                 }
                 EXIFCard {
-                    EXIFRow(label: "カメラ",    value: photo?.cameraModel)
-                    EXIFRow(label: "レンズ",    value: photo?.lensModel)
+                    EXIFRow(label: "カメラ",    value: vm.cameraModelText)
+                    EXIFRow(label: "レンズ",    value: vm.lensModelText)
                 }
                 EXIFCard {
-                    EXIFRow(label: "絞り",      value: photo?.aperture.map { String(format: "f / %.1f", $0) },      isNumeric: true)
-                    EXIFRow(label: "SS",        value: shutterSpeedText,                                                  isNumeric: true)
-                    EXIFRow(label: "ISO",       value: photo?.iso.map { "\($0)" },                                       isNumeric: true)
-                    EXIFRow(label: "焦点距離",  value: photo?.focalLength.map { String(format: "%.0f mm", $0) },         isNumeric: true)
+                    EXIFRow(label: "絞り",      value: vm.apertureText,     isNumeric: true)
+                    EXIFRow(label: "SS",        value: vm.shutterSpeedText, isNumeric: true)
+                    EXIFRow(label: "ISO",       value: vm.isoText,          isNumeric: true)
+                    EXIFRow(label: "焦点距離",  value: vm.focalLengthText,  isNumeric: true)
                 }
                 EXIFCard {
-                    // cameraModel がある = EXIF 読み込み済みのため撮影日時を表示する
-                    EXIFRow(label: "撮影日時",  value: photo?.cameraModel != nil
-                        ? photo?.shootingDate.formatted(date: .abbreviated, time: .shortened)
-                        : nil)
+                    EXIFRow(label: "撮影日時",  value: vm.shootingDateText)
 
                     // カラーモード（Sigma fp L 等）。"Off" / nil は非表示
-                    if let mode = photo?.colorMode, mode != "Off" {
+                    if let mode = vm.colorModeText {
                         EXIFColorModeBadge(mode: mode)
                     }
                 }
 
                 // お気に入り状態
                 EXIFCard {
-                    EXIFFavoriteRow(isFavorite: photo?.isFavorite ?? false)
+                    EXIFFavoriteRow(isFavorite: vm.isFavorite)
                 }
 
                 // メモ
-                if let note = photo?.note, !note.isEmpty {
+                if let note = vm.noteText {
                     EXIFCard {
                         Text("メモ").font(.caption).foregroundStyle(.secondary)
                         Text(note).font(.subheadline)
@@ -49,13 +47,9 @@ struct EXIFPanelView: View {
             .padding(Spacing.large)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var shutterSpeedText: String? {
-        guard let ss = photo?.shutterSpeed else { return nil }
-        if ss >= 1 { return String(format: "%.1f s", ss) }
-        let denom = Int((1.0 / ss).rounded())
-        return "1/\(denom) s"
+        .onChange(of: photo?.id, initial: true) {
+            vm.photo = photo
+        }
     }
 }
 

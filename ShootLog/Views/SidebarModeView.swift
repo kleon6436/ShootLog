@@ -1,43 +1,6 @@
 import AppKit
 import SwiftUI
 
-// サイドバー（左カラム）表示状態の永続化用。
-// 2カラムの NavigationSplitView では「サイドバー+詳細」が .doubleColumn、
-// 「詳細のみ」が .detailOnly（.all は3カラム用のため使わない）
-private enum SidebarColumnVisibilityState: String {
-    case visible
-    case hidden
-
-    init(_ visibility: NavigationSplitViewVisibility) {
-        self = visibility == .detailOnly ? .hidden : .visible
-    }
-
-    var navigationVisibility: NavigationSplitViewVisibility {
-        switch self {
-        case .visible:
-            .doubleColumn
-        case .hidden:
-            .detailOnly
-        }
-    }
-
-    // 旧バージョン（3カラム構成）の保存値との互換変換。
-    // 当時は「左+中央+右」= "all"、「中央+右（サイドバー非表示）」= "doubleColumn"、
-    // 「右のみ」= "detailOnly" を保存していたため、サイドバー非表示にあたる旧値は
-    // 明示的に .hidden へ写像する。それ以外（"all"・"automatic"・未知の値）のみ .visible にフォールバックする
-    static func restored(from stored: String) -> SidebarColumnVisibilityState {
-        if let state = SidebarColumnVisibilityState(rawValue: stored) {
-            return state
-        }
-        switch stored {
-        case "detailOnly", "doubleColumn":
-            return .hidden
-        default:
-            return .visible
-        }
-    }
-}
-
 // サイドバーモード。左=写真一覧 / 右=ビューア の標準2カラム構成に、
 // EXIFパネルを標準インスペクタ（`.inspector`）として付与する。
 // 信号機の位置連動はmacOS標準のNavigationSplitView + NSToolbarに委ね、
@@ -47,7 +10,7 @@ struct SidebarModeView: View {
     @Bindable var vm: SidebarViewModel
     // サイドバー幅（Capture One風に可変・次回起動時の初期幅として近似復元する）
     @AppStorage("sidebarWidth") private var sidebarWidth: Double = 140
-    @AppStorage("sidebarColumnVisibility") private var storedColumnVisibility: String = SidebarColumnVisibilityState.visible.rawValue
+    @AppStorage("sidebarColumnVisibility") private var storedColumnVisibility: String = SidebarViewModel.ColumnVisibilityState.visible.rawValue
     @Environment(\.openSettings) private var openSettings
     @FocusState private var isSidebarFocused: Bool
     // サイドバー（左カラム）の表示状態。標準トグルボタン・ドラッグ収縮・メニューコマンドで可変に制御する
@@ -71,8 +34,7 @@ struct SidebarModeView: View {
         .animation(.easeInOut(duration: 0.25), value: vm.toastMessage)
         .onAppear(perform: restoreColumnVisibility)
         .onChange(of: columnVisibility) { _, newValue in
-            storedColumnVisibility = SidebarColumnVisibilityState(newValue).rawValue
-            vm.setSidebarVisible(newValue != .detailOnly)
+            storedColumnVisibility = vm.syncColumnVisibility(SidebarViewModel.ColumnVisibilityState(newValue))
         }
         .onChange(of: vm.sidebarToggleRequestID) { _, _ in
             toggleSidebar()
@@ -169,7 +131,7 @@ struct SidebarModeView: View {
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
-            ModeTogglePicker(currentModeID: $vm.currentModeID)
+            ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
 
             Button { vm.showFavoritesOnly.toggle() } label: {
                 Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
@@ -194,7 +156,7 @@ struct SidebarModeView: View {
             .keyboardShortcut("i", modifiers: .command)
             .disabled(vm.photos.isEmpty)
 
-            ExternalAppMenu(onSelect: { adapter in vm.openInExternalApp(adapter) })
+            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
                 .disabled(vm.selectedPhoto == nil)
 
             Button { openSettings() } label: {
@@ -226,9 +188,7 @@ struct SidebarModeView: View {
     // MARK: - Actions
 
     private func restoreColumnVisibility() {
-        let state = SidebarColumnVisibilityState.restored(from: storedColumnVisibility)
-        columnVisibility = state.navigationVisibility
-        vm.setSidebarVisible(state == .visible)
+        columnVisibility = vm.restoreColumnVisibility(from: storedColumnVisibility).navigationVisibility
     }
 
     // メニューコマンド（⌘\）とツールバーのトグルボタン用。
@@ -236,7 +196,9 @@ struct SidebarModeView: View {
     // まず AppKit の toggleSidebar(_:) を試す。
     // AppKit 経由で折りたたんだ場合に SwiftUI 側のバインディングが更新されない環境があり、
     // その状態を放置すると AppStorage への永続化・vm.setSidebarVisible・メニュー文言が
-    // 実際の表示状態とずれるため、AppKit の実状態から求めた期待値を必ず columnVisibility にも反映する
+    // 実際の表示状態とずれるため、AppKit の実状態から求めた期待値を必ず columnVisibility にも反映する。
+    // AppKit の NSViewController 走査・実行自体はView層の責務として残し、
+    // 「トグル後どちらの表示状態にすべきか」の判定のみ vm に委譲する
     private func toggleSidebar() {
         let selector = #selector(NSSplitViewController.toggleSidebar(_:))
         let window = NSApp.keyWindow ?? NSApp.mainWindow
@@ -244,7 +206,7 @@ struct SidebarModeView: View {
         // ドラッグで畳まれた場合など columnVisibility が古い可能性があるため、
         // トグル前の実状態（AppKit 側）を基準に反転後の期待値を決める
         let wasCollapsed = sidebarSplitViewItem(in: window)?.isCollapsed ?? (columnVisibility == .detailOnly)
-        let target: NavigationSplitViewVisibility = wasCollapsed ? .doubleColumn : .detailOnly
+        let target = vm.resolveSidebarToggleTarget(wasCollapsed: wasCollapsed).navigationVisibility
 
         let performedByAppKit = window?.firstResponder?.tryToPerform(selector, with: nil) == true
             || window?.contentViewController?.tryToPerform(selector, with: nil) == true

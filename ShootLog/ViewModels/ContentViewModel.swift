@@ -254,6 +254,24 @@ final class ContentViewModel {
         isSidebarVisible = isVisible
     }
 
+    // サイドバー/インスペクタの表示切替・可視性表示が有効な条件（sidebarモード表示中かつフォルダ選択済み）
+    // ContentView の FocusedValues 判定で共通利用する
+    var isSidebarModeActive: Bool {
+        currentModeID == "sidebar" && currentFolderURL != nil
+    }
+
+    // MARK: - Toolbar (ModeToolbarComponents向け)
+
+    // ツールバーのモード切替セグメントに表示する、有効化済み表示モード一覧
+    var availableModes: [any ViewModeProtocol] {
+        ViewModeRegistry.shared.enabledModes
+    }
+
+    // ツールバーの外部アプリメニューに表示する、利用可能な外部アプリ一覧
+    var externalApps: [any ExternalAppProtocol] {
+        ExternalAppRegistry.shared.availableAdapters
+    }
+
     // MARK: - Private
 
     private func selectFolder(url: URL) async {

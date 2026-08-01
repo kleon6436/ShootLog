@@ -46,4 +46,9 @@ extension ContentViewModelProxy {
     func openFolder() { content.openFolder() }
     func openAnalysis() { content.openAnalysis() }
     func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
+
+    // ModeToolbarComponents（ModeTogglePicker/ExternalAppMenu）へ渡す一覧。
+    // シングルトンアクセスはContentViewModel側に集約し、Viewは委譲経由で受け取るだけにする
+    var availableModes: [any ViewModeProtocol] { content.availableModes }
+    var externalApps: [any ExternalAppProtocol] { content.externalApps }
 }

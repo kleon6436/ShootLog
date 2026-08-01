@@ -9,7 +9,7 @@ final class SlideshowViewModel: ContentViewModelProxy {
     var isPlaying = true
     var interval: Double = 3.0
     var progress: Double = 0.0
-    var timerTask: Task<Void, Never>?
+    private var timerTask: Task<Void, Never>?
 
     init(content: ContentViewModel) {
         self.content = content
@@ -41,6 +41,33 @@ final class SlideshowViewModel: ContentViewModelProxy {
                 }
             }
         }
+    }
+
+    // 再生・一時停止を切り替える（タイマーの開始・停止も内部で完結させる）
+    func togglePlayback() {
+        isPlaying.toggle()
+        if isPlaying {
+            restartTimer()
+        } else {
+            timerTask?.cancel()
+        }
+    }
+
+    // 再生を停止する（View の onDisappear などから呼ぶ）
+    func stopPlayback() {
+        isPlaying = false
+        timerTask?.cancel()
+    }
+
+    // 再生間隔を変更し、タイマーを新しい間隔で再起動する
+    func setInterval(_ seconds: Double) {
+        interval = seconds
+        restartTimer()
+    }
+
+    // スライドショー表示開始時にタイマーを起動する（ViewのonAppearから呼ぶ）
+    func startPlayback() {
+        restartTimer()
     }
 
     func advanceSlideshow() {
