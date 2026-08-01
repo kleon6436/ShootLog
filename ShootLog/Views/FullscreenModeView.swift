@@ -225,26 +225,24 @@ struct FullscreenModeView: View {
 
     // fit表示時の画像サイズ。90度/270度回転時は縦横を入れ替えて計算する
     private var fittedImageSize: CGSize {
-        let source = rotationAdjustedPixelSize
-        guard source.width > 0, source.height > 0,
-              viewportSize.width > 0, viewportSize.height > 0 else { return viewportSize }
-        let ratio = min(viewportSize.width / source.width, viewportSize.height / source.height)
-        return CGSize(width: source.width * ratio, height: source.height * ratio)
+        ZoomPanGeometry.fittedImageSize(
+            sourcePixelSize: rotationAdjustedPixelSize,
+            viewportSize: viewportSize
+        )
     }
 
     private var rotationAdjustedPixelSize: CGSize {
-        let rotation = vm.currentEditInfo?.rotation ?? 0
-        guard rotation % 180 != 0 else { return displayedImagePixelSize }
-        return CGSize(width: displayedImagePixelSize.height, height: displayedImagePixelSize.width)
+        ZoomPanGeometry.rotationAdjustedPixelSize(
+            displayedImagePixelSize,
+            rotation: vm.currentEditInfo?.rotation ?? 0
+        )
     }
 
-    // 最大ズーム倍率。実際にロード済みの画像がドット等倍になる倍率でキャップし、
-    // 768pxサムネイルしか無い状態で過剰に拡大しないようにする（下限は3.0倍）
     private var maxZoomScale: CGFloat {
-        let sourceWidth = rotationAdjustedPixelSize.width
-        let fitWidth = fittedImageSize.width
-        guard sourceWidth > 0, fitWidth > 0 else { return 3.0 }
-        return max(3.0, sourceWidth / fitWidth)
+        ZoomPanGeometry.maxZoomScale(
+            sourcePixelSize: rotationAdjustedPixelSize,
+            fittedImageSize: fittedImageSize
+        )
     }
 
     // MARK: - ジェスチャー
@@ -352,22 +350,17 @@ struct FullscreenModeView: View {
 
     // MARK: - クランプ
 
+    // 計算本体はZoomPanGeometryへ切り出し、ここでは現在の@Stateを引数として渡す
     private func clampedScale(_ scale: CGFloat) -> CGFloat {
-        min(max(scale, 1.0), maxZoomScale)
+        ZoomPanGeometry.clampedScale(scale, maxScale: maxZoomScale)
     }
 
-    // 拡大後の画像が画面外へ流れないよう、各軸のはみ出し量の半分を上限にする。
-    // fit倍率以下のときはパンを許可しない
     private func clampedOffset(_ offset: CGSize, scale: CGFloat) -> CGSize {
-        guard scale > 1.0 else { return .zero }
-        let displayed = fittedImageSize
-        let scaledWidth = displayed.width * scale
-        let scaledHeight = displayed.height * scale
-        let maxX = max(0, (scaledWidth - viewportSize.width) / 2)
-        let maxY = max(0, (scaledHeight - viewportSize.height) / 2)
-        return CGSize(
-            width: min(max(offset.width, -maxX), maxX),
-            height: min(max(offset.height, -maxY), maxY)
+        ZoomPanGeometry.clampedOffset(
+            offset,
+            scale: scale,
+            fittedImageSize: fittedImageSize,
+            viewportSize: viewportSize
         )
     }
 
