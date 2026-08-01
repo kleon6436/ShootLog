@@ -97,8 +97,10 @@ struct SidebarModeView: View {
                 EditorToolbarView(
                     editInfo: vm.currentEditInfo,
                     isCropMode: vm.isCropMode,
+                    isFavorite: vm.isSelectedPhotoFavorite,
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
+                    onToggleFavorite: { vm.toggleFavorite() },
                     onReset: { vm.resetEdits() }
                 )
             }
