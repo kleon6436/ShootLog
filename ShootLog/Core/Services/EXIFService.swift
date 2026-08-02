@@ -6,7 +6,24 @@ actor EXIFService {
     static let shared = EXIFService()
     private init() {}
 
-    private let dateFormatter: DateFormatter = {
+    // 分析画面の一括取得で同時に走らせる読み取り数の上限（ローカルボリューム）。
+    // 無制限にすると I/O 競合でかえって遅くなるため上限を設ける
+    static let defaultBatchConcurrency = 6
+
+    // 一括取得の同時実行数を決める。ネットワークボリューム上の写真では
+    // サムネイル取得（ImageLoader の ThumbnailThrottle）と同じ「一般」設定タブの値へ揃え、
+    // 同時 I/O 本数が過剰にならないようにする（未設定時は 0 が返るため既定値へフォールバック）
+    nonisolated static func recommendedBatchConcurrency(for url: URL?) -> Int {
+        guard let url,
+              let isLocal = (try? url.resourceValues(forKeys: [.volumeIsLocalKey]))?.volumeIsLocal,
+              !isLocal else { return defaultBatchConcurrency }
+        let stored = UserDefaults.standard.integer(forKey: AppSettingsKeys.networkConcurrency)
+        return stored > 0 ? stored : AppSettingsKeys.networkConcurrencyDefault
+    }
+
+    // DateFormatter は macOS 10.9 以降、生成後に設定を変更しなければ複数スレッドからの
+    // 読み取りが安全なため、並列読み取りから共有できる定数として保持する
+    private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy:MM:dd HH:mm:ss"
         return f
@@ -14,6 +31,54 @@ actor EXIFService {
 
     // 指定 URL の写真から EXIF を読み取る。バックグラウンドスレッドで呼ぶこと
     func readEXIF(from url: URL) throws -> EXIFInfo {
+        try Self.parseEXIF(from: url)
+    }
+
+    // 複数 URL の EXIF を並列に読み取る。actor のシリアル実行を避けるため nonisolated とし、
+    // 同時実行数は maxConcurrency で制限する。読み取りに失敗した URL は結果に含めない
+    nonisolated func readEXIFBatch(
+        from urls: [URL],
+        maxConcurrency: Int = EXIFService.defaultBatchConcurrency
+    ) async -> [URL: EXIFInfo] {
+        guard !urls.isEmpty else { return [:] }
+        let limit = max(1, min(maxConcurrency, urls.count))
+
+        return await withTaskGroup(of: (URL, EXIFInfo)?.self) { group in
+            var results: [URL: EXIFInfo] = [:]
+            results.reserveCapacity(urls.count)
+            var nextIndex = 0
+
+            func addTask(for url: URL) {
+                group.addTask(priority: .utility) {
+                    // 実行開始前にキャンセルを検査し、cancelAll() 後に未着手の子タスクが走らないようにする
+                    guard !Task.isCancelled, let exif = try? Self.parseEXIF(from: url) else { return nil }
+                    return (url, exif)
+                }
+            }
+
+            while nextIndex < limit {
+                addTask(for: urls[nextIndex])
+                nextIndex += 1
+            }
+
+            while let finished = await group.next() {
+                if let (url, exif) = finished { results[url] = exif }
+                if Task.isCancelled { break }
+                if nextIndex < urls.count {
+                    addTask(for: urls[nextIndex])
+                    nextIndex += 1
+                }
+            }
+
+            group.cancelAll()
+            return results
+        }
+    }
+
+    // MARK: - Parsing
+
+    // ImageIO による EXIF 読み取り本体。並列実行できるよう actor 分離から切り離している
+    nonisolated private static func parseEXIF(from url: URL) throws -> EXIFInfo {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             throw ShootLogError.exifReadFailed
         }
@@ -37,7 +102,7 @@ actor EXIFService {
     // MARK: - Private
 
     // Sigma fp L の MakerNote から PictureMode（カラーモード）を取得する
-    private func extractColorMode(from props: [CFString: Any]) -> String? {
+    nonisolated private static func extractColorMode(from props: [CFString: Any]) -> String? {
         let makerNoteValue = props["{MakerNote}" as CFString]
 
         // Step 1: ImageIO が MakerNote を辞書として解釈できた場合はそのまま利用する
@@ -88,7 +153,7 @@ actor EXIFService {
         "Monochrome"
     ]
 
-    private func parseDate(_ string: String?) -> Date? {
+    nonisolated private static func parseDate(_ string: String?) -> Date? {
         guard let string else { return nil }
         return dateFormatter.date(from: string)
     }

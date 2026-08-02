@@ -18,8 +18,33 @@ final class ImageLoader: Sendable {
     }
 
     // NSCache はスレッドセーフ。nonisolated(unsafe) で Swift 6 の Sendable チェックを回避する
-    nonisolated(unsafe) private let memoryCache = NSCache<NSURL, NSImage>()
-    nonisolated(unsafe) private let highResCache = NSCache<NSURL, NSImage>()
+    // totalCostLimit はデコード後の概算バイト数（ピクセル数 × 4）を単位とする（estimatedCost(of:) 参照）
+    nonisolated(unsafe) private let memoryCache: NSCache<NSURL, NSImage> = {
+        let cache = NSCache<NSURL, NSImage>()
+        cache.countLimit = Limits.thumbnailCount
+        cache.totalCostLimit = Limits.thumbnailTotalCost
+        return cache
+    }()
+    // 高解像度画像は目標ピクセルサイズごとにキャッシュするため、URLとサイズを組み合わせた文字列をキーにする
+    nonisolated(unsafe) private let highResCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = Limits.highResCount
+        cache.totalCostLimit = Limits.highResTotalCost
+        return cache
+    }()
+
+    // キャッシュ上限。前後1枚の先読みを含めても数枚分は確実に残る値を設定する
+    private enum Limits {
+        // サムネイル（最大768px ≒ 2.4MB/枚）。192MBのコスト上限が先に効いて実効約80枚となるため、
+        // 件数上限は極端に小さいサムネイルが大量に載った場合の安全弁として働く
+        static let thumbnailCount = 100
+        static let thumbnailTotalCost = 192 * 1024 * 1024
+        // 高解像度画像（既定3000px ≒ 24MB/枚）。現在＋前後1枚に加え、往復移動分の余裕を持たせる
+        static let highResCount = 8
+        static let highResTotalCost = 320 * 1024 * 1024
+        // ボリューム判定（NSNumber）はごく小さいためコスト上限は設けず件数のみ制限する
+        static let volumeCount = 64
+    }
 
     // ネットワークドライブ向け：同時サムネイル取得数を制限するスロット。
     // 件数は「一般」設定タブの値（未設定時は 0 が返るため既定値 4 件へフォールバック）
@@ -37,7 +62,27 @@ final class ImageLoader: Sendable {
     private let minAcceptablePixelSize: Int
 
     // ボリューム→ネットワーク判定のキャッシュ（セッション中に変わらない前提）
-    nonisolated(unsafe) private let volumeCache = NSCache<NSURL, NSNumber>()
+    nonisolated(unsafe) private let volumeCache: NSCache<NSURL, NSNumber> = {
+        let cache = NSCache<NSURL, NSNumber>()
+        cache.countLimit = Limits.volumeCount
+        return cache
+    }()
+
+    // MARK: - 高解像度画像の目標ピクセルサイズ
+
+    // 表示領域サイズが指定されなかった場合に使う既定の目標ピクセルサイズ。
+    // フルサイズより十分小さくメモリを抑えつつ、Retinaの全画面表示でも劣化を感じにくい値
+    static let defaultHighResMaxPixelSize: CGFloat = 3000
+
+    // ダウンサンプルを行わずフルサイズでデコードさせるための指定値（最大ズーム時のフォールバック用）
+    static let fullSizePixelTarget: CGFloat = 0
+
+    // 目標ピクセルサイズの量子化ステップ。ズーム操作で目標値が細かく変動しても
+    // 同一バケットに落ちる限り再デコードとキャッシュ増殖を避けられる
+    private static let highResBucketStep = 512
+
+    // このサイズを超える要求はダウンサンプルの意味が薄いためフルサイズデコードへ回す
+    private static let highResBucketCeiling = 8192
 
     // MARK: - Public
 
@@ -49,9 +94,12 @@ final class ImageLoader: Sendable {
         if let img = memoryCache.object(forKey: key) { return img }
 
         // 2. ディスクキャッシュ（再起動後もネットワーク読み込みを回避できる）
+        // このメソッドは ImageLoader が @MainActor を持たないため nonisolated async として実行され、
+        // 呼び出し元が @MainActor（PhotoThumbnailViewModel / PhotoImageViewModel）でも
+        // 本体はMainActorを離れて動く。同期I/OがMainActorを塞ぐ経路は無い
         let diskURL = Self.diskCacheURL(for: url)
         if let img = NSImage(contentsOf: diskURL) {
-            memoryCache.setObject(img, forKey: key)
+            memoryCache.setObject(img, forKey: key, cost: Self.estimatedCost(of: img))
             return img
         }
 
@@ -81,7 +129,7 @@ final class ImageLoader: Sendable {
         guard let cgImage else { return nil }
 
         let image = NSImage(cgImage: cgImage, size: .zero)
-        memoryCache.setObject(image, forKey: key)
+        memoryCache.setObject(image, forKey: key, cost: cgImage.width * cgImage.height * 4)
 
         // 4. ディスクキャッシュへ書き込む（バックグラウンドで非同期）
         Task.detached(priority: .background) {
@@ -90,11 +138,22 @@ final class ImageLoader: Sendable {
         return image
     }
 
-    // メインビューア用：フルサイズ画像を返す（メモリ→CGImageSource の順で確認）
+    // メインビューア用：表示領域に合わせてダウンサンプルした高解像度画像を返す（メモリ→CGImageSource の順で確認）
     // NSImage(contentsOf:) は RAW ファイルで埋め込み JPEG プレビューを返す場合があるため、
-    // CGImageSourceCreateImageAtIndex でフルセンサー解像度を明示的に取得する
-    func highResImage(for url: URL) async -> NSImage? {
-        let key = url as NSURL
+    // CGImageSource 経由で必要な解像度を明示的に取得する
+    //
+    // targetMaxPixelSize には表示領域の長辺ピクセル数（ビューサイズ × 画面スケール）を渡す。
+    // RAW のセンサー解像度をそのままデコードしないことでメモリピークとデコード時間を抑える。
+    // fullSizePixelTarget を渡した場合のみ従来どおりフルサイズをデコードする（最大ズーム時のフォールバック）。
+    //
+    // 注意：ズーム操作中は目標サイズが連続的に変化するため、呼び出し側で
+    // ズーム完了時のみ再要求するデバウンスを行うこと（バケット量子化でも再デコードは完全には防げない）。
+    func highResImage(
+        for url: URL,
+        targetMaxPixelSize: CGFloat = ImageLoader.defaultHighResMaxPixelSize
+    ) async -> NSImage? {
+        let bucket = Self.pixelBucket(for: targetMaxPixelSize)
+        let key = Self.highResCacheKey(for: url, bucket: bucket)
 
         if let img = highResCache.object(forKey: key) { return img }
 
@@ -120,8 +179,26 @@ final class ImageLoader: Sendable {
 
             // kCGImageSourceShouldCacheImmediately: false でデコード前のメモリ確保を抑制する
             let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCacheImmediately: false]
-            guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions as CFDictionary),
-                  let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil as NSImage? }
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions as CFDictionary) else {
+                return nil as NSImage?
+            }
+
+            let cgImage: CGImage?
+            if bucket > 0 {
+                // 表示領域に合わせたダウンサンプルデコード。元画像より大きい値を指定しても
+                // ImageIO はアップスケールせず元の解像度を返す。
+                // kCGImageSourceCreateThumbnailWithTransform は指定しない（従来のフルサイズ経路と
+                // 向きの扱いを揃え、サムネイル→高解像度の差し替えで挙動を変えないため）
+                let downsampleOptions: [CFString: Any] = [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: bucket,
+                    kCGImageSourceShouldCacheImmediately: false
+                ]
+                cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary)
+            } else {
+                cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
+            }
+            guard let cgImage else { return nil as NSImage? }
 
             // size: .zero で NSImage が CGImage のピクセル寸法を 1pt=1px として採用する
             return NSImage(cgImage: cgImage, size: .zero)
@@ -130,7 +207,7 @@ final class ImageLoader: Sendable {
         if isNetwork { await throttle.release() }
         guard let image else { return nil }
 
-        highResCache.setObject(image, forKey: key)
+        highResCache.setObject(image, forKey: key, cost: Self.estimatedCost(of: image))
         return image
     }
 
@@ -147,6 +224,32 @@ final class ImageLoader: Sendable {
     }
 
     // MARK: - Private
+
+    // 目標ピクセルサイズを量子化する。0 はフルサイズデコードを表す
+    // （fullSizePixelTarget や NaN・無限大・負値も guard でここに落ちる）
+    private static func pixelBucket(for target: CGFloat) -> Int {
+        guard target > 0, target.isFinite else { return 0 }
+        let step = CGFloat(highResBucketStep)
+        // Int 変換前に上限直上でクランプする。異常に大きい表示サイズが渡されても
+        // Int(_:) が representable range 外でトラップしない。クランプ後の値は必ず
+        // highResBucketCeiling を上回るため、最終的にフルサイズ経路（0）へ落ちる
+        let clamped = min(max(target, step), CGFloat(highResBucketCeiling) + step)
+        let bucket = Int((clamped / step).rounded(.up)) * highResBucketStep
+        return bucket > highResBucketCeiling ? 0 : bucket
+    }
+
+    // 同一URLでも目標サイズごとに別エントリとして扱うためのキャッシュキー
+    private static func highResCacheKey(for url: URL, bucket: Int) -> NSString {
+        "\(bucket)|\(url.absoluteString)" as NSString
+    }
+
+    // デコード後の概算メモリコスト（ピクセル数 × 4バイト）。NSCache の totalCostLimit に渡す
+    private static func estimatedCost(of image: NSImage) -> Int {
+        let rep = image.representations.first
+        let width = rep?.pixelsWide ?? Int(image.size.width)
+        let height = rep?.pixelsHigh ?? Int(image.size.height)
+        return max(1, width * height * 4)
+    }
 
     // URLが属するボリュームのネットワーク判定（ボリューム単位でキャッシュ）
     private func volumeIsNetwork(_ url: URL) -> Bool {

@@ -90,6 +90,8 @@ struct FullscreenModeView: View {
         PhotoViewerView(
             photo: vm.selectedPhoto,
             editInfo: vm.currentEditInfo,
+            neighborPrefetchURLs: neighborPrefetchURLs,
+            prefersFullSizeDecode: prefersFullSizeDecode,
             interpolation: isGestureActive ? .medium : .high,
             onDisplayedImageSizeChange: { displayedImagePixelSize = $0 }
         )
@@ -205,6 +207,24 @@ struct FullscreenModeView: View {
     private var canGoNext: Bool {
         guard let index = vm.visibleIndex else { return false }
         return index < vm.visiblePhotos.count - 1
+    }
+
+    // 先読み対象（前後1枚）。フルスクリーンは selectNext/selectPrevious とも端でクランプされ
+    // ループしないため、wrapsAround は指定しない
+    private var neighborPrefetchURLs: [URL] {
+        HighResPrefetcher.neighborURLs(in: vm.visiblePhotos, around: vm.visibleIndex)
+    }
+
+    // 表示中の画像をフルサイズで再デコードすべきズーム倍率。
+    // 通常表示は表示領域サイズに合わせてダウンサンプルしており、fit表示の1.5倍を超えると
+    // 拡大時にデコード解像度が不足するため、ここから元解像度へ切り替える
+    // （45MP級のRAWで最大ズーム時に眠くなるのを防ぐ）
+    private static let fullSizeDecodeZoomThreshold: CGFloat = 1.5
+
+    // ジェスチャー中の暫定倍率も含めて判定する。PhotoViewerView 側でデバウンスするため、
+    // ピンチ中にしきい値を出入りしても再デコードは連発しない
+    private var prefersFullSizeDecode: Bool {
+        effectiveScale > Self.fullSizeDecodeZoomThreshold
     }
 
     // ジェスチャー中の暫定値を含む実効ズーム倍率

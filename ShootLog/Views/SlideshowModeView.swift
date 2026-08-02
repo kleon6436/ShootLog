@@ -104,7 +104,7 @@ struct SlideshowModeView: View {
                         .frame(width: 100)
                         .tint(Color.onDarkCanvasSecondary)
 
-                    Text("\(Int(vm.interval))s")
+                    Text("\(vm.remainingSeconds)s")
                         .font(HUDTypography.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -67,6 +67,26 @@ final class ContentViewModel {
     private var bookmarkScopedURL: URL?
     private var toastTask: Task<Void, Never>?
 
+    // 段階挿入（先頭N件を即時表示し、残りを逐次insert）の残り分を処理するTask。
+    // フォルダ切替時にキャンセルする
+    private var photoStagingTask: Task<Void, Never>?
+
+    // 段階挿入の世代番号。キャンセル直後に古いTaskが photos を更新してしまうのを防ぐ
+    private var photoStagingGeneration = 0
+
+    // 段階挿入中に一覧末尾で「次へ」が押された際の待機Task。
+    // 連打で複数溜まらないよう常に1本だけ保持し、フォルダ切替時にキャンセルする
+    private var pendingSelectNextTask: Task<Void, Never>?
+
+    // 分析シートのEXIF一括取得Task。シートを開き直した際に前回分をキャンセルする
+    private var analysisTask: Task<Void, Never>?
+
+    // グリッドの初期表示に必要な可視セル数の目安。この件数までは即時にinsert/saveする
+    private static let initialPhotoBatchSize = 50
+
+    // 段階挿入の2回目以降で1度に処理する件数
+    private static let photoStagingChunkSize = 100
+
     // MARK: - Setup
 
     // ContentView.onAppear で呼ぶ。以降のすべての操作で内部的に使う
@@ -173,6 +193,24 @@ final class ContentViewModel {
             selectPhoto(list.first)
             return
         }
+        // 段階挿入中に「まだ挿入されていない次の写真」が存在し得る場合に限り、挿入完了を待って再試行する。
+        // 絞り込み末尾が全体の末尾と一致しない場合（お気に入りのみ表示など）は待たずに即クランプする
+        if index == list.count - 1,
+           let staging = photoStagingTask,
+           list.last?.id == photos.last?.id {
+            let generation = photoStagingGeneration
+            let targetID = selectedPhoto.id
+            pendingSelectNextTask?.cancel()
+            pendingSelectNextTask = Task { [weak self] in
+                await staging.value
+                guard let self, !Task.isCancelled,
+                      generation == self.photoStagingGeneration,
+                      self.selectedPhoto?.id == targetID else { return }
+                self.pendingSelectNextTask = nil
+                self.selectNext()
+            }
+            return
+        }
         selectPhoto(list[min(index + 1, list.count - 1)])
     }
 
@@ -252,20 +290,25 @@ final class ContentViewModel {
         let url = photo.fileURL
         do {
             let exif = try await EXIFService.shared.readEXIF(from: url)
-            photo.cameraMake   = exif.cameraMake
-            photo.cameraModel  = exif.cameraModel
-            photo.lensModel    = exif.lensModel
-            photo.aperture     = exif.aperture
-            photo.shutterSpeed = exif.shutterSpeed
-            photo.iso          = exif.iso
-            photo.focalLength  = exif.focalLength
-            photo.colorMode    = exif.colorMode
-            if let date = exif.shootingDate { photo.shootingDate = date }
-            photo.exifFetchedAt = Date()
+            apply(exif, to: photo)
             try? modelContext?.save()
         } catch {
             // EXIF 読み取り失敗は非致命的。無視する
         }
+    }
+
+    // 読み取った EXIF を Photo へ反映する（保存は呼び出し側でまとめて行う）
+    private func apply(_ exif: EXIFInfo, to photo: Photo) {
+        photo.cameraMake   = exif.cameraMake
+        photo.cameraModel  = exif.cameraModel
+        photo.lensModel    = exif.lensModel
+        photo.aperture     = exif.aperture
+        photo.shutterSpeed = exif.shutterSpeed
+        photo.iso          = exif.iso
+        photo.focalLength  = exif.focalLength
+        photo.colorMode    = exif.colorMode
+        if let date = exif.shootingDate { photo.shootingDate = date }
+        photo.exifFetchedAt = Date()
     }
 
     // MARK: - External App
@@ -280,15 +323,39 @@ final class ContentViewModel {
 
     var showAnalysis = false
 
-    // 分析シートを開き、未取得EXIFをバックグラウンドで一括ロードする
-    // @Model は Sendable でないためシーケンシャルに処理する。EXIFService actor 内で I/O は並列化される
+    // 分析シートを開き、未取得EXIFをバックグラウンドで一括ロードする。
+    // AnalysisView は初期化時の写真配列をスナップショットするため、段階挿入中は
+    // 全件の挿入完了を待ってからシートを開く（部分集合のまま分析されるのを防ぐ）。
+    // @Model は Sendable でないため URL のみを EXIFService へ渡し、読み取りは並列数制限付きで並列化する
     func openAnalysis() {
         guard !photos.isEmpty else { return }
-        showAnalysis = true
-        Task {
-            for photo in photos where photo.exifFetchedAt == nil {
-                await loadEXIFIfNeeded(for: photo)
+        analysisTask?.cancel()
+        analysisTask = Task {
+            let generation = photoStagingGeneration
+            if let staging = photoStagingTask {
+                isLoading = true
+                await staging.value
+                // フォルダが切り替わった場合は、その分析要求自体を破棄する
+                // （isLoading は新しい読み込み側が管理するため触らない）
+                guard generation == photoStagingGeneration else { return }
+                isLoading = false
             }
+            guard !Task.isCancelled, !photos.isEmpty else { return }
+            showAnalysis = true
+
+            let targets = photos.filter { $0.exifFetchedAt == nil }
+            guard !targets.isEmpty else { return }
+            let urls = targets.map(\.fileURL)
+            let results = await EXIFService.shared.readEXIFBatch(
+                from: urls,
+                maxConcurrency: EXIFService.recommendedBatchConcurrency(for: urls.first)
+            )
+            guard !Task.isCancelled else { return }
+            for photo in targets {
+                guard let exif = results[photo.fileURL] else { continue }
+                apply(exif, to: photo)
+            }
+            try? modelContext?.save()
         }
     }
 
@@ -391,6 +458,7 @@ final class ContentViewModel {
 
     private func loadFolderPhotos(_ folderURL: URL) async {
         guard let context = modelContext else { return }
+        cancelPhotoStaging()
         isLoading = true
         photos = []
         selectedPhoto = nil
@@ -409,22 +477,60 @@ final class ContentViewModel {
         isLoading = false
     }
 
+    // 先頭 initialPhotoBatchSize 件だけを同期的にinsert/saveしてグリッドを即時表示し、
+    // 残りは photoStagingTask で分割して挿入する
     private func syncPhotos(urls: [URL], context: ModelContext) {
         let all = (try? context.fetch(FetchDescriptor<Photo>())) ?? []
         let byURL = Dictionary(all.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
 
-        var result: [Photo] = []
-        for url in urls {
-            if let existing = byURL[url] {
-                result.append(existing)
-            } else {
-                let photo = Photo(id: UUID(), fileURL: url)
-                context.insert(photo)
-                result.append(photo)
-            }
-        }
-        photos = result
+        let firstBatchCount = min(urls.count, Self.initialPhotoBatchSize)
+        photos = urls[..<firstBatchCount].map { resolvePhoto(for: $0, existing: byURL, context: context) }
         try? context.save()
+
+        guard firstBatchCount < urls.count else { return }
+        let remaining = Array(urls[firstBatchCount...])
+        let generation = photoStagingGeneration
+        photoStagingTask = Task {
+            await stagePhotos(urls: remaining, existing: byURL, context: context, generation: generation)
+        }
+    }
+
+    // 残りの写真をチャンク単位でinsertし、グリッドへ逐次追加する。
+    // チャンクごとに Task.yield() でメインスレッドを解放し、描画とユーザー操作を挟み込む
+    private func stagePhotos(
+        urls: [URL],
+        existing byURL: [URL: Photo],
+        context: ModelContext,
+        generation: Int
+    ) async {
+        var index = 0
+        while index < urls.count {
+            guard !Task.isCancelled, generation == photoStagingGeneration else { return }
+            let end = min(index + Self.photoStagingChunkSize, urls.count)
+            let chunk = urls[index..<end].map { resolvePhoto(for: $0, existing: byURL, context: context) }
+            photos.append(contentsOf: chunk)
+            try? context.save()
+            index = end
+            await Task.yield()
+        }
+        if generation == photoStagingGeneration { photoStagingTask = nil }
+    }
+
+    // 既存の Photo があれば再利用し、無ければ新規作成してinsertする（重複挿入の防止）
+    private func resolvePhoto(for url: URL, existing byURL: [URL: Photo], context: ModelContext) -> Photo {
+        if let photo = byURL[url] { return photo }
+        let photo = Photo(id: UUID(), fileURL: url)
+        context.insert(photo)
+        return photo
+    }
+
+    // 進行中の段階挿入を打ち切る。フォルダ切替の直前に呼び、古いTaskが photos を汚さないようにする
+    private func cancelPhotoStaging() {
+        photoStagingTask?.cancel()
+        photoStagingTask = nil
+        pendingSelectNextTask?.cancel()
+        pendingSelectNextTask = nil
+        photoStagingGeneration &+= 1
     }
 
     private func addToHistory(url: URL, bookmark: Data, context: ModelContext) {
