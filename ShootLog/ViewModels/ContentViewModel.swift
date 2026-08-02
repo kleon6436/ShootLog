@@ -72,7 +72,17 @@ final class ContentViewModel {
     // ContentView.onAppear で呼ぶ。以降のすべての操作で内部的に使う
     func configure(context: ModelContext) {
         modelContext = context
+        applyGeneralSettingsDefaults()
         loadHistories()
+    }
+
+    // 「一般」設定タブで指定された起動時の既定値を反映する
+    private func applyGeneralSettingsDefaults() {
+        let defaults = UserDefaults.standard
+        currentModeID = defaults.string(forKey: AppSettingsKeys.defaultViewModeID)
+            ?? AppSettingsKeys.defaultViewModeIDDefault
+        showFavoritesOnly = defaults.bool(forKey: AppSettingsKeys.defaultFavoritesOnly)
+        isInspectorVisible = defaults.bool(forKey: AppSettingsKeys.defaultInspectorVisible)
     }
 
     // ContentViewの@Queryが検知したIntegrationAppSettingの変更を反映する
@@ -431,7 +441,10 @@ final class ContentViewModel {
             return
         }
 
-        if all.count >= 10 { all[9...].forEach { context.delete($0) } }
+        // 保持件数は「一般」設定タブの値を使う（未設定時は 0 が返るため既定値へフォールバック）
+        let storedLimit = UserDefaults.standard.integer(forKey: AppSettingsKeys.folderHistoryLimit)
+        let effectiveLimit = storedLimit > 0 ? storedLimit : AppSettingsKeys.folderHistoryLimitDefault
+        if all.count >= effectiveLimit { all[(effectiveLimit - 1)...].forEach { context.delete($0) } }
         context.insert(FolderHistory(url: url, bookmark: bookmark))
         try? context.save()
         loadHistories()

@@ -13,6 +13,13 @@ final class SlideshowViewModel: ContentViewModelProxy {
 
     init(content: ContentViewModel) {
         self.content = content
+        // 「一般」設定タブで指定された自動再生・再生間隔の既定値を読み込む。
+        // bool(forKey:) は未設定時 false、double(forKey:) は 0 を返すため既定値へフォールバックする
+        let defaults = UserDefaults.standard
+        isPlaying = defaults.object(forKey: AppSettingsKeys.slideshowAutoplay) as? Bool
+            ?? AppSettingsKeys.slideshowAutoplayDefault
+        let storedInterval = defaults.double(forKey: AppSettingsKeys.slideshowInterval)
+        interval = storedInterval > 0 ? storedInterval : AppSettingsKeys.slideshowIntervalDefault
     }
 
     // MARK: - Content Delegation
@@ -54,9 +61,10 @@ final class SlideshowViewModel: ContentViewModelProxy {
         }
     }
 
-    // 再生を停止する（View の onDisappear などから呼ぶ）
+    // 再生を停止する（View の onDisappear などから呼ぶ）。
+    // isPlaying は「再生したいか」というユーザーの意思として保持したままにする：
+    // ここで false へ落とすと、自動再生ONの設定でもモードへ戻った際に再生が始まらなくなる
     func stopPlayback() {
-        isPlaying = false
         timerTask?.cancel()
     }
 
@@ -66,10 +74,10 @@ final class SlideshowViewModel: ContentViewModelProxy {
         restartTimer()
     }
 
-    // スライドショー表示開始時にタイマーを起動する（ViewのonAppearから呼ぶ）
+    // スライドショー表示開始時にタイマーを起動する（ViewのonAppearから呼ぶ）。
+    // 自動再生OFF設定や一時停止中は isPlaying を尊重してタイマーを起動しない
     func startPlayback() {
-        isPlaying = true
-        restartTimer()
+        if isPlaying { restartTimer() }
     }
 
     // 次の写真へ進む。末尾まで来たら先頭へ戻る。
