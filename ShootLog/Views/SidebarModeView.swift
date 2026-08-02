@@ -88,6 +88,7 @@ struct SidebarModeView: View {
             photo: vm.selectedPhoto,
             editInfo: vm.currentEditInfo,
             isCropMode: vm.isCropMode,
+            neighborPrefetchURLs: neighborPrefetchURLs,
             onCropApply: { rect in vm.setCropRect(rect) },
             onCropCancel: { vm.isCropMode = false }
         )
@@ -109,6 +110,12 @@ struct SidebarModeView: View {
             EXIFPanelView(photo: vm.selectedPhoto)
                 .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
         }
+    }
+
+    // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は
+    // visiblePhotos 基準かつ端でクランプしループしないため、wrapsAround は指定しない
+    private var neighborPrefetchURLs: [URL] {
+        HighResPrefetcher.neighborURLs(in: vm.visiblePhotos, around: vm.visibleIndex)
     }
 
     // MARK: - Toolbar

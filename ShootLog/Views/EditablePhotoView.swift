@@ -2,16 +2,38 @@ import SwiftUI
 import AppKit
 
 // 回転・トリミング表示に対応した写真ビューア（SidebarModeView の中央カラム用）
-// Step1: サムネイル(512px)を即時表示 → Step2: フルサイズ画像に差し替え
+// Step1: サムネイル（ImageLoaderの画質設定・既定768px）を即時表示 →
+// Step2: 表示領域サイズに合わせてダウンサンプルした高解像度画像へ差し替え
 struct EditablePhotoView: View {
     let photo: Photo?
     let editInfo: EditInfo?
     let isCropMode: Bool
+    // 前後1枚の先読み対象URL。URLの決定（先頭・末尾の境界処理を含む）は呼び出し元の責務とする
+    var neighborPrefetchURLs: [URL] = []
     let onCropApply: (CGRect) -> Void
     let onCropCancel: () -> Void
     @State private var vm = PhotoImageViewModel()
 
     var body: some View {
+        // 最外周の GeometryReader は表示領域サイズを初回ロードへ渡すために必要。
+        // rotatedImage 内の GeometryReader は画像ロード後にしか存在せず、
+        // 「どの解像度でデコードするか」の決定には使えない
+        GeometryReader { geometry in
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .task(id: photo?.id) {
+                    await vm.load(photo: photo, displaySize: geometry.size)
+                }
+                // 先読みは表示中写真のロードとは別タスクにする。写真IDをキーに共有すると、
+                // お気に入り絞り込みの切替で前後URLだけが変わった場合に古いURLのまま確定してしまう
+                .task(id: neighborPrefetchURLs) {
+                    await HighResPrefetcher.prefetch(urls: neighborPrefetchURLs)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         ZStack {
             if let image = vm.highRes ?? vm.thumbnail {
                 ZStack(alignment: .bottomTrailing) {
@@ -40,10 +62,6 @@ struct EditablePhotoView: View {
                 Text("写真を選択してください")
                     .foregroundStyle(.secondary)
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task(id: photo?.id) {
-            await vm.load(photo: photo)
         }
     }
 
