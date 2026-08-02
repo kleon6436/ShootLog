@@ -7,7 +7,13 @@ import ImageIO
 final class ImageLoader: Sendable {
     static let shared = ImageLoader()
     // 起動時に ShootLogApp からMainActor外でウォームアップされる前提（MainActor上でのディスクI/Oを回避）
+    // 「一般」設定タブの画質設定はここで一度だけ読み込む（設定変更は次回起動から反映される）
     private init() {
+        let storedQuality = UserDefaults.standard.integer(forKey: AppSettingsKeys.thumbnailQuality)
+        let maxPixelSize = ThumbnailQuality(rawValue: storedQuality)?.rawValue
+            ?? ThumbnailQuality.standard.rawValue
+        thumbnailMaxPixelSize = maxPixelSize
+        minAcceptablePixelSize = maxPixelSize * 3 / 4
         try? FileManager.default.createDirectory(at: Self.diskCacheDir, withIntermediateDirectories: true)
     }
 
@@ -15,16 +21,20 @@ final class ImageLoader: Sendable {
     nonisolated(unsafe) private let memoryCache = NSCache<NSURL, NSImage>()
     nonisolated(unsafe) private let highResCache = NSCache<NSURL, NSImage>()
 
-    // ネットワークドライブ向け：同時サムネイル取得を 4 件に制限するスロット
-    private let throttle = ThumbnailThrottle(maxConcurrent: 4)
+    // ネットワークドライブ向け：同時サムネイル取得数を制限するスロット。
+    // 件数は「一般」設定タブの値（未設定時は 0 が返るため既定値 4 件へフォールバック）
+    private let throttle: ThumbnailThrottle = {
+        let stored = UserDefaults.standard.integer(forKey: AppSettingsKeys.networkConcurrency)
+        return ThumbnailThrottle(maxConcurrent: stored > 0 ? stored : AppSettingsKeys.networkConcurrencyDefault)
+    }()
 
-    // グリッドセル最大240pt(Retina 2倍=480px)の横長box(3:2)に、
-    // 縦位置写真をfillクロップ表示しても短辺が480pxを下回らないための値
+    // サムネイルの最大ピクセルサイズ。既定の768pxは、グリッドセル最大240pt(Retina 2倍=480px)の
+    // 横長box(3:2)に縦位置写真をfillクロップ表示しても短辺が480pxを下回らないための値
     // (768 × 2/3 ≈ 512 > 480、余裕を持たせて768に設定)
-    private static let thumbnailMaxPixelSize = 768
+    private let thumbnailMaxPixelSize: Int
 
     // 埋め込みプレビューをそのまま採用してよい最小サイズ（これ未満はフルデコードへフォールバック）
-    private static let minAcceptablePixelSize = thumbnailMaxPixelSize * 3 / 4
+    private let minAcceptablePixelSize: Int
 
     // ボリューム→ネットワーク判定のキャッシュ（セッション中に変わらない前提）
     nonisolated(unsafe) private let volumeCache = NSCache<NSURL, NSNumber>()
@@ -63,7 +73,7 @@ final class ImageLoader: Sendable {
         }
 
         let cgImage = await Task.detached(priority: .utility) {
-            Self.loadCGThumbnail(from: url)
+            self.loadCGThumbnail(from: url)
         }.value
 
         // スロット解放は I/O 完了直後（NSImage 生成・キャッシュ書き込みの前）
@@ -124,6 +134,18 @@ final class ImageLoader: Sendable {
         return image
     }
 
+    // メモリキャッシュとディスクキャッシュを削除する。
+    // 設定画面からのユーザーの明示操作でのみ呼ぶ（通常操作では呼ばない）。
+    // 部分的な削除失敗は致命的ではないため try? で無視し、次回表示時に再生成させる
+    func clearDiskCache() {
+        memoryCache.removeAllObjects()
+        highResCache.removeAllObjects()
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: Self.diskCacheDir, includingPropertiesForKeys: nil
+        ) else { return }
+        for file in files { try? FileManager.default.removeItem(at: file) }
+    }
+
     // MARK: - Private
 
     // URLが属するボリュームのネットワーク判定（ボリューム単位でキャッシュ）
@@ -139,7 +161,7 @@ final class ImageLoader: Sendable {
 
     // 埋め込みサムネイルを優先して CGImage を生成する（同期・バックグラウンド用）
     // RAW ファイルは埋め込み JPEG を持つため、フルサイズデコードより転送量を大幅削減できる
-    private static func loadCGThumbnail(from url: URL) -> CGImage? {
+    private func loadCGThumbnail(from url: URL) -> CGImage? {
         // ブックマーク復元 URL に対してセキュリティスコープを要求する（通常 URL では no-op）
         _ = url.startAccessingSecurityScopedResource()
         defer { url.stopAccessingSecurityScopedResource() }
