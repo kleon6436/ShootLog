@@ -2,8 +2,8 @@ import AppKit
 import CryptoKit
 import ImageIO
 
-// サムネイルの取得・メモリキャッシュ・ディスクキャッシュを担当するサービス
-// ネットワークドライブ対応：埋め込みサムネイル優先＋ディスクキャッシュ＋同時実行スロット
+// サムネイル・高解像度画像の取得、メモリキャッシュ・ディスクキャッシュを担当するサービス
+// ネットワークドライブ対応：埋め込みプレビュー優先＋ディスクキャッシュ＋同時実行スロット（ネットワーク／ローカル別）
 final class ImageLoader: Sendable {
     static let shared = ImageLoader()
     // 起動時に ShootLogApp からMainActor外でウォームアップされる前提（MainActor上でのディスクI/Oを回避）
@@ -48,10 +48,19 @@ final class ImageLoader: Sendable {
 
     // ネットワークドライブ向け：同時サムネイル取得数を制限するスロット。
     // 件数は「一般」設定タブの値（未設定時は 0 が返るため既定値 4 件へフォールバック）
-    private let throttle: ThumbnailThrottle = {
+    private let networkThrottle: ThumbnailThrottle = {
         let stored = UserDefaults.standard.integer(forKey: AppSettingsKeys.networkConcurrency)
         return ThumbnailThrottle(maxConcurrent: stored > 0 ? stored : AppSettingsKeys.networkConcurrencyDefault)
     }()
+
+    // ローカルボリューム向け：RAWデコードはCPU負荷が高く、コア数を超える同時実行は
+    // コンテキストスイッチで逆に遅くなるため、コア数を上限としてスロットを設ける
+    private let localThrottle = ThumbnailThrottle(maxConcurrent: max(2, ProcessInfo.processInfo.activeProcessorCount))
+
+    // 指定URLのボリューム種別に応じたスロットを返す
+    private func throttle(for url: URL) -> ThumbnailThrottle {
+        volumeIsNetwork(url) ? networkThrottle : localThrottle
+    }
 
     // サムネイルの最大ピクセルサイズ。既定の768pxは、グリッドセル最大240pt(Retina 2倍=480px)の
     // 横長box(3:2)に縦位置写真をfillクロップ表示しても短辺が480pxを下回らないための値
@@ -103,20 +112,18 @@ final class ImageLoader: Sendable {
             return img
         }
 
-        // 3. ネットワークドライブのみスロットを確保して並列 I/O を抑制する
-        let isNetwork = volumeIsNetwork(url)
-        if isNetwork {
-            do {
-                try await throttle.acquire()
-            } catch {
-                // 待機中にセルが画面外へスクロールされキャンセルされた：スロットは未取得なので release 不要
-                return nil
-            }
+        // 3. 同時デコード数を制限するスロットを確保する（ネットワーク／ローカルで別スロット）
+        let activeThrottle = throttle(for: url)
+        do {
+            try await activeThrottle.acquire()
+        } catch {
+            // 待機中にセルが画面外へスクロールされキャンセルされた：スロットは未取得なので release 不要
+            return nil
         }
 
         // スロット取得後にキャンセルされていた場合、I/Oを始めずに即座にスロットを返す
         guard !Task.isCancelled else {
-            if isNetwork { await throttle.release() }
+            await activeThrottle.release()
             return nil
         }
 
@@ -125,7 +132,7 @@ final class ImageLoader: Sendable {
         }.value
 
         // スロット解放は I/O 完了直後（NSImage 生成・キャッシュ書き込みの前）
-        if isNetwork { await throttle.release() }
+        await activeThrottle.release()
         guard let cgImage else { return nil }
 
         let image = NSImage(cgImage: cgImage, size: .zero)
@@ -157,22 +164,20 @@ final class ImageLoader: Sendable {
 
         if let img = highResCache.object(forKey: key) { return img }
 
-        let isNetwork = volumeIsNetwork(url)
-        if isNetwork {
-            do {
-                try await throttle.acquire()
-            } catch {
-                // 待機中にキャンセルされた：スロットは未取得なので release 不要
-                return nil
-            }
-        }
-
-        guard !Task.isCancelled else {
-            if isNetwork { await throttle.release() }
+        let activeThrottle = throttle(for: url)
+        do {
+            try await activeThrottle.acquire()
+        } catch {
+            // 待機中にキャンセルされた：スロットは未取得なので release 不要
             return nil
         }
 
-        let image = await Task.detached(priority: .utility) {
+        guard !Task.isCancelled else {
+            await activeThrottle.release()
+            return nil
+        }
+
+        let image = await Task.detached(priority: .userInitiated) {
             // ブックマーク復元 URL に対してセキュリティスコープを要求する（通常 URL では no-op）
             _ = url.startAccessingSecurityScopedResource()
             defer { url.stopAccessingSecurityScopedResource() }
@@ -183,32 +188,48 @@ final class ImageLoader: Sendable {
                 return nil as NSImage?
             }
 
-            let cgImage: CGImage?
-            if bucket > 0 {
-                // 表示領域に合わせたダウンサンプルデコード。元画像より大きい値を指定しても
-                // ImageIO はアップスケールせず元の解像度を返す。
-                // kCGImageSourceCreateThumbnailWithTransform は指定しない（従来のフルサイズ経路と
-                // 向きの扱いを揃え、サムネイル→高解像度の差し替えで挙動を変えないため）
-                let downsampleOptions: [CFString: Any] = [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: bucket,
-                    kCGImageSourceShouldCacheImmediately: false
-                ]
-                cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary)
-            } else {
-                cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
-            }
+            let cgImage: CGImage? = bucket > 0
+                ? Self.decodeDownsampled(source: source, bucket: bucket)
+                : CGImageSourceCreateImageAtIndex(source, 0, nil)
             guard let cgImage else { return nil as NSImage? }
 
             // size: .zero で NSImage が CGImage のピクセル寸法を 1pt=1px として採用する
             return NSImage(cgImage: cgImage, size: .zero)
         }.value
 
-        if isNetwork { await throttle.release() }
+        await activeThrottle.release()
         guard let image else { return nil }
 
         highResCache.setObject(image, forKey: key, cost: Self.estimatedCost(of: image))
         return image
+    }
+
+    // 表示領域に合わせたダウンサンプルデコード（同期・バックグラウンド用）。
+    // RAW は埋め込みプレビューがあれば優先し、センサー解像度からのフルデコードを避ける。
+    // 埋め込みプレビューが目標サイズの90%未満（引き伸ばしで劣化が出る）の場合のみ
+    // 元画像からのダウンサンプルへフォールバックする。
+    // kCGImageSourceCreateThumbnailWithTransform は両経路とも指定しない（従来のフルサイズ経路と
+    // 向きの扱いを揃え、サムネイル→高解像度の差し替えで挙動を変えないため）
+    private static let embeddedPreviewMinRatio: CGFloat = 0.9
+
+    private static func decodeDownsampled(source: CGImageSource, bucket: Int) -> CGImage? {
+        let embeddedOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+            kCGImageSourceThumbnailMaxPixelSize: bucket,
+            kCGImageSourceShouldCacheImmediately: false
+        ]
+        if let embedded = CGImageSourceCreateThumbnailAtIndex(source, 0, embeddedOptions as CFDictionary),
+           CGFloat(max(embedded.width, embedded.height)) >= CGFloat(bucket) * embeddedPreviewMinRatio {
+            return embedded
+        }
+
+        // 埋め込みプレビューが無い、または解像度不足：元画像からダウンサンプル
+        let downsampleOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: bucket,
+            kCGImageSourceShouldCacheImmediately: false
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary)
     }
 
     // メモリキャッシュとディスクキャッシュを削除する。
@@ -317,9 +338,9 @@ final class ImageLoader: Sendable {
     }()
 }
 
-// MARK: - ネットワークドライブ用同時実行スロット
+// MARK: - 同時実行スロット
 
-// 同時サムネイル取得数を制限するアクター
+// 同時デコード数を制限するアクター（ネットワーク用・ローカル用それぞれ別インスタンスを持つ）
 // acquire で空きがなければ待機し、release で次の待機タスクを起こす
 //
 // キャンセル対応が必須の理由：素の withCheckedContinuation はタスクキャンセルを無視するため、
