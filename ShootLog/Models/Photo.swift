@@ -1,6 +1,27 @@
 import Foundation
 import SwiftData
 
+/// 「なぜうまく撮れたか」を振り返るための成功要因タグ。
+/// raw valueは永続化形式のため安定したASCIIとし、表示ラベルは`displayName`で分離する。
+/// 宣言順（`allCases`順）がUIのボタン表示順・集計表示順を決定する。
+enum SuccessTagCategory: String, CaseIterable, Codable {
+    case light
+    case composition
+    case timing
+    case focus
+    case editing
+
+    var displayName: String {
+        switch self {
+        case .light: "光"
+        case .composition: "構図"
+        case .timing: "タイミング"
+        case .focus: "ピント"
+        case .editing: "現像"
+        }
+    }
+}
+
 /// 写真1枚に対応するSwiftDataモデル
 @Model
 final class Photo {
@@ -18,6 +39,14 @@ final class Photo {
     var isFavorite: Bool
     var note: String
     var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）
+    // 軽量マイグレーションのため宣言時デフォルト値が必須（既存行にはinitが走らない）
+    var successTagRawValues: [String] = []
+
+    /// 成功要因タグの読み書きアクセサ。未知のraw valueは無視し、他のタグの読み取りに影響させない
+    var successTags: [SuccessTagCategory] {
+        get { successTagRawValues.compactMap(SuccessTagCategory.init(rawValue:)) }
+        set { successTagRawValues = newValue.map(\.rawValue) }
+    }
 
     init(id: UUID = UUID(), fileURL: URL) {
         self.id = id

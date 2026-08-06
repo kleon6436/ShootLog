@@ -104,6 +104,7 @@ final class SidebarViewModel: ContentViewModelProxy {
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
     func toggleFavorite() { content.toggleFavorite() }
+    func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) { content.toggleSuccessTag(tag, for: photo) }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
 
     // MARK: - サイドバー開閉の判定

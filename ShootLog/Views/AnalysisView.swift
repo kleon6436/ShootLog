@@ -16,9 +16,12 @@ struct AnalysisView: View {
             header
             Divider()
             tabPicker
-            filterBar
+            // カメラ絞り込みを適用するとお気に入り比率の意味が変わるため、セッションページでは隠す
+            if vm.selectedPage != .session {
+                filterBar
+            }
             Divider()
-            chartArea
+            contentArea
         }
         .frame(width: 680, height: 560)
         // チャートの判読性を保つため不透明な背景を維持。AppKitブリッジではなくSwiftUIネイティブのセマンティックスタイルを使用
@@ -54,9 +57,9 @@ struct AnalysisView: View {
     // MARK: - タブ
 
     private var tabPicker: some View {
-        Picker("グラフ種別", selection: $vm.selectedTab) {
-            ForEach(AnalysisViewModel.ChartTab.allCases, id: \.self) { tab in
-                Text(tab.rawValue).tag(tab)
+        Picker("グラフ種別", selection: $vm.selectedPage) {
+            ForEach(AnalysisViewModel.AnalysisPage.allCases, id: \.self) { page in
+                Text(page.rawValue).tag(page)
             }
         }
         .pickerStyle(.segmented)
@@ -120,18 +123,51 @@ struct AnalysisView: View {
         return "\(total) 枚"
     }
 
+    // MARK: - コンテンツ切替
+
+    @ViewBuilder
+    private var contentArea: some View {
+        if vm.selectedPage == .session {
+            sessionArea
+        } else {
+            chartArea
+        }
+    }
+
     // MARK: - チャートエリア
 
     @ViewBuilder
     private var chartArea: some View {
         let data = vm.currentData
-        if data.isEmpty {
-            emptyState
-        } else {
-            barChart(data: data)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+        VStack(spacing: 0) {
+            insightRow
+            if data.isEmpty {
+                emptyState
+            } else {
+                barChart(data: data)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 20)
+            }
         }
+    }
+
+    // 選択中タブの指標について、お気に入りの傾向を1行で示す
+    private var insightRow: some View {
+        let insight = vm.currentInsightText
+        let text = insight ?? "お気に入りが少ないため参考情報なし"
+        return HStack(spacing: Spacing.small) {
+            Image(systemName: "sparkles")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(text)
+                .font(insight == nil ? .caption : .callout)
+                .foregroundStyle(insight == nil ? .secondary : .primary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, Spacing.large)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("お気に入り傾向: \(text)")
     }
 
     private func barChart(data: [AnalysisViewModel.DataPoint]) -> some View {
@@ -181,6 +217,133 @@ struct AnalysisView: View {
             }
         }
         .frame(height: 320)
+    }
+
+    // MARK: - セッションエリア
+
+    // 固定680×560のシートに4セクションを収めるためスクロールさせる
+    private var sessionArea: some View {
+        let favoritesCount = vm.sessionFavorites.count
+        let isFavoritesEmpty = favoritesCount == 0
+        return ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xLarge * 2) {
+                favoriteRatioSection(favoritesCount: favoritesCount)
+                exifRepresentativeSection(favoritesCount: favoritesCount, isFavoritesEmpty: isFavoritesEmpty)
+                tagAggregationSection
+                recipeSection(favoritesCount: favoritesCount, isFavoritesEmpty: isFavoritesEmpty)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+        }
+    }
+
+    private func favoriteRatioSection(favoritesCount: Int) -> some View {
+        sessionSection(title: "お気に入り比率(フォルダ全体 \(vm.totalCount)枚)") {
+            if let ratio = vm.favoriteRatio {
+                let percent = Int((ratio * 100).rounded())
+                VStack(alignment: .leading, spacing: Spacing.small) {
+                    Text("\(favoritesCount) / \(vm.totalCount) 枚(\(percent)%)")
+                        .font(.title3.bold())
+                    ProgressView(value: ratio)
+                        .progressViewStyle(.linear)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("お気に入り比率 フォルダ全体\(vm.totalCount)枚中\(favoritesCount)枚、\(percent)パーセント")
+            } else {
+                sessionPlaceholder("写真がありません")
+            }
+        }
+    }
+
+    private func exifRepresentativeSection(favoritesCount: Int, isFavoritesEmpty: Bool) -> some View {
+        sessionSection(title: "EXIF代表値(お気に入り \(favoritesCount)枚、値ありのみ、フォルダ全体基準)") {
+            let metrics = vm.exifRepresentativeValues
+            if isFavoritesEmpty {
+                sessionPlaceholder("お気に入りがありません")
+            } else if metrics.isEmpty {
+                sessionPlaceholder("EXIFが未取得です。写真を選択すると読み込まれます")
+            } else {
+                metricRows(metrics, accessibilityPrefix: "EXIF代表値")
+            }
+        }
+    }
+
+    private var tagAggregationSection: some View {
+        sessionSection(title: "タグ集計(フォルダ全体 \(vm.totalCount)枚)") {
+            let counts = vm.tagAggregation
+            if counts.isEmpty {
+                sessionPlaceholder("タグ付与写真なし")
+            } else {
+                VStack(alignment: .leading, spacing: Spacing.small) {
+                    ForEach(counts) { item in
+                        HStack {
+                            Text(item.category.displayName)
+                                .font(.callout)
+                            Spacer(minLength: Spacing.xLarge)
+                            Text("\(item.count)枚")
+                                .font(.callout.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("タグ集計 \(item.category.displayName) \(item.count)枚")
+                    }
+                }
+            }
+        }
+    }
+
+    private func recipeSection(favoritesCount: Int, isFavoritesEmpty: Bool) -> some View {
+        sessionSection(title: "設定レシピ(お気に入り \(favoritesCount)枚、値ありのみ、フォルダ全体基準)") {
+            let metrics = vm.recipeRange
+            if isFavoritesEmpty {
+                sessionPlaceholder("お気に入りがありません")
+            } else if metrics.isEmpty {
+                sessionPlaceholder("EXIFが未取得です。写真を選択すると読み込まれます")
+            } else {
+                metricRows(metrics, accessibilityPrefix: "設定レシピ")
+            }
+        }
+    }
+
+    private func metricRows(
+        _ metrics: [AnalysisViewModel.SessionMetric],
+        accessibilityPrefix: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.small) {
+            ForEach(metrics) { metric in
+                HStack {
+                    Text(metric.name)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: Spacing.xLarge)
+                    Text(metric.text)
+                        .font(.callout.monospacedDigit())
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(accessibilityPrefix) \(metric.name) \(metric.text)")
+            }
+        }
+    }
+
+    private func sessionSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.large) {
+            Text(title)
+                .font(.headline)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Spacing.xLarge)
+                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+        }
+    }
+
+    private func sessionPlaceholder(_ message: String) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - 空状態
