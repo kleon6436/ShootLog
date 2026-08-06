@@ -107,8 +107,14 @@ struct SidebarModeView: View {
             }
         }
         .inspector(isPresented: $vm.isEXIFPanelVisible) {
-            EXIFPanelView(photo: vm.selectedPhoto)
-                .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
+            EXIFPanelView(
+                photo: vm.selectedPhoto,
+                onToggleTag: { tag in
+                    guard let photo = vm.selectedPhoto else { return }
+                    vm.toggleSuccessTag(tag, for: photo)
+                }
+            )
+            .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
         }
     }
 

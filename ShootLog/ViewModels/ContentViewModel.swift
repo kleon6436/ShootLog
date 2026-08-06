@@ -284,6 +284,18 @@ final class ContentViewModel {
         try? modelContext?.save()
     }
 
+    // 成功要因タグの唯一の書込経路。配列の追加/削除判定はView側に持たせずここに閉じる
+    func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) {
+        var tags = photo.successTags
+        if let index = tags.firstIndex(of: tag) {
+            tags.remove(at: index)
+        } else {
+            tags.append(tag)
+        }
+        photo.successTags = tags
+        try? modelContext?.save()
+    }
+
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する
     func loadEXIFIfNeeded(for photo: Photo) async {
         guard photo.exifFetchedAt == nil else { return }

@@ -4,6 +4,8 @@ import SwiftUI
 // 幅・背景材質・区切り線は `.inspector` 側（SidebarModeView）が担当する
 struct EXIFPanelView: View {
     var photo: Photo?
+    // 成功要因タグのトグル通知。書込自体はContentViewModel側のfunnelが担当する
+    var onToggleTag: (SuccessTagCategory) -> Void = { _ in }
     @State private var vm = EXIFPanelViewModel()
 
     var body: some View {
@@ -41,6 +43,17 @@ struct EXIFPanelView: View {
                     EXIFCard {
                         Text("メモ").font(.caption).foregroundStyle(.secondary)
                         Text(note).font(.subheadline)
+                    }
+                }
+
+                // 成功要因タグ（写真未選択時は非表示）
+                if vm.photo != nil {
+                    EXIFCard {
+                        Text("成功要因").font(.caption).foregroundStyle(.secondary)
+                        EXIFSuccessTagPicker(
+                            selectedTags: vm.successTags,
+                            onToggle: onToggleTag
+                        )
                     }
                 }
             }
@@ -107,6 +120,38 @@ private struct EXIFColorModeBadge: View {
                 .background(Color.blue.opacity(0.15))
                 .foregroundStyle(.blue)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+    }
+}
+
+// 成功要因タグの複数選択トグル。パネル幅が可変（180〜300pt）のため折り返しグリッドで配置する
+private struct EXIFSuccessTagPicker: View {
+    let selectedTags: [SuccessTagCategory]
+    let onToggle: (SuccessTagCategory) -> Void
+
+    private let columns = [GridItem(.adaptive(minimum: 60), spacing: Spacing.small)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.small) {
+            ForEach(SuccessTagCategory.allCases, id: \.self) { category in
+                let isSelected = selectedTags.contains(category)
+                Button {
+                    onToggle(category)
+                } label: {
+                    Text(category.displayName)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.xSmall)
+                        .padding(.horizontal, Spacing.small)
+                        .background(isSelected ? AnyShapeStyle(.tint.opacity(0.2)) : AnyShapeStyle(.quaternary))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("成功要因タグ: \(category.displayName)")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
         }
     }
 }
