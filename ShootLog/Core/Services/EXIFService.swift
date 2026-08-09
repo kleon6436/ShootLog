@@ -14,9 +14,7 @@ actor EXIFService {
     // サムネイル取得（ImageLoader の ThumbnailThrottle）と同じ「一般」設定タブの値へ揃え、
     // 同時 I/O 本数が過剰にならないようにする（未設定時は 0 が返るため既定値へフォールバック）
     nonisolated static func recommendedBatchConcurrency(for url: URL?) -> Int {
-        guard let url,
-              let isLocal = (try? url.resourceValues(forKeys: [.volumeIsLocalKey]))?.volumeIsLocal,
-              !isLocal else { return defaultBatchConcurrency }
+        guard let url, url.isOnNetworkVolume else { return defaultBatchConcurrency }
         let stored = UserDefaults.standard.integer(forKey: AppSettingsKeys.networkConcurrency)
         return stored > 0 ? stored : AppSettingsKeys.networkConcurrencyDefault
     }
