@@ -65,7 +65,7 @@ extension ContentViewModel {
     // グリッド・リストからの直接トグル用
     func toggleFavorite(_ photo: Photo) {
         photo.isFavorite.toggle()
-        if let context = modelContext { saveOrReportError(context) }
+        guard let context = modelContext, saveOrReportError(context) else { return }
         showToast(photo.isFavorite ? "お気に入りに追加しました" : "お気に入りを解除しました")
     }
 

@@ -194,13 +194,17 @@ final class ContentViewModel {
         }
     }
 
-    // ユーザー操作直結の保存処理をまとめる。失敗時は握り潰さず error へセットしてAlert通知する。
+    // ユーザー操作直結の保存処理をまとめる。失敗時は握り潰さず error へセットしてAlert通知し、falseを返す。
+    // 呼び出し側は戻り値で保存成否を判定できる（例: 保存失敗時に成功トーストを出さないため）。
     // Folder/Edit/PhotoActions extensionから呼ばれるため internal
-    func saveOrReportError(_ context: ModelContext) {
+    @discardableResult
+    func saveOrReportError(_ context: ModelContext) -> Bool {
         do {
             try context.save()
+            return true
         } catch {
             self.error = ShootLogError.photoDataSaveFailed
+            return false
         }
     }
 }
