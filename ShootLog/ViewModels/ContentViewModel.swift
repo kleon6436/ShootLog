@@ -156,7 +156,7 @@ final class ContentViewModel {
                 history.securityBookmark = newBookmark
             }
             history.lastAccessedAt = Date()
-            try context.save()
+            saveOrReportError(context)
             loadHistories()
             currentFolderURL = url
             await loadFolderPhotos(url)
@@ -238,7 +238,7 @@ final class ContentViewModel {
         guard let context = modelContext, let photo = selectedPhoto else { return }
         let info = editInfoOrCreate(for: photo, context: context)
         info.rotation = (info.rotation + 90) % 360
-        try? context.save()
+        saveOrReportError(context)
     }
 
     // トリミング矩形を保存して crop モードを終了する
@@ -246,7 +246,7 @@ final class ContentViewModel {
         guard let context = modelContext, let photo = selectedPhoto else { return }
         let info = editInfoOrCreate(for: photo, context: context)
         info.cropRect = rect
-        try? context.save()
+        saveOrReportError(context)
         isCropMode = false
     }
 
@@ -261,7 +261,7 @@ final class ContentViewModel {
         context.delete(info)
         currentEditInfo = nil
         isCropMode = false
-        try? context.save()
+        saveOrReportError(context)
     }
 
     // MARK: - Photo Actions
@@ -275,13 +275,13 @@ final class ContentViewModel {
     // グリッド・リストからの直接トグル用
     func toggleFavorite(_ photo: Photo) {
         photo.isFavorite.toggle()
-        try? modelContext?.save()
+        if let context = modelContext { saveOrReportError(context) }
         showToast(photo.isFavorite ? "お気に入りに追加しました" : "お気に入りを解除しました")
     }
 
     func saveNote(_ note: String, for photo: Photo) {
         photo.note = note
-        try? modelContext?.save()
+        if let context = modelContext { saveOrReportError(context) }
     }
 
     // 成功要因タグの唯一の書込経路。配列の追加/削除判定はView側に持たせずここに閉じる
@@ -293,7 +293,7 @@ final class ContentViewModel {
             tags.append(tag)
         }
         photo.successTags = tags
-        try? modelContext?.save()
+        if let context = modelContext { saveOrReportError(context) }
     }
 
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する
@@ -303,6 +303,7 @@ final class ContentViewModel {
         do {
             let exif = try await EXIFService.shared.readEXIF(from: url)
             apply(exif, to: photo)
+            // バックグラウンドのEXIF取得処理。失敗しても一覧表示は継続するためAlert化しない
             try? modelContext?.save()
         } catch {
             // EXIF 読み取り失敗は非致命的。無視する
@@ -367,6 +368,7 @@ final class ContentViewModel {
                 guard let exif = results[photo.fileURL] else { continue }
                 apply(exif, to: photo)
             }
+            // 分析シート向けのバックグラウンド一括取得。失敗しても分析表示自体は継続するためAlert化しない
             try? modelContext?.save()
         }
     }
@@ -442,6 +444,15 @@ final class ContentViewModel {
 
     // MARK: - Private
 
+    // ユーザー操作直結の保存処理をまとめる。失敗時は握り潰さず error へセットしてAlert通知する
+    private func saveOrReportError(_ context: ModelContext) {
+        do {
+            try context.save()
+        } catch {
+            self.error = ShootLogError.photoDataSaveFailed
+        }
+    }
+
     private func selectFolder(url: URL) async {
         guard let context = modelContext else { return }
         releaseBookmarkAccess()
@@ -497,7 +508,7 @@ final class ContentViewModel {
 
         let firstBatchCount = min(urls.count, Self.initialPhotoBatchSize)
         photos = urls[..<firstBatchCount].map { resolvePhoto(for: $0, existing: byURL, context: context) }
-        try? context.save()
+        saveOrReportError(context)
 
         guard firstBatchCount < urls.count else { return }
         let remaining = Array(urls[firstBatchCount...])
@@ -521,6 +532,7 @@ final class ContentViewModel {
             let end = min(index + Self.photoStagingChunkSize, urls.count)
             let chunk = urls[index..<end].map { resolvePhoto(for: $0, existing: byURL, context: context) }
             photos.append(contentsOf: chunk)
+            // 段階挿入のバックグラウンド保存。1チャンク失敗しても残りの挿入を止めないためAlert化しない
             try? context.save()
             index = end
             await Task.yield()
@@ -554,7 +566,7 @@ final class ContentViewModel {
         if let existing = all.first(where: { $0.url == url }) {
             existing.lastAccessedAt = Date()
             existing.securityBookmark = bookmark
-            try? context.save()
+            saveOrReportError(context)
             loadHistories()
             return
         }
@@ -564,7 +576,7 @@ final class ContentViewModel {
         let effectiveLimit = storedLimit > 0 ? storedLimit : AppSettingsKeys.folderHistoryLimitDefault
         if all.count >= effectiveLimit { all[(effectiveLimit - 1)...].forEach { context.delete($0) } }
         context.insert(FolderHistory(url: url, bookmark: bookmark))
-        try? context.save()
+        saveOrReportError(context)
         loadHistories()
     }
 
