@@ -28,7 +28,7 @@ enum ShootLogError: LocalizedError {
         case .settingsSaveFailed:
             return "連携アプリの設定を保存できませんでした"
         case .photoDataSaveFailed:
-            return "写真データの保存に失敗しました"
+            return "データの保存に失敗しました"
         }
     }
 }
