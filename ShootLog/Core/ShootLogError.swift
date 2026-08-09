@@ -9,6 +9,7 @@ enum ShootLogError: LocalizedError {
     case applicationInfoUnavailable(name: String)
     case duplicateIntegrationApp(name: String)
     case settingsSaveFailed
+    case photoDataSaveFailed
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum ShootLogError: LocalizedError {
             return "「\(name)」はすでに連携アプリとして登録されています"
         case .settingsSaveFailed:
             return "連携アプリの設定を保存できませんでした"
+        case .photoDataSaveFailed:
+            return "写真データの保存に失敗しました"
         }
     }
 }
