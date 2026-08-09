@@ -14,7 +14,6 @@ final class ImageLoader: Sendable {
             ?? ThumbnailQuality.standard.rawValue
         thumbnailMaxPixelSize = maxPixelSize
         minAcceptablePixelSize = maxPixelSize * 3 / 4
-        try? FileManager.default.createDirectory(at: Self.diskCacheDir, withIntermediateDirectories: true)
     }
 
     // NSCache はスレッドセーフ。nonisolated(unsafe) で Swift 6 の Sendable チェックを回避する
@@ -325,6 +324,7 @@ final class ImageLoader: Sendable {
     }
 
     private static func writeDiskCache(cgImage: CGImage, to url: URL) {
+        try? FileManager.default.createDirectory(at: diskCacheDir, withIntermediateDirectories: true)
         guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return }
         CGImageDestinationAddImage(dest, cgImage, nil)
         CGImageDestinationFinalize(dest)
