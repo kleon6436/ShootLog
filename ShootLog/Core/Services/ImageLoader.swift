@@ -276,8 +276,7 @@ final class ImageLoader: Sendable {
         let volumeURL = (try? url.resourceValues(forKeys: [.volumeURLKey]))?.volume ?? url
         let cacheKey = volumeURL as NSURL
         if let cached = volumeCache.object(forKey: cacheKey) { return cached.boolValue }
-        let isLocal = (try? url.resourceValues(forKeys: [.volumeIsLocalKey]))?.volumeIsLocal ?? true
-        let isNetwork = !isLocal
+        let isNetwork = url.isOnNetworkVolume
         volumeCache.setObject(NSNumber(value: isNetwork), forKey: cacheKey)
         return isNetwork
     }
