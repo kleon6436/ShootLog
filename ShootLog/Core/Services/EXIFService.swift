@@ -23,6 +23,10 @@ actor EXIFService {
     // 読み取りが安全なため、並列読み取りから共有できる定数として保持する
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
+        // EXIF規格固定のフォーマットを解釈するため、暦や数字がユーザーのロケール設定に
+        // 引きずられないよう en_US_POSIX を指定する。
+        // タイムZone は EXIF が撮影地のローカル時刻を持つ仕様のため、あえて設定しない
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy:MM:dd HH:mm:ss"
         return f
     }()
