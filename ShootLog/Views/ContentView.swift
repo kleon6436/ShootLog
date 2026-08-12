@@ -96,17 +96,25 @@ struct ContentView: View {
             .background { WindowChromeConfigurator(isToolbarVisible: vm.isToolbarVisible) }
     }
 
+    // フォルダ未選択時の画面。mainContent の型検査を軽く保つため切り出している
+    private var emptyState: some View {
+        EmptyStateView(
+            onOpenFolder: vm.openFolder,
+            folderHistories: vm.availableFolderHistories,
+            onRestoreHistory: { history in
+                Task { await vm.restoreFolder(history) }
+            },
+            onDeleteHistory: { history in
+                vm.deleteHistory(history)
+            }
+        )
+    }
+
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている
     private var mainContent: some View {
         Group {
             if vm.currentFolderURL == nil {
-                EmptyStateView(
-                    onOpenFolder: vm.openFolder,
-                    folderHistories: vm.folderHistories,
-                    onRestoreHistory: { history in
-                        Task { await vm.restoreFolder(history) }
-                    }
-                )
+                emptyState
             } else {
                 // 表示モードに応じてビューを切り替える。VM取得はレジストリのキャッシュ経由
                 // （直接VMを生成すると状態がリセットされるため）。未登録IDはsidebarへフォールバック
