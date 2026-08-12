@@ -12,6 +12,25 @@ final class AnalysisViewModel {
         case iso          = "ISO"
     }
 
+    // 画面のページ選択。チャート系列セレクタである ChartTab とは別軸で、
+    // チャートを持たない「セッション」ページを含む
+    enum AnalysisPage: String, CaseIterable {
+        case aperture     = "絞り"
+        case shutterSpeed = "SS"
+        case iso          = "ISO"
+        case session      = "セッション"
+
+        // 対応するチャート系列。セッションページはチャートを持たないためnil
+        var chartTab: ChartTab? {
+            switch self {
+            case .aperture:     .aperture
+            case .shutterSpeed: .shutterSpeed
+            case .iso:          .iso
+            case .session:      nil
+            }
+        }
+    }
+
     struct DataPoint: Identifiable {
         let id = UUID()
         let label: String
@@ -21,7 +40,7 @@ final class AnalysisViewModel {
     }
 
     let photos: [Photo]
-    var selectedTab: ChartTab = .aperture
+    var selectedPage: AnalysisPage = .aperture
     var selectedCamera: String? = nil       // nil = すべてのカメラ
     var showFavoritesOverlay: Bool = false
 
@@ -50,9 +69,10 @@ final class AnalysisViewModel {
 
     // タブと選択状態に応じたチャートデータ（オーバーレイ時は2系列）
     var currentData: [DataPoint] {
+        guard let tab = selectedPage.chartTab else { return [] }
         let base = filteredPhotos
         let fav: [Photo]? = showFavoritesOverlay ? favoriteFilteredPhotos : nil
-        switch selectedTab {
+        switch tab {
         case .aperture:     return computeAperture(base: base, overlay: fav)
         case .shutterSpeed: return computeShutterSpeed(base: base, overlay: fav)
         case .iso:          return computeISO(base: base, overlay: fav)
@@ -65,25 +85,31 @@ final class AnalysisViewModel {
 
     // MARK: - 絞り（全段バケット）
 
-    private static let fullStopApertures: [Double] = [
+    static let fullStopApertures: [Double] = [
         1.0, 1.4, 2.0, 2.8, 4.0, 5.6, 8.0, 11.0, 16.0, 22.0, 32.0
     ]
 
+    // 絞り値の数値部分のみ（範囲表記で "f/" を重複させないため分離）
+    static func apertureValueText(_ value: Double) -> String {
+        value == value.rounded() ? "\(Int(value))" : "\(value)"
+    }
+
+    static func apertureLabel(_ value: Double) -> String {
+        "f/" + apertureValueText(value)
+    }
+
     private func computeAperture(base: [Photo], overlay: [Photo]?) -> [DataPoint] {
-        let labelFn: (Double) -> String = { v in
-            v == v.rounded() ? "f/\(Int(v))" : "f/\(v)"
-        }
         let basePoints = bucketizeDouble(
             values: base.compactMap(\.aperture),
             candidates: Self.fullStopApertures,
-            label: labelFn,
+            label: Self.apertureLabel,
             series: "全体"
         )
         guard let overlay else { return basePoints }
         let overlayPoints = bucketizeDouble(
             values: overlay.compactMap(\.aperture),
             candidates: Self.fullStopApertures,
-            label: labelFn,
+            label: Self.apertureLabel,
             series: "お気に入り"
         )
         return mergePoints(base: basePoints, overlay: overlayPoints)
@@ -91,13 +117,13 @@ final class AnalysisViewModel {
 
     // MARK: - シャッタースピード（全段バケット）
 
-    private static let fullStopShutterSpeeds: [Double] = [
+    static let fullStopShutterSpeeds: [Double] = [
         1.0/8000, 1.0/4000, 1.0/2000, 1.0/1000, 1.0/500,
         1.0/250,  1.0/125,  1.0/60,   1.0/30,   1.0/15,
         1.0/8,    1.0/4,    1.0/2,    1.0,       2.0, 4.0, 8.0, 15.0, 30.0
     ]
 
-    private static func ssLabel(_ seconds: Double) -> String {
+    static func ssLabel(_ seconds: Double) -> String {
         seconds >= 1.0 ? "\(Int(seconds.rounded()))s" : "1/\(Int((1.0/seconds).rounded()))"
     }
 
@@ -120,22 +146,26 @@ final class AnalysisViewModel {
 
     // MARK: - ISO（標準2段階バケット）
 
-    private static let standardISOs: [Int] = [
+    static let standardISOs: [Int] = [
         50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400
     ]
+
+    static func isoLabel(_ value: Int) -> String {
+        "ISO \(value)"
+    }
 
     private func computeISO(base: [Photo], overlay: [Photo]?) -> [DataPoint] {
         let basePoints = bucketizeInt(
             values: base.compactMap(\.iso),
             candidates: Self.standardISOs,
-            label: { "ISO \($0)" },
+            label: Self.isoLabel,
             series: "全体"
         )
         guard let overlay else { return basePoints }
         let overlayPoints = bucketizeInt(
             values: overlay.compactMap(\.iso),
             candidates: Self.standardISOs,
-            label: { "ISO \($0)" },
+            label: Self.isoLabel,
             series: "お気に入り"
         )
         return mergePoints(base: basePoints, overlay: overlayPoints)
@@ -143,7 +173,8 @@ final class AnalysisViewModel {
 
     // MARK: - ユーティリティ
 
-    private func bucketizeDouble(
+    // 戻り値は常に sortKey 昇順。最頻バケットのタイ処理がこの順序に依存する
+    func bucketizeDouble(
         values: [Double],
         candidates: [Double],
         label: (Double) -> String,
@@ -160,7 +191,8 @@ final class AnalysisViewModel {
         }.sorted { $0.sortKey < $1.sortKey }
     }
 
-    private func bucketizeInt(
+    // 戻り値は常に sortKey 昇順。最頻バケットのタイ処理がこの順序に依存する
+    func bucketizeInt(
         values: [Int],
         candidates: [Int],
         label: (Int) -> String,
@@ -191,14 +223,14 @@ final class AnalysisViewModel {
     }
 
     // ログスケール最近傍スナップ（絞り・SSは対数スケール）
-    private static func snapLog(_ value: Double, _ candidates: [Double]) -> Double {
+    static func snapLog(_ value: Double, _ candidates: [Double]) -> Double {
         guard !candidates.isEmpty, value > 0 else { return candidates.first ?? value }
         let logVal = log(value)
         return candidates.min(by: { abs(log($0) - logVal) < abs(log($1) - logVal) }) ?? value
     }
 
     // 線形最近傍スナップ（ISO）
-    private static func snapNearest(_ value: Int, to candidates: [Int]) -> Int {
+    static func snapNearest(_ value: Int, to candidates: [Int]) -> Int {
         guard !candidates.isEmpty else { return value }
         return candidates.min(by: { abs($0 - value) < abs($1 - value) }) ?? value
     }

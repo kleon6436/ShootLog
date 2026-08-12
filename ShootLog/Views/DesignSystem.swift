@@ -106,17 +106,38 @@ enum HUDTypography {
 
 // MARK: - HUD 用ボタンスタイル
 
-// 黒背景 HUD 上のボタン共通スタイル。押下時に軽く減光・縮小してネイティブな反応を出す。
+// 黒背景 HUD 上のボタン共通スタイル。ホバー時に円形ハイライト、押下時に軽く減光・縮小してネイティブな反応を出す。
 // FullscreenModeView / SlideshowModeView で重複定義されていたものをここに集約。
 struct HUDButtonStyle: ButtonStyle {
     var font: Font?
 
     func makeBody(configuration: Configuration) -> some View {
+        // ButtonStyle（値型）は makeBody 内に直接 @State を持てないため、
+        // ホバー状態の保持だけを目的に専用の View へ分離する
+        HUDButtonBody(configuration: configuration, font: font)
+    }
+}
+
+private struct HUDButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let font: Font?
+    @State private var isHovered = false
+
+    var body: some View {
         configuration.label
             .font(font)
+            // clipShape(Circle())等は見た目のクリップのみでヒットテストには影響しないため、
+            // ここで明示的にラベル全体（frameで指定した矩形）をヒット領域にする
+            .contentShape(Rectangle())
+            // ホバー中は薄い白の円形ハイライトを背後に重ね、押せるボタンだと分かるようにする
+            .background {
+                Circle().fill(Color.white.opacity(isHovered ? 0.18 : 0))
+            }
             .opacity(configuration.isPressed ? 0.55 : 1)
-            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .scaleEffect(configuration.isPressed ? 0.92 : (isHovered ? 1.06 : 1))
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.15), value: isHovered)
+            .onHover { isHovered = $0 }
     }
 }
 

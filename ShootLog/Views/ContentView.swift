@@ -1,4 +1,5 @@
 import AppKit
+import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -59,6 +60,9 @@ struct ContentView: View {
     @State private var vm = ContentViewModel()
     @Environment(\.modelContext) private var modelContext
     @State private var isDropTargeted = false
+    // 連携アプリ設定の変更をSwiftDataから検知し、vmへ反映してツールバーの
+    // 外部アプリメニューに即時反映させる（vm側でmodelContext.fetchを直接呼ぶとObservationが追跡できないため）
+    @Query(sort: \IntegrationAppSetting.sortOrder) private var integrationSettings: [IntegrationAppSetting]
 
     private var sidebarToggleAction: (() -> Void)? {
         guard vm.isSidebarModeActive else { return nil }
@@ -89,20 +93,28 @@ struct ContentView: View {
             .focusedSceneValue(\.toggleInspectorAction, inspectorToggleAction)
             .focusedSceneValue(\.sidebarVisibilityState, sidebarVisibilityState)
             .focusedSceneValue(\.inspectorVisibilityState, inspectorVisibilityState)
-            .background { WindowChromeConfigurator() }
+            .background { WindowChromeConfigurator(isToolbarVisible: vm.isToolbarVisible) }
+    }
+
+    // フォルダ未選択時の画面。mainContent の型検査を軽く保つため切り出している
+    private var emptyState: some View {
+        EmptyStateView(
+            onOpenFolder: vm.openFolder,
+            folderHistories: vm.availableFolderHistories,
+            onRestoreHistory: { history in
+                Task { await vm.restoreFolder(history) }
+            },
+            onDeleteHistory: { history in
+                vm.deleteHistory(history)
+            }
+        )
     }
 
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている
     private var mainContent: some View {
         Group {
             if vm.currentFolderURL == nil {
-                EmptyStateView(
-                    onOpenFolder: vm.openFolder,
-                    folderHistories: vm.folderHistories,
-                    onRestoreHistory: { history in
-                        Task { await vm.restoreFolder(history) }
-                    }
-                )
+                emptyState
             } else {
                 // 表示モードに応じてビューを切り替える。VM取得はレジストリのキャッシュ経由
                 // （直接VMを生成すると状態がリセットされるため）。未登録IDはsidebarへフォールバック
@@ -140,6 +152,9 @@ struct ContentView: View {
         .focusedSceneValue(\.openFolderAction, vm.openFolder)
         .task {
             vm.configure(context: modelContext)
+        }
+        .onChange(of: integrationSettings, initial: true) { _, newValue in
+            vm.updateIntegrationSettings(newValue)
         }
         .sheet(isPresented: Binding(
             get: { vm.showAnalysis },

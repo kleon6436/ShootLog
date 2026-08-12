@@ -16,14 +16,21 @@ struct SlideshowModeView: View {
             VStack {
                 HStack(spacing: 4) {
                     ForEach([2.0, 3.0, 5.0], id: \.self) { sec in
-                        Button("\(Int(sec))s") { vm.setInterval(sec) }
-                            .font(.system(size: 11, weight: vm.interval == sec ? .semibold : .regular))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .glassOrMaterial(cornerRadius: 5)
-                            .opacity(vm.interval == sec ? 1.0 : 0.55)
-                            .animation(.easeInOut(duration: 0.15), value: vm.interval)
-                            .buttonStyle(.plain)
+                        let isSelected = vm.interval == sec
+                        Button {
+                            vm.setInterval(sec)
+                        } label: {
+                            Text("\(Int(sec))s")
+                                .font(HUDTypography.label)
+                                .fontWeight(isSelected ? .semibold : .regular)
+                                .foregroundStyle(isSelected ? Color.onDarkCanvas : Color.onDarkCanvasSecondary)
+                                .frame(width: 44, height: 44)
+                                .glassOrMaterialCircle()
+                        }
+                        .buttonStyle(HUDButtonStyle(font: HUDTypography.label))
+                        .animation(.easeInOut(duration: 0.15), value: vm.interval)
+                        .accessibilityLabel("\(Int(sec))秒間隔")
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                     Spacer()
                 }
@@ -32,20 +39,28 @@ struct SlideshowModeView: View {
                 Spacer()
             }
 
-            // 閉じるボタン（右上）
+            // 回転・閉じるボタン（右上）
             VStack {
-                HStack {
+                HStack(spacing: 10) {
                     Spacer()
+                    RotateButton(shortcut: KeyEquivalent("r")) {
+                        vm.rotateSelectedPhoto()
+                    }
+                    .disabled(vm.selectedPhoto == nil)
+
                     Button {
                         vm.switchToSidebar()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.onDarkCanvasSecondary)
+                            .frame(width: 44, height: 44)
+                            .glassOrMaterialCircle()
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
                     .accessibilityLabel("サイドバーに戻る")
-                    .padding(12)
                 }
+                .padding(.trailing, 12)
+                .padding(.top, 10)
                 Spacer()
             }
 
@@ -89,7 +104,7 @@ struct SlideshowModeView: View {
                         .frame(width: 100)
                         .tint(Color.onDarkCanvasSecondary)
 
-                    Text("\(Int(vm.interval))s")
+                    Text("\(vm.remainingSeconds)s")
                         .font(HUDTypography.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -99,16 +114,13 @@ struct SlideshowModeView: View {
                 .padding(.bottom, 12)
             }
 
-            // インデックスカウンター（右下）
+            // インデックスカウンター（右下）。自動送り（advanceSlideshow）が
+            // お気に入りのみ表示の絞り込みを基準に動くため、表示も同じ基準に揃える
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    Text("\(vm.selectedIndex + 1) / \(vm.photos.count)")
-                        .font(HUDTypography.label)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .glassOrMaterialCapsule()
+                    CounterBadge(text: vm.visibleCounterText)
                         .padding(.trailing, 14)
                         .padding(.bottom, 10)
                 }
@@ -135,38 +147,21 @@ struct SlideshowModeView: View {
         ToolbarItemGroup(placement: .primaryAction) {
             ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
 
-            Button { vm.showFavoritesOnly.toggle() } label: {
-                Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
-            }
-            .help("お気に入りのみ表示")
-            .accessibilityLabel("お気に入りのみ表示")
-            .disabled(vm.photos.isEmpty)
+            FavoritesOnlyToggleButton(
+                showFavoritesOnly: $vm.showFavoritesOnly,
+                isDisabled: vm.photos.isEmpty
+            )
         }
 
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { vm.openFolder() } label: {
-                Image(systemName: "folder.badge.plus")
-            }
-            .help("フォルダを開く (⌘O)")
-            .accessibilityLabel("フォルダを開く")
-
-            Button { vm.openAnalysis() } label: {
-                Image(systemName: "chart.bar")
-            }
-            .help("撮影傾向を分析 (⌘I)")
-            .accessibilityLabel("分析")
-            .keyboardShortcut("i", modifiers: .command)
-            .disabled(vm.photos.isEmpty)
-
-            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
-                .disabled(vm.selectedPhoto == nil)
-
-            Button { openSettings() } label: {
-                Image(systemName: "gearshape")
-            }
-            .help("設定を開く")
-            .accessibilityLabel("設定を開く")
-        }
+        ViewerToolbarTrailingGroup(
+            isPhotosEmpty: vm.photos.isEmpty,
+            hasSelectedPhoto: vm.selectedPhoto != nil,
+            externalApps: vm.externalApps,
+            openFolder: { vm.openFolder() },
+            openAnalysis: { vm.openAnalysis() },
+            openInExternalApp: { adapter in vm.openInExternalApp(adapter) },
+            openSettings: { openSettings() }
+        )
     }
 }
 
