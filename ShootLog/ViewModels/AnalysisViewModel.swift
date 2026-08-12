@@ -6,19 +6,30 @@ import SwiftData
 @MainActor
 final class AnalysisViewModel {
 
+    // raw valueは表示文言と分離した安定した識別子とし、表示名は displayName で持つ
     enum ChartTab: String, CaseIterable {
-        case aperture     = "絞り"
-        case shutterSpeed = "SS"
-        case iso          = "ISO"
+        case aperture
+        case shutterSpeed
+        case iso
     }
 
     // 画面のページ選択。チャート系列セレクタである ChartTab とは別軸で、
     // チャートを持たない「セッション」ページを含む
     enum AnalysisPage: String, CaseIterable {
-        case aperture     = "絞り"
-        case shutterSpeed = "SS"
-        case iso          = "ISO"
-        case session      = "セッション"
+        case aperture
+        case shutterSpeed
+        case iso
+        case session
+
+        // セグメントピッカーに表示するページ名
+        var displayName: LocalizedStringResource {
+            switch self {
+            case .aperture:     "analysis.page.aperture"
+            case .shutterSpeed: "analysis.page.shutterSpeed"
+            case .iso:          "analysis.page.iso"
+            case .session:      "analysis.page.session"
+            }
+        }
 
         // 対応するチャート系列。セッションページはチャートを持たないためnil
         var chartTab: ChartTab? {
@@ -31,12 +42,28 @@ final class AnalysisViewModel {
         }
     }
 
+    // チャートの系列。displayName はチャートの凡例と色スケールの双方で照合キーを兼ねるため、
+    // 生の文字列ではなくこの型を経由して常に同じ値を使う
+    enum ChartSeries: String, CaseIterable, Identifiable {
+        case all
+        case favorites
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .all:       String(localized: "analysis.series.all")
+            case .favorites: String(localized: "analysis.series.favorites")
+            }
+        }
+    }
+
     struct DataPoint: Identifiable {
         let id = UUID()
         let label: String
         let count: Int
         let sortKey: Double
-        let series: String  // "全体" or "お気に入り"
+        let series: ChartSeries
     }
 
     let photos: [Photo]
@@ -103,14 +130,14 @@ final class AnalysisViewModel {
             values: base.compactMap(\.aperture),
             candidates: Self.fullStopApertures,
             label: Self.apertureLabel,
-            series: "全体"
+            series: .all
         )
         guard let overlay else { return basePoints }
         let overlayPoints = bucketizeDouble(
             values: overlay.compactMap(\.aperture),
             candidates: Self.fullStopApertures,
             label: Self.apertureLabel,
-            series: "お気に入り"
+            series: .favorites
         )
         return mergePoints(base: basePoints, overlay: overlayPoints)
     }
@@ -132,14 +159,14 @@ final class AnalysisViewModel {
             values: base.compactMap(\.shutterSpeed),
             candidates: Self.fullStopShutterSpeeds,
             label: Self.ssLabel,
-            series: "全体"
+            series: .all
         )
         guard let overlay else { return basePoints }
         let overlayPoints = bucketizeDouble(
             values: overlay.compactMap(\.shutterSpeed),
             candidates: Self.fullStopShutterSpeeds,
             label: Self.ssLabel,
-            series: "お気に入り"
+            series: .favorites
         )
         return mergePoints(base: basePoints, overlay: overlayPoints)
     }
@@ -159,14 +186,14 @@ final class AnalysisViewModel {
             values: base.compactMap(\.iso),
             candidates: Self.standardISOs,
             label: Self.isoLabel,
-            series: "全体"
+            series: .all
         )
         guard let overlay else { return basePoints }
         let overlayPoints = bucketizeInt(
             values: overlay.compactMap(\.iso),
             candidates: Self.standardISOs,
             label: Self.isoLabel,
-            series: "お気に入り"
+            series: .favorites
         )
         return mergePoints(base: basePoints, overlay: overlayPoints)
     }
@@ -178,7 +205,7 @@ final class AnalysisViewModel {
         values: [Double],
         candidates: [Double],
         label: (Double) -> String,
-        series: String
+        series: ChartSeries
     ) -> [DataPoint] {
         guard !values.isEmpty else { return [] }
         var counts: [Double: Int] = [:]
@@ -196,7 +223,7 @@ final class AnalysisViewModel {
         values: [Int],
         candidates: [Int],
         label: (Int) -> String,
-        series: String
+        series: ChartSeries
     ) -> [DataPoint] {
         guard !values.isEmpty else { return [] }
         var counts: [Int: Int] = [:]

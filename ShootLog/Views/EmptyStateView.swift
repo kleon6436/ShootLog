@@ -20,13 +20,13 @@ struct EmptyStateView: View {
                 Image(systemName: "folder.badge.plus")
                     .font(.system(size: 48))
                     .foregroundStyle(.secondary)
-                Text("フォルダを開いてください")
+                Text("empty.title")
                     .font(.title3).fontWeight(.medium)
-                Text("フォルダをここにドラッグ、または下のボタンから選択")
+                Text("empty.subtitle")
                     .font(.subheadline).foregroundStyle(.secondary)
-                Button("フォルダを開く…", action: onOpenFolder)
+                Button("empty.openFolder.button", action: onOpenFolder)
                     .buttonStyle(.bordered)
-                    .accessibilityLabel("フォルダを開く")
+                    .accessibilityLabel("common.openFolder")
             }
 
             // フォルダ履歴リスト
@@ -35,7 +35,7 @@ struct EmptyStateView: View {
                     .padding(.vertical, 20)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("最近開いたフォルダ")
+                    Text("empty.recentFolders")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.bottom, 4)
@@ -64,7 +64,7 @@ struct EmptyStateView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("\(history.displayName) を開く")
+                            .accessibilityLabel("a11y.history.open \(history.displayName)")
 
                             // ホバー時のみ見えるが、レイアウトとアクセシビリティツリーには常に残す
                             // （if で出し分けると行幅が動き、VoiceOverからも到達できなくなるため）
@@ -76,8 +76,8 @@ struct EmptyStateView: View {
                             }
                             .buttonStyle(.plain)
                             .opacity(hoveredHistoryID == history.persistentModelID ? 1 : 0)
-                            .help("履歴から削除")
-                            .accessibilityLabel("\(history.displayName) を履歴から削除")
+                            .help("empty.history.delete.help")
+                            .accessibilityLabel("a11y.history.delete \(history.displayName)")
                         }
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)

@@ -38,6 +38,7 @@ ShootLog/
 ├── Models/                      # SwiftDataモデル
 ├── ViewModels/                  # @Observableの状態管理
 ├── Views/                       # SwiftUI画面・共通UI
+├── Resources/                   # Localizable.xcstrings（日本語・英語）
 ├── Assets.xcassets/
 ├── Info.plist
 └── ShootLog.entitlements
@@ -74,6 +75,56 @@ View（SwiftUI）        — レイアウトと表示。状態変更はViewModel
 - 表示モードの切り替えは `ContentView` が `currentModeID` を見て行う。
 - `ViewModeRegistry` はモードとモード用ViewModelの登録を管理する。
 - ViewModelは `@Observable` と `@MainActor` を使用し、`ObservableObject` / `@Published` は使用しない。
+
+## ローカライズ
+
+日本語（開発言語）と英語に対応する。翻訳はすべて `ShootLog/Resources/Localizable.xcstrings`（String Catalog）で管理し、
+言語の切り替えはmacOSのシステム設定「言語と地域」のアプリ個別言語に委ねる。アプリ内に言語切替UIは持たない。
+
+### 文字列の書き方
+
+UIに表示する文字列は、日本語をコードに直接書かず、ASCIIのシンボリックキーで書く。
+
+| 層 | 使用API | 例 |
+|----|---------|-----|
+| SwiftUI View 内のリテラル | そのまま記述（`LocalizedStringKey`へ自動変換） | `Text("analysis.title")` |
+| ViewModel / Model / Service | `String(localized:)` | `String(localized: "photo.tag.light")` |
+| ViewからViewModelへ渡す表示名 | `LocalizedStringResource` | `var displayName: LocalizedStringResource` |
+
+キーは `<スコープ>.<要素>[.<用途>]` 形式とし、`common.` `error.` `toolbar.` `menu.` `exif.` `analysis.` `settings.`
+`empty.` `viewMode.` `photo.tag.` `a11y.` のいずれかで始める。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
+
+補間を含む文字列は位置指定プレースホルダ（`%1$@` 形式）を使い、語順が言語で変わってもよいようにする。
+「〜枚」「〜件」のような数を伴う表現は、String Catalog の複数形（plural variation）を必ず設定する。
+
+### ローカライズしないもの
+
+- `ViewModeProtocol.id`、`SuccessTagCategory` の raw value、`AppSettingsKeys` のキーなど永続化される識別子
+- SF Symbols 名、バンドルID、ファイル拡張子
+- `EXIFService` の `dateFormat`（EXIF規格固定。`locale` は `en_US_POSIX` に固定する）
+- `f/`、`mm`、`ISO`、`s` などの国際共通の単位表記（数値部のロケール対応のみ行う）
+- 開発者向けの `fatalError` メッセージ
+
+### 表示文言と識別子の分離
+
+列挙型の raw value に表示文言を持たせない。raw value は安定したASCIIとし、表示名は `displayName` に分ける
+（`SuccessTagCategory`、`AnalysisViewModel.AnalysisPage`、`AnalysisViewModel.ChartSeries` が参考例）。
+特にチャートの系列名は凡例と `chartForegroundStyleScale` の照合キーを兼ねるため、生の文字列ではなく必ず
+`ChartSeries.displayName` を経由する。
+
+### 検証
+
+コードが使っているキーとString Catalogの定義が一致しているかは、`.stringsdata` を出力してから突き合わせる。
+
+```text
+xcodebuild -project ShootLog.xcodeproj -scheme ShootLog -sdk macosx build CODE_SIGNING_ALLOWED=NO SWIFT_EMIT_LOC_STRINGS=YES
+```
+
+英語表示の確認はアプリを次の引数付きで起動する。
+
+```text
+ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
+```
 
 ## 非同期処理とファイルI/O
 

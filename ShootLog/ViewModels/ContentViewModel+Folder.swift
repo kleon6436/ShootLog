@@ -12,8 +12,8 @@ extension ContentViewModel {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "写真フォルダを選択してください"
-        panel.prompt = "開く"
+        panel.message = String(localized: "openPanel.folder.message")
+        panel.prompt = String(localized: "openPanel.folder.prompt")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { await selectFolder(url: url) }
     }
