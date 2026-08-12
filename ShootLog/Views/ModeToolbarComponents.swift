@@ -10,16 +10,16 @@ struct ModeTogglePicker: View {
     let modes: [any ViewModeProtocol]
 
     var body: some View {
-        Picker("表示モード", selection: $currentModeID) {
+        Picker("toolbar.viewMode", selection: $currentModeID) {
             ForEach(modes, id: \.id) { mode in
                 Image(systemName: mode.symbolName)
-                    .accessibilityLabel(mode.displayName)
+                    .accessibilityLabel(Text(mode.displayName))
                     .tag(mode.id)
             }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .accessibilityLabel("表示モード")
+        .accessibilityLabel("toolbar.viewMode")
     }
 }
 
@@ -39,8 +39,8 @@ struct ExternalAppMenu: View {
         } label: {
             Image(systemName: "square.and.arrow.up")
         }
-        .help("外部アプリで開く")
-        .accessibilityLabel("外部アプリで開く")
+        .help("toolbar.externalApp.help")
+        .accessibilityLabel("toolbar.externalApp.help")
     }
 }
 
@@ -54,8 +54,8 @@ struct FavoritesOnlyToggleButton: View {
         Button { showFavoritesOnly.toggle() } label: {
             Image(systemName: showFavoritesOnly ? "star.fill" : "star")
         }
-        .help("お気に入りのみ表示")
-        .accessibilityLabel("お気に入りのみ表示")
+        .help("toolbar.favoritesOnly")
+        .accessibilityLabel("toolbar.favoritesOnly")
         .disabled(isDisabled)
     }
 }
@@ -78,15 +78,15 @@ struct ViewerToolbarTrailingGroup: ToolbarContent {
                 Button { openFolder() } label: {
                     Image(systemName: "folder.badge.plus")
                 }
-                .help("フォルダを開く (⌘O)")
-                .accessibilityLabel("フォルダを開く")
+                .help("toolbar.openFolder.help")
+                .accessibilityLabel("common.openFolder")
             }
 
             Button { openAnalysis() } label: {
                 Image(systemName: "chart.bar")
             }
-            .help("撮影傾向を分析 (⌘I)")
-            .accessibilityLabel("分析")
+            .help("toolbar.analysis.help")
+            .accessibilityLabel("toolbar.analysis")
             .keyboardShortcut("i", modifiers: .command)
             .disabled(isPhotosEmpty)
 
@@ -96,8 +96,8 @@ struct ViewerToolbarTrailingGroup: ToolbarContent {
             Button { openSettings() } label: {
                 Image(systemName: "gearshape")
             }
-            .help("設定を開く")
-            .accessibilityLabel("設定を開く")
+            .help("toolbar.settings")
+            .accessibilityLabel("toolbar.settings")
         }
     }
 }
@@ -121,8 +121,8 @@ struct RotateButton: View {
                 .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-        .help("右に90度回転 (R)")
-        .accessibilityLabel("写真を右に90度回転")
+        .help("toolbar.rotate.help")
+        .accessibilityLabel("a11y.toolbar.rotate")
         .keyboardShortcut(shortcut.map { KeyboardShortcut($0, modifiers: []) })
     }
 }

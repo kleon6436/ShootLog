@@ -83,7 +83,7 @@ struct PhotoViewerView: View {
         } else if photo != nil {
             ProgressView()
         } else {
-            Text("写真を選択してください")
+            Text("viewer.selectPhoto")
                 .foregroundStyle(.secondary)
         }
     }

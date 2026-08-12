@@ -12,20 +12,20 @@ struct EXIFPanelView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.medium) {
                 EXIFCard {
-                    EXIFRow(label: "ファイル名", value: vm.fileNameText)
+                    EXIFRow(label: "exif.label.fileName", value: vm.fileNameText)
                 }
                 EXIFCard {
-                    EXIFRow(label: "カメラ",    value: vm.cameraModelText)
-                    EXIFRow(label: "レンズ",    value: vm.lensModelText)
+                    EXIFRow(label: "exif.label.camera", value: vm.cameraModelText)
+                    EXIFRow(label: "exif.label.lens", value: vm.lensModelText)
                 }
                 EXIFCard {
-                    EXIFRow(label: "絞り",      value: vm.apertureText,     isNumeric: true)
-                    EXIFRow(label: "SS",        value: vm.shutterSpeedText, isNumeric: true)
-                    EXIFRow(label: "ISO",       value: vm.isoText,          isNumeric: true)
-                    EXIFRow(label: "焦点距離",  value: vm.focalLengthText,  isNumeric: true)
+                    EXIFRow(label: "exif.label.aperture", value: vm.apertureText, isNumeric: true)
+                    EXIFRow(label: "exif.label.shutterSpeed", value: vm.shutterSpeedText, isNumeric: true)
+                    EXIFRow(label: "exif.label.iso", value: vm.isoText, isNumeric: true)
+                    EXIFRow(label: "exif.label.focalLength", value: vm.focalLengthText, isNumeric: true)
                 }
                 EXIFCard {
-                    EXIFRow(label: "撮影日時",  value: vm.shootingDateText)
+                    EXIFRow(label: "exif.label.shootingDate", value: vm.shootingDateText)
 
                     // カラーモード（Sigma fp L 等）。"Off" / nil は非表示
                     if let mode = vm.colorModeText {
@@ -41,7 +41,7 @@ struct EXIFPanelView: View {
                 // メモ
                 if let note = vm.noteText {
                     EXIFCard {
-                        Text("メモ").font(.caption).foregroundStyle(.secondary)
+                        Text("exif.label.note").font(.caption).foregroundStyle(.secondary)
                         Text(note).font(.subheadline)
                     }
                 }
@@ -49,7 +49,7 @@ struct EXIFPanelView: View {
                 // 成功要因タグ（写真未選択時は非表示）
                 if vm.photo != nil {
                     EXIFCard {
-                        Text("成功要因").font(.caption).foregroundStyle(.secondary)
+                        Text("exif.label.successTags").font(.caption).foregroundStyle(.secondary)
                         EXIFSuccessTagPicker(
                             selectedTags: vm.successTags,
                             onToggle: onToggleTag
@@ -84,7 +84,7 @@ private struct EXIFCard<Content: View>: View {
 }
 
 private struct EXIFRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String?
     // 数値系の行（絞り・SS・ISO・焦点距離）は numericText トランジションを使う
     var isNumeric: Bool = false
@@ -110,7 +110,7 @@ private struct EXIFColorModeBadge: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("カラーモード")
+            Text("exif.label.colorMode")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(mode)
@@ -149,7 +149,7 @@ private struct EXIFSuccessTagPicker: View {
                         .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("成功要因タグ: \(category.displayName)")
+                .accessibilityLabel("a11y.exif.successTag \(category.displayName)")
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
@@ -164,7 +164,7 @@ private struct EXIFFavoriteRow: View {
             Image(systemName: isFavorite ? "star.fill" : "star")
                 .foregroundStyle(isFavorite ? .yellow : .secondary)
                 .font(.subheadline)
-            Text(isFavorite ? "お気に入り" : "未登録")
+            Text(isFavorite ? "exif.favorite.registered" : "exif.favorite.unregistered")
                 .font(.subheadline)
                 .foregroundStyle(isFavorite ? .primary : .secondary)
         }

@@ -63,7 +63,7 @@ private struct OpenFolderCommand: View {
     @FocusedValue(\.openFolderAction) private var openFolder: (() -> Void)?
 
     var body: some View {
-        Button("フォルダを開く…") { openFolder?() }
+        Button("menu.file.openFolder") { openFolder?() }
             .keyboardShortcut("o", modifiers: .command)
             .disabled(openFolder == nil)
     }
@@ -75,7 +75,7 @@ private struct ToggleSidebarCommand: View {
     @FocusedValue(\.sidebarVisibilityState) private var isSidebarVisible: Bool?
 
     var body: some View {
-        Button(isSidebarVisible == true ? "サイドバーを隠す" : "サイドバーを表示") { toggleSidebar?() }
+        Button(isSidebarVisible == true ? "menu.view.hideSidebar" : "menu.view.showSidebar") { toggleSidebar?() }
             .keyboardShortcut("\\", modifiers: .command)
             .disabled(toggleSidebar == nil)
     }
@@ -87,7 +87,7 @@ private struct ToggleInspectorCommand: View {
     @FocusedValue(\.inspectorVisibilityState) private var isInspectorVisible: Bool?
 
     var body: some View {
-        Button(isInspectorVisible == true ? "EXIFパネルを隠す" : "EXIFパネルを表示") { toggleInspector?() }
+        Button(isInspectorVisible == true ? "menu.view.hideInspector" : "menu.view.showInspector") { toggleInspector?() }
             .keyboardShortcut("e", modifiers: [.command, .option])
             .disabled(toggleInspector == nil)
     }

@@ -3,7 +3,7 @@ import AppKit
 // macOS プレビュー.app で開く
 struct PreviewAdapter: ExternalAppProtocol {
     let id = "com.apple.Preview"
-    let displayName = "プレビュー"
+    let displayName = String(localized: "externalApp.preview")
     let symbolName = "eye"
     var isAvailable: Bool { appURL(bundleID: id) != nil }
 

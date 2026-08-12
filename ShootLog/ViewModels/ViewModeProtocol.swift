@@ -5,7 +5,7 @@ import SwiftUI
 // モード切替はView側(ContentView)がcurrentModeIDを見てswitchする
 protocol ViewModeProtocol: Identifiable {
     var id: String { get }
-    var displayName: String { get }
+    var displayName: LocalizedStringResource { get }
     var symbolName: String { get }           // SF Symbols 名
     var keyboardShortcut: KeyEquivalent? { get }
 }
