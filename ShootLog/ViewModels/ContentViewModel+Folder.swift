@@ -66,6 +66,45 @@ extension ContentViewModel {
             sortBy: [SortDescriptor(\.lastAccessedAt, order: .reverse)]
         )
         folderHistories = (try? context.fetch(descriptor)) ?? []
+        historyAvailabilityTask?.cancel()
+        historyAvailabilityTask = Task { await refreshHistoryAvailability() }
+    }
+
+    // ユーザー操作による履歴1件の削除。写真データには影響しない
+    func deleteHistory(_ history: FolderHistory) {
+        guard let context = modelContext else { return }
+        let id = history.persistentModelID
+        context.delete(history)
+        guard saveOrReportError(context) else { return }
+        unavailableHistoryIDs.remove(id)
+        loadHistories()
+    }
+
+    // 各履歴の実体の有無を並列に確認し、存在しないものを表示対象から外す。
+    // フォルダを開いている間は現在のセキュリティスコープと start/stop が競合しうるため実行しない
+    func refreshHistoryAvailability() async {
+        guard currentFolderURL == nil else { return }
+        let targets = folderHistories.map { ($0.persistentModelID, $0.securityBookmark) }
+        guard !targets.isEmpty else {
+            unavailableHistoryIDs = []
+            return
+        }
+
+        var unavailable: Set<PersistentIdentifier> = []
+        await withTaskGroup(of: (PersistentIdentifier, Bool).self) { group in
+            for (id, bookmark) in targets {
+                group.addTask {
+                    (id, await FolderAvailabilityChecker.isAvailable(bookmark: bookmark))
+                }
+            }
+            for await (id, isAvailable) in group where !isAvailable {
+                unavailable.insert(id)
+            }
+        }
+
+        // 一覧のちらつきを避けるため、判定結果はまとめて一度だけ反映する
+        guard !Task.isCancelled else { return }
+        unavailableHistoryIDs = unavailable
     }
 
     // MARK: - Private
@@ -182,10 +221,24 @@ extension ContentViewModel {
         // 保持件数は「一般」設定タブの値を使う（未設定時は 0 が返るため既定値へフォールバック）
         let storedLimit = UserDefaults.standard.integer(forKey: AppSettingsKeys.folderHistoryLimit)
         let effectiveLimit = storedLimit > 0 ? storedLimit : AppSettingsKeys.folderHistoryLimitDefault
-        if all.count >= effectiveLimit { all[(effectiveLimit - 1)...].forEach { context.delete($0) } }
+        let overflow = all.count - (effectiveLimit - 1)
+        if overflow > 0 { evictHistories(from: all, count: overflow, context: context) }
         context.insert(FolderHistory(url: url, bookmark: bookmark))
         saveOrReportError(context)
         loadHistories()
+    }
+
+    // 履歴の上限超過分を削除する。実体が存在せず一覧に出ていない履歴を優先して選び、
+    // 表示中の履歴が上限枠を奪われて押し出されないようにする
+    private func evictHistories(from all: [FolderHistory], count: Int, context: ModelContext) {
+        // 古い順（lastAccessedAt 昇順）に走査する
+        let oldestFirst = Array(all.reversed())
+        var targets = oldestFirst.filter { unavailableHistoryIDs.contains($0.persistentModelID) }
+        if targets.count < count {
+            let available = oldestFirst.filter { !unavailableHistoryIDs.contains($0.persistentModelID) }
+            targets.append(contentsOf: available.prefix(count - targets.count))
+        }
+        targets.prefix(count).forEach { context.delete($0) }
     }
 
     private func releaseBookmarkAccess() {

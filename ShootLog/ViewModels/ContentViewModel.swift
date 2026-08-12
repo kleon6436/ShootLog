@@ -9,6 +9,15 @@ final class ContentViewModel {
     var currentFolderURL: URL?
     var folderHistories: [FolderHistory] = []
 
+    // 実体が存在しないと判定されたフォルダ履歴。レコード自体は削除せず表示からのみ除外する
+    // （外付けドライブやNASを再接続したときに自動で一覧へ復帰させるため）
+    var unavailableHistoryIDs: Set<PersistentIdentifier> = []
+
+    // 実体が存在するフォルダ履歴のみ。EmptyStateViewへ渡す表示用の一覧
+    var availableFolderHistories: [FolderHistory] {
+        folderHistories.filter { !unavailableHistoryIDs.contains($0.persistentModelID) }
+    }
+
     // 写真
     var photos: [Photo] = []
     var selectedPhoto: Photo?
@@ -79,6 +88,9 @@ final class ContentViewModel {
 
     // 分析シートのEXIF一括取得Task。シートを開き直した際に前回分をキャンセルする
     var analysisTask: Task<Void, Never>?
+
+    // フォルダ履歴の存在確認Task。loadHistories() の再実行時に前回分をキャンセルする
+    var historyAvailabilityTask: Task<Void, Never>?
 
     // グリッドの初期表示に必要な可視セル数の目安。この件数までは即時にinsert/saveする
     static let initialPhotoBatchSize = 50
