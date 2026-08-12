@@ -7,12 +7,12 @@ struct SettingsView: View {
         TabView {
             GeneralSettingsTab()
                 .tabItem {
-                    Label("一般", systemImage: "gearshape")
+                    Label("settings.tab.general", systemImage: "gearshape")
                 }
 
             IntegrationSettingsTab()
                 .tabItem {
-                    Label("連携アプリ", systemImage: "app.connected.to.app.below.fill")
+                    Label("settings.tab.integration", systemImage: "app.connected.to.app.below.fill")
                 }
         }
         // 高さは「一般」タブの5セクションがスクロールなしで収まる値に合わせる
@@ -45,72 +45,72 @@ private struct GeneralSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("表示") {
-                Picker("起動時に表示するモード", selection: $defaultViewModeID) {
+            Section("settings.section.display") {
+                Picker("settings.startupMode", selection: $defaultViewModeID) {
                     ForEach(ViewModeRegistry.shared.enabledModes, id: \.id) { mode in
                         Text(mode.displayName).tag(mode.id)
                     }
                 }
-                .accessibilityLabel("起動時に表示するモード")
-                Toggle("起動時にお気に入りのみ表示する", isOn: $defaultFavoritesOnly)
-                Toggle("起動時にEXIFパネルを表示する", isOn: $defaultInspectorVisible)
+                .accessibilityLabel("settings.startupMode")
+                Toggle("settings.startupFavoritesOnly", isOn: $defaultFavoritesOnly)
+                Toggle("settings.startupInspector", isOn: $defaultInspectorVisible)
             }
 
-            Section("スライドショー") {
-                Toggle("自動再生を有効にする", isOn: $slideshowAutoplay)
+            Section("settings.section.slideshow") {
+                Toggle("settings.slideshow.autoplay", isOn: $slideshowAutoplay)
                 Stepper(
-                    "再生間隔: \(slideshowInterval, specifier: "%.1f")秒",
+                    "settings.slideshow.interval \(slideshowInterval, specifier: "%.1f")",
                     value: $slideshowInterval, in: 1.0...10.0, step: 0.5
                 )
-                .accessibilityLabel("スライドショー再生間隔")
+                .accessibilityLabel("a11y.settings.slideshowInterval")
             }
 
-            Section("パフォーマンス") {
-                Picker("サムネイル画質", selection: $thumbnailQualityRaw) {
+            Section("settings.section.performance") {
+                Picker("settings.thumbnailQuality", selection: $thumbnailQualityRaw) {
                     ForEach(ThumbnailQuality.allCases) { quality in
                         Text(quality.displayName).tag(quality.rawValue)
                     }
                 }
-                .accessibilityLabel("サムネイル画質")
+                .accessibilityLabel("settings.thumbnailQuality")
                 .onChange(of: thumbnailQualityRaw) { _, _ in
                     showQualityChangeNotice = true
                 }
                 Stepper(
-                    "ネットワークボリューム同時読み込み数: \(networkConcurrency)件",
+                    "settings.networkConcurrency \(networkConcurrency)",
                     value: $networkConcurrency, in: 1...8
                 )
-                .accessibilityLabel("ネットワークボリューム同時読み込み数")
-                Text("画質・同時読み込み数の変更は次回アプリ起動後に反映されます")
+                .accessibilityLabel("a11y.settings.networkConcurrency")
+                Text("settings.performance.note")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Section("キャッシュ") {
-                Button("ディスクキャッシュを削除", role: .destructive) {
+            Section("settings.section.cache") {
+                Button("settings.cache.clear", role: .destructive) {
                     showClearCacheConfirm = true
                 }
-                .accessibilityLabel("ディスクキャッシュを削除")
+                .accessibilityLabel("settings.cache.clear")
             }
 
-            Section("フォルダ履歴") {
-                Stepper("保持件数: \(folderHistoryLimit)件", value: $folderHistoryLimit, in: 5...20)
-                    .accessibilityLabel("フォルダ履歴の保持件数")
+            Section("settings.section.folderHistory") {
+                Stepper("settings.folderHistory.limit \(folderHistoryLimit)", value: $folderHistoryLimit, in: 5...20)
+                    .accessibilityLabel("a11y.settings.folderHistoryLimit")
             }
         }
         .formStyle(.grouped)
-        .alert("ディスクキャッシュを削除しますか？", isPresented: $showClearCacheConfirm) {
-            Button("削除", role: .destructive) {
+        .alert("settings.cache.clear.confirm.title", isPresented: $showClearCacheConfirm) {
+            Button("common.delete", role: .destructive) {
                 // ファイル削除はMainActor外で実行する
                 Task.detached(priority: .utility) { ImageLoader.shared.clearDiskCache() }
             }
-            Button("キャンセル", role: .cancel) {}
+            Button("common.cancel", role: .cancel) {}
         } message: {
-            Text("次回表示時にサムネイルが再生成されます。")
+            Text("settings.cache.clear.confirm.message")
         }
-        .alert("画質設定を変更しました", isPresented: $showQualityChangeNotice) {
-            Button("OK") {}
+        .alert("settings.quality.changed.title", isPresented: $showQualityChangeNotice) {
+            Button("common.ok") {}
         } message: {
-            Text("既存のキャッシュ済みサムネイルは古い画質のまま残ります。反映するにはディスクキャッシュの削除とアプリの再起動が必要です。")
+            Text("settings.quality.changed.message")
         }
     }
 }

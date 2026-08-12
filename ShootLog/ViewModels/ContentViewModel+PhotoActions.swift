@@ -66,7 +66,9 @@ extension ContentViewModel {
     func toggleFavorite(_ photo: Photo) {
         photo.isFavorite.toggle()
         guard let context = modelContext, saveOrReportError(context) else { return }
-        showToast(photo.isFavorite ? "お気に入りに追加しました" : "お気に入りを解除しました")
+        showToast(photo.isFavorite
+            ? String(localized: "toast.favorite.added")
+            : String(localized: "toast.favorite.removed"))
     }
 
     func saveNote(_ note: String, for photo: Photo) {

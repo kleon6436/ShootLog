@@ -16,7 +16,7 @@ extension AnalysisViewModel {
             values: values,
             candidates: Self.fullStopApertures,
             label: Self.apertureLabel,
-            series: "お気に入り"
+            series: .favorites
         )
         return Self.insightText(points: points, total: values.count)
     }
@@ -29,7 +29,7 @@ extension AnalysisViewModel {
             values: values,
             candidates: Self.fullStopShutterSpeeds,
             label: Self.ssLabel,
-            series: "お気に入り"
+            series: .favorites
         )
         return Self.insightText(points: points, total: values.count)
     }
@@ -42,7 +42,7 @@ extension AnalysisViewModel {
             values: values,
             candidates: Self.standardISOs,
             label: Self.isoLabel,
-            series: "お気に入り"
+            series: .favorites
         )
         return Self.insightText(points: points, total: values.count)
     }
@@ -61,7 +61,7 @@ extension AnalysisViewModel {
 
     static func insightText(points: [AnalysisViewModel.DataPoint], total: Int) -> String? {
         guard let top = modalPoint(in: points) else { return nil }
-        return "お気に入りは \(top.label) 付近が最多(\(top.count)/\(total)枚)"
+        return String(localized: "analysis.insight.mostCommon \(top.label) \(top.count) \(total)")
     }
 
     // 最頻バケットを返す。Dictionary.max(by:) はハッシュシード依存で非決定的なため使わず、

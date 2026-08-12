@@ -67,9 +67,9 @@ struct CropOverlayView: View {
                 VStack {
                     Spacer()
                     HStack(spacing: 10) {
-                        Button("キャンセル") { onCancel() }
+                        Button("common.cancel") { onCancel() }
                             .buttonStyle(CropActionButtonStyle(isPrimary: false))
-                        Button("適用") { onApply(vm.normalizedRect) }
+                        Button("crop.apply") { onApply(vm.normalizedRect) }
                             .buttonStyle(CropActionButtonStyle(isPrimary: true))
                     }
                     .padding(.bottom, 20)
@@ -109,7 +109,7 @@ private struct CropHandleView: View {
                 .elevation(.card)
         }
         .position(handlePosition)
-        .accessibilityLabel("トリミング範囲の\(accessibilityCornerName)ハンドル")
+        .accessibilityLabel(cropHandleAccessibilityLabel)
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
@@ -118,12 +118,13 @@ private struct CropHandleView: View {
         )
     }
 
-    private var accessibilityCornerName: String {
+    // 語順が言語で変わるため、隅ごとに完結したラベルをローカライズする
+    private var cropHandleAccessibilityLabel: LocalizedStringKey {
         switch corner {
-        case .topLeft:     "左上"
-        case .topRight:    "右上"
-        case .bottomLeft:  "左下"
-        case .bottomRight: "右下"
+        case .topLeft:     "a11y.crop.handle.topLeft"
+        case .topRight:    "a11y.crop.handle.topRight"
+        case .bottomLeft:  "a11y.crop.handle.bottomLeft"
+        case .bottomRight: "a11y.crop.handle.bottomRight"
         }
     }
 }

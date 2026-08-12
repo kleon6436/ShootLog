@@ -162,11 +162,11 @@ struct ContentView: View {
         )) {
             AnalysisView(photos: vm.photos)
         }
-        .alert("エラー", isPresented: Binding(
+        .alert("common.error", isPresented: Binding(
             get: { vm.error != nil },
             set: { if !$0 { vm.error = nil } }
         )) {
-            Button("OK") { vm.error = nil }
+            Button("common.ok") { vm.error = nil }
         } message: {
             let message: String = vm.error?.localizedDescription ?? ""
             Text(message)

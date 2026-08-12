@@ -10,11 +10,33 @@ import Foundation
 //   exifRepresentativeValues / recipeRange   … フォルダ全体のお気に入り（sessionFavorites）
 extension AnalysisViewModel {
 
-    // 指標1件分の表示内容
+    // 指標1件分の表示内容。
+    // name はローカライズされて変化するため、識別子には言語非依存の id を使う
     struct SessionMetric: Identifiable {
+        let id: String
         let name: String
         let text: String
-        var id: String { name }
+
+        init(kind: MetricKind, text: String) {
+            self.id = kind.rawValue
+            self.name = kind.displayName
+            self.text = text
+        }
+    }
+
+    // EXIF代表値・設定レシピの各行に使う指標種別
+    enum MetricKind: String {
+        case aperture
+        case shutterSpeed
+        case iso
+
+        var displayName: String {
+            switch self {
+            case .aperture:     String(localized: "analysis.metric.aperture")
+            case .shutterSpeed: String(localized: "analysis.metric.shutterSpeed")
+            case .iso:          String(localized: "analysis.metric.iso")
+            }
+        }
     }
 
     // タグ1件分の集計結果
@@ -45,9 +67,9 @@ extension AnalysisViewModel {
             values: apertures,
             candidates: Self.fullStopApertures,
             label: Self.apertureLabel,
-            series: "お気に入り"
+            series: .favorites
         )) {
-            metrics.append(SessionMetric(name: "絞り", text: top.label))
+            metrics.append(SessionMetric(kind: .aperture, text: top.label))
         }
 
         let shutterSpeeds = favorites.compactMap(\.shutterSpeed)
@@ -55,9 +77,9 @@ extension AnalysisViewModel {
             values: shutterSpeeds,
             candidates: Self.fullStopShutterSpeeds,
             label: Self.ssLabel,
-            series: "お気に入り"
+            series: .favorites
         )) {
-            metrics.append(SessionMetric(name: "SS", text: top.label))
+            metrics.append(SessionMetric(kind: .shutterSpeed, text: top.label))
         }
 
         let isos = favorites.compactMap(\.iso)
@@ -65,9 +87,9 @@ extension AnalysisViewModel {
             values: isos,
             candidates: Self.standardISOs,
             label: Self.isoLabel,
-            series: "お気に入り"
+            series: .favorites
         )) {
-            metrics.append(SessionMetric(name: "ISO", text: top.label))
+            metrics.append(SessionMetric(kind: .iso, text: top.label))
         }
 
         return metrics
@@ -99,24 +121,24 @@ extension AnalysisViewModel {
         if let low = apertures.min(), let high = apertures.max() {
             let text = low == high
                 ? Self.apertureLabel(low)
-                : "\(Self.apertureLabel(low))〜\(Self.apertureValueText(high))"
-            metrics.append(SessionMetric(name: "絞り", text: text))
+                : String(localized: "analysis.recipe.range \(Self.apertureLabel(low)) \(Self.apertureValueText(high))")
+            metrics.append(SessionMetric(kind: .aperture, text: text))
         }
 
         let shutterSpeeds = favorites.compactMap(\.shutterSpeed).map { Self.snapLog($0, Self.fullStopShutterSpeeds) }
         if let low = shutterSpeeds.min(), let high = shutterSpeeds.max() {
             let text = low == high
                 ? Self.ssLabel(low)
-                : "\(Self.ssLabel(low))〜\(Self.ssLabel(high))"
-            metrics.append(SessionMetric(name: "SS", text: text))
+                : String(localized: "analysis.recipe.range \(Self.ssLabel(low)) \(Self.ssLabel(high))")
+            metrics.append(SessionMetric(kind: .shutterSpeed, text: text))
         }
 
         let isos = favorites.compactMap(\.iso).map { Self.snapNearest($0, to: Self.standardISOs) }
         if let low = isos.min(), let high = isos.max() {
             let text = low == high
                 ? Self.isoLabel(low)
-                : "\(Self.isoLabel(low))〜\(high)"
-            metrics.append(SessionMetric(name: "ISO", text: text))
+                : String(localized: "analysis.recipe.range \(Self.isoLabel(low)) \(String(high))")
+            metrics.append(SessionMetric(kind: .iso, text: text))
         }
 
         return metrics

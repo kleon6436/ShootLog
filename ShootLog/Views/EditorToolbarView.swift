@@ -12,13 +12,18 @@ struct EditorToolbarView: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            EditorButton(symbolName: "rotate.right", help: "右に 90° 回転", action: onRotate)
-            EditorButton(symbolName: "crop", help: "トリミング", isActive: isCropMode, action: onToggleCrop)
-            EditorButton(symbolName: isFavorite ? "star.fill" : "star", help: isFavorite ? "お気に入りを解除" : "お気に入りに追加", isActive: isFavorite, action: onToggleFavorite)
+            EditorButton(symbolName: "rotate.right", help: "editor.rotate", action: onRotate)
+            EditorButton(symbolName: "crop", help: "editor.crop", isActive: isCropMode, action: onToggleCrop)
+            EditorButton(
+                symbolName: isFavorite ? "star.fill" : "star",
+                help: isFavorite ? "viewer.favorite.remove" : "viewer.favorite.add",
+                isActive: isFavorite,
+                action: onToggleFavorite
+            )
 
             if editInfo != nil {
                 Divider().frame(height: 16).padding(.horizontal, 2)
-                EditorButton(symbolName: "arrow.uturn.backward", help: "編集をリセット", action: onReset)
+                EditorButton(symbolName: "arrow.uturn.backward", help: "editor.reset", action: onReset)
             }
         }
         // 内側余白: ボタンとガラスカード端との間隔
@@ -32,7 +37,7 @@ struct EditorToolbarView: View {
 
 private struct EditorButton: View {
     let symbolName: String
-    let help: String
+    let help: LocalizedStringKey
     var isActive: Bool = false
     let action: () -> Void
 
