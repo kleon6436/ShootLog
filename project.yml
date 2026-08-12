@@ -6,6 +6,7 @@ options:
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
   createIntermediateGroups: true
+  developmentLanguage: ja
 
 settings:
   base:
@@ -26,8 +27,6 @@ targets:
       - path: ShootLog
         excludes:
           - "**/*.md"
-    resources:
-      - path: ShootLog/Resources
     entitlements:
       path: ShootLog/ShootLog.entitlements
       properties:
