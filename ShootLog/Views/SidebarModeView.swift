@@ -74,7 +74,7 @@ struct SidebarModeView: View {
             .onKeyPress(.downArrow) { vm.selectNext();     return .handled }
             .overlay(alignment: .bottom) {
                 if vm.isLoading {
-                    ProgressView("読み込み中…")
+                    ProgressView("common.loading")
                         .padding(Spacing.medium)
                         .glassOrMaterial(cornerRadius: CornerRadius.medium)
                         .padding(.bottom, Spacing.medium)
@@ -141,16 +141,16 @@ struct SidebarModeView: View {
             Button(action: toggleSidebar) {
                 Image(systemName: "sidebar.left")
             }
-            .help(isSidebarShown ? "左サイドバーを隠す (⌘\\)" : "左サイドバーを表示 (⌘\\)")
-            .accessibilityLabel(isSidebarShown ? "左サイドバーを隠す" : "左サイドバーを表示")
+            .help(isSidebarShown ? "sidebar.toggle.hide.help" : "sidebar.toggle.show.help")
+            .accessibilityLabel(isSidebarShown ? "sidebar.toggle.hide" : "sidebar.toggle.show")
         }
 
         ToolbarItem(placement: .navigation) {
             Button { vm.openFolder() } label: {
                 Image(systemName: "folder.badge.plus")
             }
-            .help("フォルダを開く (⌘O)")
-            .accessibilityLabel("フォルダを開く")
+            .help("toolbar.openFolder.help")
+            .accessibilityLabel("common.openFolder")
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
@@ -186,8 +186,8 @@ struct SidebarModeView: View {
             Button(action: toggleInspector) {
                 Image(systemName: "sidebar.right")
             }
-            .help(vm.isEXIFPanelVisible ? "EXIFパネルを隠す (⌘⌥E)" : "EXIFパネルを表示 (⌘⌥E)")
-            .accessibilityLabel(vm.isEXIFPanelVisible ? "EXIFパネルを隠す" : "EXIFパネルを表示")
+            .help(vm.isEXIFPanelVisible ? "inspector.toggle.hide.help" : "inspector.toggle.show.help")
+            .accessibilityLabel(vm.isEXIFPanelVisible ? "inspector.toggle.hide" : "inspector.toggle.show")
         }
     }
 

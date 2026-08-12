@@ -33,9 +33,9 @@ struct AnalysisView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("撮影設定の傾向")
+                Text("analysis.title")
                     .font(.title2.bold())
-                Text("EXIF取得済み \(vm.exifCount) / \(vm.totalCount) 枚")
+                Text("analysis.exifProgress \(vm.exifCount) \(vm.totalCount)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -48,7 +48,7 @@ struct AnalysisView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("閉じる")
+            .accessibilityLabel("common.close")
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
@@ -57,9 +57,9 @@ struct AnalysisView: View {
     // MARK: - タブ
 
     private var tabPicker: some View {
-        Picker("グラフ種別", selection: $vm.selectedPage) {
+        Picker("analysis.chartType", selection: $vm.selectedPage) {
             ForEach(AnalysisViewModel.AnalysisPage.allCases, id: \.self) { page in
-                Text(page.rawValue).tag(page)
+                Text(page.displayName).tag(page)
             }
         }
         .pickerStyle(.segmented)
@@ -75,8 +75,8 @@ struct AnalysisView: View {
                 Image(systemName: "camera")
                     .foregroundStyle(.secondary)
                     .font(.caption)
-                Picker("カメラ", selection: $vm.selectedCamera) {
-                    Text("すべてのカメラ").tag(Optional<String>.none)
+                Picker("analysis.camera", selection: $vm.selectedCamera) {
+                    Text("analysis.camera.all").tag(Optional<String>.none)
                     if !vm.availableCameras.isEmpty {
                         Divider()
                         ForEach(vm.availableCameras, id: \.self) { camera in
@@ -87,7 +87,7 @@ struct AnalysisView: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .frame(maxWidth: 220)
-                .accessibilityLabel("カメラフィルター")
+                .accessibilityLabel("a11y.analysis.cameraFilter")
             }
 
             Spacer()
@@ -103,12 +103,12 @@ struct AnalysisView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "star.fill")
                         .foregroundStyle(vm.showFavoritesOverlay ? Color.orange : Color.secondary)
-                    Text("お気に入りと比較")
+                    Text("analysis.compareFavorites")
                 }
                 .font(.caption)
             }
             .toggleStyle(.checkbox)
-            .accessibilityLabel("お気に入りとの比較を表示")
+            .accessibilityLabel("a11y.analysis.compareFavorites")
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 10)
@@ -118,9 +118,9 @@ struct AnalysisView: View {
         let total = vm.filteredPhotos.count
         let fav   = vm.favoriteFilteredPhotos.count
         if vm.showFavoritesOverlay {
-            return "全体 \(total) 枚 / お気に入り \(fav) 枚"
+            return String(localized: "analysis.filterSummary.withFavorites \(total) \(fav)")
         }
-        return "\(total) 枚"
+        return String(localized: "analysis.filterSummary \(total)")
     }
 
     // MARK: - コンテンツ切替
@@ -154,7 +154,7 @@ struct AnalysisView: View {
     // 選択中タブの指標について、お気に入りの傾向を1行で示す
     private var insightRow: some View {
         let insight = vm.currentInsightText
-        let text = insight ?? "お気に入りが少ないため参考情報なし"
+        let text = insight ?? String(localized: "analysis.insight.insufficient")
         return HStack(spacing: Spacing.small) {
             Image(systemName: "sparkles")
                 .font(.caption)
@@ -167,7 +167,7 @@ struct AnalysisView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, Spacing.large)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("お気に入り傾向: \(text)")
+        .accessibilityLabel(Text("a11y.analysis.insight \(text)"))
     }
 
     private func barChart(data: [AnalysisViewModel.DataPoint]) -> some View {
@@ -177,16 +177,16 @@ struct AnalysisView: View {
 
         return Chart(data) { dp in
             BarMark(
-                x: .value("ラベル", dp.label),
-                y: .value("枚数", dp.count)
+                x: .value("analysis.chart.label", dp.label),
+                y: .value("analysis.chart.count", dp.count)
             )
-            .foregroundStyle(by: .value("系列", dp.series))
-            .position(by: .value("系列", dp.series), axis: .horizontal)
+            .foregroundStyle(by: .value("analysis.chart.series", dp.series.displayName))
+            .position(by: .value("analysis.chart.series", dp.series.displayName), axis: .horizontal)
             .cornerRadius(CornerRadius.small)
             .annotation(position: .top, alignment: .center, spacing: 2) {
                 // オーバーレイ時はバーが狭くなるためカウントラベルを非表示
                 if !isOverlay {
-                    Text("\(dp.count)")
+                    Text(dp.count.formatted(.number.grouping(.never)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -194,8 +194,8 @@ struct AnalysisView: View {
         }
         // 系列識別用のデータ可視化カラー。UIクロームではなくチャートのデータ系列を区別する意図的な固定色のため変更しない
         .chartForegroundStyleScale([
-            "全体": Color.accentColor,
-            "お気に入り": Color.orange
+            AnalysisViewModel.ChartSeries.all.displayName: Color.accentColor,
+            AnalysisViewModel.ChartSeries.favorites.displayName: Color.orange
         ])
         .chartLegend(isOverlay ? .visible : .hidden)
         .chartYScale(domain: 0...yMax)
@@ -204,7 +204,7 @@ struct AnalysisView: View {
                 AxisGridLine()
                 AxisValueLabel {
                     if let v = value.as(Int.self) {
-                        Text("\(v)").font(.caption2)
+                        Text(v.formatted(.number.grouping(.never))).font(.caption2)
                     }
                 }
             }
@@ -239,41 +239,44 @@ struct AnalysisView: View {
     }
 
     private func favoriteRatioSection(favoritesCount: Int) -> some View {
-        sessionSection(title: "お気に入り比率(フォルダ全体 \(vm.totalCount)枚)") {
+        sessionSection(title: String(localized: "analysis.session.favoriteRatio.title \(vm.totalCount)")) {
             if let ratio = vm.favoriteRatio {
                 let percent = Int((ratio * 100).rounded())
                 VStack(alignment: .leading, spacing: Spacing.small) {
-                    Text("\(favoritesCount) / \(vm.totalCount) 枚(\(percent)%)")
+                    Text(String(localized: "analysis.session.favoriteRatio.value \(favoritesCount) \(vm.totalCount) \(percent)"))
                         .font(.title3.bold())
                     ProgressView(value: ratio)
                         .progressViewStyle(.linear)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("お気に入り比率 フォルダ全体\(vm.totalCount)枚中\(favoritesCount)枚、\(percent)パーセント")
+                .accessibilityLabel(Text("a11y.analysis.favoriteRatio \(vm.totalCount) \(favoritesCount) \(percent)"))
             } else {
-                sessionPlaceholder("写真がありません")
+                sessionPlaceholder(String(localized: "analysis.session.noPhotos"))
             }
         }
     }
 
     private func exifRepresentativeSection(favoritesCount: Int, isFavoritesEmpty: Bool) -> some View {
-        sessionSection(title: "EXIF代表値(お気に入り \(favoritesCount)枚、値ありのみ、フォルダ全体基準)") {
+        sessionSection(title: String(localized: "analysis.session.exifRepresentative.title \(favoritesCount)")) {
             let metrics = vm.exifRepresentativeValues
             if isFavoritesEmpty {
-                sessionPlaceholder("お気に入りがありません")
+                sessionPlaceholder(String(localized: "analysis.session.noFavorites"))
             } else if metrics.isEmpty {
-                sessionPlaceholder("EXIFが未取得です。写真を選択すると読み込まれます")
+                sessionPlaceholder(String(localized: "analysis.session.exifNotLoaded"))
             } else {
-                metricRows(metrics, accessibilityPrefix: "EXIF代表値")
+                metricRows(
+                    metrics,
+                    accessibilityPrefix: String(localized: "analysis.session.exifRepresentative.prefix")
+                )
             }
         }
     }
 
     private var tagAggregationSection: some View {
-        sessionSection(title: "タグ集計(フォルダ全体 \(vm.totalCount)枚)") {
+        sessionSection(title: String(localized: "analysis.session.tagAggregation.title \(vm.totalCount)")) {
             let counts = vm.tagAggregation
             if counts.isEmpty {
-                sessionPlaceholder("タグ付与写真なし")
+                sessionPlaceholder(String(localized: "analysis.session.noTaggedPhotos"))
             } else {
                 VStack(alignment: .leading, spacing: Spacing.small) {
                     ForEach(counts) { item in
@@ -281,12 +284,12 @@ struct AnalysisView: View {
                             Text(item.category.displayName)
                                 .font(.callout)
                             Spacer(minLength: Spacing.xLarge)
-                            Text("\(item.count)枚")
+                            Text(String(localized: "analysis.photoCount \(item.count)"))
                                 .font(.callout.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("タグ集計 \(item.category.displayName) \(item.count)枚")
+                        .accessibilityLabel(Text("a11y.analysis.tagCount \(item.category.displayName) \(item.count)"))
                     }
                 }
             }
@@ -294,14 +297,14 @@ struct AnalysisView: View {
     }
 
     private func recipeSection(favoritesCount: Int, isFavoritesEmpty: Bool) -> some View {
-        sessionSection(title: "設定レシピ(お気に入り \(favoritesCount)枚、値ありのみ、フォルダ全体基準)") {
+        sessionSection(title: String(localized: "analysis.session.recipe.title \(favoritesCount)")) {
             let metrics = vm.recipeRange
             if isFavoritesEmpty {
-                sessionPlaceholder("お気に入りがありません")
+                sessionPlaceholder(String(localized: "analysis.session.noFavorites"))
             } else if metrics.isEmpty {
-                sessionPlaceholder("EXIFが未取得です。写真を選択すると読み込まれます")
+                sessionPlaceholder(String(localized: "analysis.session.exifNotLoaded"))
             } else {
-                metricRows(metrics, accessibilityPrefix: "設定レシピ")
+                metricRows(metrics, accessibilityPrefix: String(localized: "analysis.session.recipe.prefix"))
             }
         }
     }
@@ -321,7 +324,9 @@ struct AnalysisView: View {
                         .font(.callout.monospacedDigit())
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(accessibilityPrefix) \(metric.name) \(metric.text)")
+                .accessibilityLabel(
+                    Text("a11y.analysis.metricRow \(accessibilityPrefix) \(metric.name) \(metric.text)")
+                )
             }
         }
     }
@@ -353,10 +358,10 @@ struct AnalysisView: View {
             Image(systemName: "chart.bar.xaxis")
                 .font(.system(size: 44))
                 .foregroundStyle(.tertiary)
-            Text("EXIFデータがありません")
+            Text("analysis.empty.title")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("写真を選択してEXIFを読み込むか、別のタブを選択してください")
+            Text("analysis.empty.subtitle")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

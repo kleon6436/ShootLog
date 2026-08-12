@@ -80,7 +80,7 @@ private struct PhotoGridCell: View {
 
     private var accessibilityLabelText: String {
         photo.isFavorite
-            ? "\(photo.fileURL.lastPathComponent)、お気に入り"
+            ? String(localized: "a11y.photo.favorite \(photo.fileURL.lastPathComponent)")
             : photo.fileURL.lastPathComponent
     }
 

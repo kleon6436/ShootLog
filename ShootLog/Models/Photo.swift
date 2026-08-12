@@ -13,11 +13,11 @@ enum SuccessTagCategory: String, CaseIterable, Codable {
 
     var displayName: String {
         switch self {
-        case .light: "光"
-        case .composition: "構図"
-        case .timing: "タイミング"
-        case .focus: "ピント"
-        case .editing: "現像"
+        case .light: String(localized: "photo.tag.light")
+        case .composition: String(localized: "photo.tag.composition")
+        case .timing: String(localized: "photo.tag.timing")
+        case .focus: String(localized: "photo.tag.focus")
+        case .editing: String(localized: "photo.tag.editing")
         }
     }
 }

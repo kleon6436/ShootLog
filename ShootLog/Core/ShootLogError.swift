@@ -14,21 +14,21 @@ enum ShootLogError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .exifReadFailed:
-            return "EXIF情報の読み取りに失敗しました"
+            return String(localized: "error.exifReadFailed")
         case .unsupportedFormat(let ext):
-            return "未対応の形式です: \(ext)"
+            return String(localized: "error.unsupportedFormat \(ext)")
         case .folderAccessDenied:
-            return "フォルダへのアクセス権限がありません"
+            return String(localized: "error.folderAccessDenied")
         case .bookmarkRestorationFailed:
-            return "保存済みフォルダへのアクセスを復元できませんでした"
+            return String(localized: "error.bookmarkRestorationFailed")
         case .applicationInfoUnavailable(let name):
-            return "「\(name)」のアプリ情報（バンドルID）を取得できませんでした"
+            return String(localized: "error.applicationInfoUnavailable \(name)")
         case .duplicateIntegrationApp(let name):
-            return "「\(name)」はすでに連携アプリとして登録されています"
+            return String(localized: "error.duplicateIntegrationApp \(name)")
         case .settingsSaveFailed:
-            return "連携アプリの設定を保存できませんでした"
+            return String(localized: "error.settingsSaveFailed")
         case .photoDataSaveFailed:
-            return "データの保存に失敗しました"
+            return String(localized: "error.photoDataSaveFailed")
         }
     }
 }

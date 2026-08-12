@@ -20,7 +20,7 @@ struct SlideshowModeView: View {
                         Button {
                             vm.setInterval(sec)
                         } label: {
-                            Text("\(Int(sec))s")
+                            Text(verbatim: "\(Int(sec))s")
                                 .font(HUDTypography.label)
                                 .fontWeight(isSelected ? .semibold : .regular)
                                 .foregroundStyle(isSelected ? Color.onDarkCanvas : Color.onDarkCanvasSecondary)
@@ -29,7 +29,7 @@ struct SlideshowModeView: View {
                         }
                         .buttonStyle(HUDButtonStyle(font: HUDTypography.label))
                         .animation(.easeInOut(duration: 0.15), value: vm.interval)
-                        .accessibilityLabel("\(Int(sec))秒間隔")
+                        .accessibilityLabel("a11y.slideshow.interval \(Int(sec))")
                         .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                     Spacer()
@@ -57,7 +57,7 @@ struct SlideshowModeView: View {
                             .glassOrMaterialCircle()
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-                    .accessibilityLabel("サイドバーに戻る")
+                    .accessibilityLabel("viewer.backToSidebar")
                 }
                 .padding(.trailing, 12)
                 .padding(.top, 10)
@@ -76,7 +76,7 @@ struct SlideshowModeView: View {
                             .foregroundStyle(Color.onDarkCanvasSecondary)
                     }
                     .buttonStyle(HUDButtonStyle())
-                    .accessibilityLabel("前の写真")
+                    .accessibilityLabel("viewer.previousPhoto")
 
                     // 再生・一時停止
                     Button {
@@ -86,7 +86,7 @@ struct SlideshowModeView: View {
                             .foregroundStyle(Color.onDarkCanvas)
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.controlLarge))
-                    .accessibilityLabel(vm.isPlaying ? "一時停止" : "再生")
+                    .accessibilityLabel(vm.isPlaying ? "slideshow.pause" : "slideshow.play")
 
                     // 次の写真
                     Button {
@@ -96,7 +96,7 @@ struct SlideshowModeView: View {
                             .foregroundStyle(Color.onDarkCanvasSecondary)
                     }
                     .buttonStyle(HUDButtonStyle())
-                    .accessibilityLabel("次の写真")
+                    .accessibilityLabel("viewer.nextPhoto")
 
                     // プログレスバー
                     ProgressView(value: vm.progress)
@@ -104,7 +104,7 @@ struct SlideshowModeView: View {
                         .frame(width: 100)
                         .tint(Color.onDarkCanvasSecondary)
 
-                    Text("\(vm.remainingSeconds)s")
+                    Text(verbatim: "\(vm.remainingSeconds)s")
                         .font(HUDTypography.caption)
                         .foregroundStyle(.secondary)
                 }

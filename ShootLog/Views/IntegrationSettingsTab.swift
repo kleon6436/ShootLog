@@ -29,10 +29,10 @@ struct IntegrationSettingsTab: View {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.borderless)
-                .help("連携アプリを追加")
-                .accessibilityLabel("連携アプリを追加")
+                .help("integration.add")
+                .accessibilityLabel("integration.add")
 
-                Text("チェックを外したアプリはツールバーのメニューに表示されません")
+                Text("integration.hint")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -42,11 +42,11 @@ struct IntegrationSettingsTab: View {
             .padding(.vertical, 8)
         }
         .onAppear { synchronizeBuiltInSettings() }
-        .alert("エラー", isPresented: Binding(
+        .alert("common.error", isPresented: Binding(
             get: { error != nil },
             set: { if !$0 { error = nil } }
         )) {
-            Button("OK") { error = nil }
+            Button("common.ok") { error = nil }
         } message: {
             Text(error?.localizedDescription ?? "")
         }
@@ -75,20 +75,24 @@ struct IntegrationSettingsTab: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
-                .help("\(name)を削除")
-                .accessibilityLabel("\(name)を削除")
+                .help("a11y.integration.remove \(name)")
+                .accessibilityLabel("a11y.integration.remove \(name)")
             }
 
-            Toggle("", isOn: Binding(
+            // ラベルは隠して accessibilityLabel で説明するため、
+            // 空文字のラベルがローカライズキーとして抽出されないよう EmptyView を使う
+            Toggle(isOn: Binding(
                 get: { setting.isEnabled },
                 set: { newValue in
                     setting.isEnabled = newValue
                     saveChanges()
                 }
-            ))
+            )) {
+                EmptyView()
+            }
             .labelsHidden()
             .toggleStyle(.switch)
-            .accessibilityLabel("\(name)を有効にする")
+            .accessibilityLabel("a11y.integration.enable \(name)")
         }
         .padding(.vertical, 2)
     }
@@ -174,8 +178,8 @@ struct IntegrationSettingsTab: View {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "連携するアプリを選択してください"
-        panel.prompt = "追加"
+        panel.message = String(localized: "openPanel.app.message")
+        panel.prompt = String(localized: "openPanel.app.prompt")
         guard panel.runModal() == .OK, let appURL = panel.url else { return }
 
         let fallbackName = appURL.deletingPathExtension().lastPathComponent

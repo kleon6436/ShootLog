@@ -44,7 +44,7 @@ final class ViewModeRegistry {
 
 struct SidebarMode: ViewModeProtocol {
     let id = "sidebar"
-    let displayName = "サイドバー"
+    let displayName: LocalizedStringResource = "viewMode.sidebar"
     let symbolName = "rectangle.split.3x1"
     let keyboardShortcut: KeyEquivalent? = nil
 }
@@ -53,7 +53,7 @@ struct SidebarMode: ViewModeProtocol {
 
 struct FullscreenMode: ViewModeProtocol {
     let id = "fullscreen"
-    let displayName = "フルスクリーン"
+    let displayName: LocalizedStringResource = "viewMode.fullscreen"
     let symbolName = "arrow.up.left.and.arrow.down.right"
     let keyboardShortcut: KeyEquivalent? = "f"
 }
@@ -62,7 +62,7 @@ struct FullscreenMode: ViewModeProtocol {
 
 struct SlideshowMode: ViewModeProtocol {
     let id = "slideshow"
-    let displayName = "スライドショー"
+    let displayName: LocalizedStringResource = "viewMode.slideshow"
     let symbolName = "play.rectangle"
     let keyboardShortcut: KeyEquivalent? = "p"
 }

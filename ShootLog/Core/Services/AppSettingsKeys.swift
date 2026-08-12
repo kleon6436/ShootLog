@@ -33,9 +33,9 @@ enum ThumbnailQuality: Int, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .small: "小（512px）"
-        case .standard: "標準（768px）"
-        case .high: "高（1024px）"
+        case .small: String(localized: "settings.thumbnailQuality.small")
+        case .standard: String(localized: "settings.thumbnailQuality.standard")
+        case .high: String(localized: "settings.thumbnailQuality.high")
         }
     }
 }

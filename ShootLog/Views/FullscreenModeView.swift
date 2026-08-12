@@ -425,7 +425,7 @@ private struct NavButton: View {
                 .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.control))
-        .accessibilityLabel(direction == .prev ? "前の写真" : "次の写真")
+        .accessibilityLabel(direction == .prev ? "viewer.previousPhoto" : "viewer.nextPhoto")
     }
 }
 
@@ -441,7 +441,7 @@ private struct FavoriteButton: View {
                 .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-        .accessibilityLabel(isFavorite ? "お気に入りを解除" : "お気に入りに追加")
+        .accessibilityLabel(isFavorite ? "viewer.favorite.remove" : "viewer.favorite.add")
     }
 }
 
@@ -456,6 +456,6 @@ private struct CloseButton: View {
                 .glassOrMaterialCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-        .accessibilityLabel("サイドバーに戻る")
+        .accessibilityLabel("viewer.backToSidebar")
     }
 }
