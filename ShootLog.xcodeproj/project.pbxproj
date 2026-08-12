@@ -164,7 +164,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = ShootLog;
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 235777R328;
@@ -186,7 +186,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = ShootLog;
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 235777R328;
