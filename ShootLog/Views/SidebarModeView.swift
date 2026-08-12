@@ -88,6 +88,7 @@ struct SidebarModeView: View {
             photo: vm.selectedPhoto,
             editInfo: vm.currentEditInfo,
             isCropMode: vm.isCropMode,
+            neighborPrefetchURLs: neighborPrefetchURLs,
             onCropApply: { rect in vm.setCropRect(rect) },
             onCropCancel: { vm.isCropMode = false }
         )
@@ -97,16 +98,30 @@ struct SidebarModeView: View {
                 EditorToolbarView(
                     editInfo: vm.currentEditInfo,
                     isCropMode: vm.isCropMode,
+                    isFavorite: vm.isSelectedPhotoFavorite,
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
+                    onToggleFavorite: { vm.toggleFavorite() },
                     onReset: { vm.resetEdits() }
                 )
             }
         }
         .inspector(isPresented: $vm.isEXIFPanelVisible) {
-            EXIFPanelView(photo: vm.selectedPhoto)
-                .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
+            EXIFPanelView(
+                photo: vm.selectedPhoto,
+                onToggleTag: { tag in
+                    guard let photo = vm.selectedPhoto else { return }
+                    vm.toggleSuccessTag(tag, for: photo)
+                }
+            )
+            .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
         }
+    }
+
+    // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は
+    // visiblePhotos 基準かつ端でクランプしループしないため、wrapsAround は指定しない
+    private var neighborPrefetchURLs: [URL] {
+        HighResPrefetcher.neighborURLs(in: vm.visiblePhotos, around: vm.visibleIndex)
     }
 
     // MARK: - Toolbar
@@ -119,7 +134,7 @@ struct SidebarModeView: View {
     // 標準ツールバーの中身。
     // サイドバートグルは OS 標準ボタンを外して独自ボタン1つに統一しているため常時表示する。
     // 配置は Xcode 同様の位置連動を得るため .navigation（サイドバー領域の先頭）とし、
-    // 他のアイテムは .primaryAction に置く
+    // フォルダを開くボタンをその右隣の独立ボタンとして続け、他のアイテムは .primaryAction に置く
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -130,41 +145,32 @@ struct SidebarModeView: View {
             .accessibilityLabel(isSidebarShown ? "左サイドバーを隠す" : "左サイドバーを表示")
         }
 
-        ToolbarItemGroup(placement: .primaryAction) {
-            ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
-
-            Button { vm.showFavoritesOnly.toggle() } label: {
-                Image(systemName: vm.showFavoritesOnly ? "star.fill" : "star")
-            }
-            .help("お気に入りのみ表示")
-            .accessibilityLabel("お気に入りのみ表示")
-            .disabled(vm.photos.isEmpty)
-        }
-
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(placement: .navigation) {
             Button { vm.openFolder() } label: {
                 Image(systemName: "folder.badge.plus")
             }
             .help("フォルダを開く (⌘O)")
             .accessibilityLabel("フォルダを開く")
-
-            Button { vm.openAnalysis() } label: {
-                Image(systemName: "chart.bar")
-            }
-            .help("撮影傾向を分析 (⌘I)")
-            .accessibilityLabel("分析")
-            .keyboardShortcut("i", modifiers: .command)
-            .disabled(vm.photos.isEmpty)
-
-            ExternalAppMenu(apps: vm.externalApps, onSelect: { adapter in vm.openInExternalApp(adapter) })
-                .disabled(vm.selectedPhoto == nil)
-
-            Button { openSettings() } label: {
-                Image(systemName: "gearshape")
-            }
-            .help("設定を開く")
-            .accessibilityLabel("設定を開く")
         }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
+
+            FavoritesOnlyToggleButton(
+                showFavoritesOnly: $vm.showFavoritesOnly,
+                isDisabled: vm.photos.isEmpty
+            )
+        }
+
+        // 「フォルダを開く」は.navigation配置の独立ボタンとして持つため、共有グループには渡さない
+        ViewerToolbarTrailingGroup(
+            isPhotosEmpty: vm.photos.isEmpty,
+            hasSelectedPhoto: vm.selectedPhoto != nil,
+            externalApps: vm.externalApps,
+            openAnalysis: { vm.openAnalysis() },
+            openInExternalApp: { adapter in vm.openInExternalApp(adapter) },
+            openSettings: { openSettings() }
+        )
 
         // EXIFトグルはXcodeのインスペクタボタン同様、他アクションから切り離した
         // 単独グループとしてツールバー末尾（＝ウィンドウ右端）に固定表示する。

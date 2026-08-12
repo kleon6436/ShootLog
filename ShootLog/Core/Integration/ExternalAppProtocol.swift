@@ -25,13 +25,14 @@ extension ExternalAppProtocol {
     }
 }
 
-// インストール済みの外部アプリアダプターを提供するレジストリ
+// ビルトインの外部アプリアダプターを提供するレジストリ
 final class ExternalAppRegistry: @unchecked Sendable {
     static let shared = ExternalAppRegistry()
     private init() {}
 
-    // 登録された全アダプター（Finder は常に先頭）
-    let allAdapters: [any ExternalAppProtocol] = [
+    // 標準搭載アダプターの候補一覧（有効/無効やインストール状況は含まない。Finder は常に先頭）
+    // 実際にツールバーへ表示する一覧は IntegrationAppSetting と突き合わせて ContentViewModel が組み立てる
+    let builtInAdapters: [any ExternalAppProtocol] = [
         FinderAdapter(),
         PreviewAdapter(),
         PhotoshopAdapter(),
@@ -39,9 +40,4 @@ final class ExternalAppRegistry: @unchecked Sendable {
         CaptureOneAdapter(),
         AffinityPhotoAdapter(),
     ]
-
-    // インストール済みアダプターのみ（UI 表示用）
-    var availableAdapters: [any ExternalAppProtocol] {
-        allAdapters.filter { $0.isAvailable }
-    }
 }

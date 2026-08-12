@@ -9,12 +9,14 @@
 /* Begin PBXBuildFile section */
 		596A821645C828B7F53D0580 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A83DBE9107D998FD6C6C202 /* Assets.xcassets */; };
 		65CEFF017E625087AFECF9D9 /* ShootLogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B10FCC4FAA0641B5FDB6888 /* ShootLogApp.swift */; };
+		6CCD9AB3301D9DAE005BD375 /* ShootLog.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6CCD9AB2301D9DAE005BD375 /* ShootLog.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0875AA31E08C99CEEBFA3D73 /* ShootLog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShootLog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A83DBE9107D998FD6C6C202 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3B10FCC4FAA0641B5FDB6888 /* ShootLogApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShootLogApp.swift; sourceTree = "<group>"; };
+		6CCD9AB2301D9DAE005BD375 /* ShootLog.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = ShootLog.icon; sourceTree = "<group>"; };
 		A122532B35DFC65BD2CCD4FD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C0F6FD2202EF7C6F0CBF8B3C /* ShootLog.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShootLog.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -71,6 +73,7 @@
 			children = (
 				674BB964211C9F9411A334C7 /* ShootLog */,
 				B2856790B586605B83D3D737 /* Products */,
+				6CCD9AB2301D9DAE005BD375 /* ShootLog.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -138,6 +141,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				596A821645C828B7F53D0580 /* Assets.xcassets in Resources */,
+				6CCD9AB3301D9DAE005BD375 /* ShootLog.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -158,16 +162,20 @@
 		09EAC2A88F76920D7C515DEE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ShootLog;
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 235777R328;
 				INFOPLIST_FILE = ShootLog/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ShootLog;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.shootlog.app;
 				SDKROOT = macosx;
 			};
@@ -176,16 +184,20 @@
 		0AD515B5E481F91099A055C1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ShootLog;
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 235777R328;
 				INFOPLIST_FILE = ShootLog/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ShootLog;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.shootlog.app;
 				SDKROOT = macosx;
 			};

@@ -4,14 +4,17 @@ import SwiftUI
 struct EditorToolbarView: View {
     let editInfo: EditInfo?
     let isCropMode: Bool
+    let isFavorite: Bool
     let onRotate: () -> Void
     let onToggleCrop: () -> Void
+    let onToggleFavorite: () -> Void
     let onReset: () -> Void
 
     var body: some View {
         HStack(spacing: 2) {
             EditorButton(symbolName: "rotate.right", help: "右に 90° 回転", action: onRotate)
             EditorButton(symbolName: "crop", help: "トリミング", isActive: isCropMode, action: onToggleCrop)
+            EditorButton(symbolName: isFavorite ? "star.fill" : "star", help: isFavorite ? "お気に入りを解除" : "お気に入りに追加", isActive: isFavorite, action: onToggleFavorite)
 
             if editInfo != nil {
                 Divider().frame(height: 16).padding(.horizontal, 2)

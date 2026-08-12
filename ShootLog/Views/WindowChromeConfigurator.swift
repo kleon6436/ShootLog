@@ -7,12 +7,16 @@ import SwiftUI
 // （「サイドバー表示中は信号機とサイドバートグルがサイドバー内、非表示時はツールバー左端」
 // という Xcode 同様の macOS 標準挙動がそのまま働く）。
 struct WindowChromeConfigurator: NSViewRepresentable {
+    // ツールバーの可視性を呼び出し元が明示的に指定するための入力。デフォルトはtrueで既存動作を維持する。
+    // フルスクリーンのHUD自動隠れ機能（isHUDVisibleと連動予定）から利用する
+    var isToolbarVisible: Bool = true
+
     func makeNSView(context: Context) -> ChromeView {
         ChromeView()
     }
 
     func updateNSView(_ nsView: ChromeView, context: Context) {
-        nsView.applyWindowConfiguration()
+        nsView.applyWindowConfiguration(isToolbarVisible: isToolbarVisible)
     }
 
     @MainActor
@@ -20,6 +24,10 @@ struct WindowChromeConfigurator: NSViewRepresentable {
         private weak var observedWindow: NSWindow?
         private weak var configuredWindow: NSWindow?
         private weak var configuredToolbar: NSToolbar?
+
+        // SwiftUIのupdateNSView経由で渡される最新のツールバー可視性。
+        // ウィンドウ移動などNSView側のライフサイクルコールバックでも参照できるよう保持する
+        private var isToolbarVisible = true
 
         override func viewWillMove(toWindow newWindow: NSWindow?) {
             super.viewWillMove(toWindow: newWindow)
@@ -43,6 +51,12 @@ struct WindowChromeConfigurator: NSViewRepresentable {
 
         override func layout() {
             super.layout()
+            applyWindowConfiguration()
+        }
+
+        // SwiftUIのupdateNSViewから呼ばれる。最新のisToolbarVisibleを保持してから適用する
+        func applyWindowConfiguration(isToolbarVisible: Bool) {
+            self.isToolbarVisible = isToolbarVisible
             applyWindowConfiguration()
         }
 
@@ -74,9 +88,13 @@ struct WindowChromeConfigurator: NSViewRepresentable {
             }
 
             // NSToolbarはSwiftUIの構築順により後から差し替わる場合があるため、
-            // toolbarインスタンスが変わった時だけ可視性を同期する。
-            if let toolbar = window.toolbar, configuredToolbar !== toolbar {
-                toolbar.isVisible = true
+            // toolbarインスタンスが変わった時に加えて、要求値と実際の可視性が
+            // 食い違っている時（HUD自動隠れによるisToolbarVisibleの変化）も同期する。
+            // 値が一致している場合は何もしないため、layout()の頻繁な呼び出しで
+            // 隠した状態が強制的に戻されることはない
+            if let toolbar = window.toolbar,
+               configuredToolbar !== toolbar || toolbar.isVisible != isToolbarVisible {
+                toolbar.isVisible = isToolbarVisible
                 configuredToolbar = toolbar
             }
         }
