@@ -92,7 +92,7 @@ struct SidebarModeView: View {
             onCropApply: { rect in vm.setCropRect(rect) },
             onCropCancel: { vm.isCropMode = false }
         )
-        .background(.black)
+        .background(Color.viewerCanvas)
         .overlay(alignment: .bottomTrailing) {
             if vm.selectedPhoto != nil {
                 EditorToolbarView(

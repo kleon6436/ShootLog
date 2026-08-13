@@ -81,7 +81,9 @@ struct EmptyStateView: View {
                         }
                         .padding(.vertical, 4)
                         .padding(.horizontal, 8)
-                        .glassOrMaterial(cornerRadius: 6)
+                        // 履歴行はコンテンツ層のため Material ではなく塗りで区切る
+                        // （ライトモードでウィンドウ背景と同化して境界が消えるのを防ぐ）
+                        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
                         .onHover { isHovering in
                             hoveredHistoryID = isHovering ? history.persistentModelID : nil
                         }

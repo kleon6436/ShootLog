@@ -116,7 +116,7 @@ struct RotateButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "rotate.right")
-                .foregroundStyle(Color.onDarkCanvasSecondary)
+                .foregroundStyle(Color.onViewerCanvasSecondary)
                 .frame(width: 44, height: 44)
                 .glassOrMaterialCircle()
         }
