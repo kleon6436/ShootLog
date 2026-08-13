@@ -127,6 +127,23 @@ struct RotateButton: View {
     }
 }
 
+// 黒背景HUD上のAI超解像書き出しボタン。RotateButtonと同じスタイル・配置規則に揃える
+struct UpscaleButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "wand.and.sparkles")
+                .foregroundStyle(Color.onViewerCanvasSecondary)
+                .frame(width: 44, height: 44)
+                .glassOrMaterialCircle()
+        }
+        .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
+        .help("toolbar.upscale.help")
+        .accessibilityLabel("a11y.toolbar.upscale")
+    }
+}
+
 // 黒背景HUD右下のインデックスカウンター。外側のpaddingは呼び出し側で付与する
 struct CounterBadge: View {
     let text: String

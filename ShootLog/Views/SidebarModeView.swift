@@ -102,7 +102,8 @@ struct SidebarModeView: View {
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
                     onToggleFavorite: { vm.toggleFavorite() },
-                    onReset: { vm.resetEdits() }
+                    onReset: { vm.resetEdits() },
+                    onUpscale: { vm.presentUpscaleExport() }
                 )
             }
         }

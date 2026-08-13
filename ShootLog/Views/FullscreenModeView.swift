@@ -26,7 +26,7 @@ struct FullscreenModeView: View {
 
     // HUD内のフォーカス対象
     private enum HUDControl: Hashable {
-        case previous, next, favorite, rotate, close
+        case previous, next, favorite, rotate, upscale, close
     }
 
     // ダブルクリック時に切り替えるズーム倍率
@@ -159,6 +159,9 @@ struct FullscreenModeView: View {
 
                 RotateButton { rotateSelectedPhoto() }
                     .focused($focusedHUDControl, equals: .rotate)
+
+                UpscaleButton { vm.presentUpscaleExport() }
+                    .focused($focusedHUDControl, equals: .upscale)
 
                 Spacer()
 
