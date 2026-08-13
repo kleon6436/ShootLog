@@ -73,28 +73,23 @@ struct UpscaleExporter: Sendable {
             throw ShootLogError.superResolutionExportFailed
         }
 
-        let temporaryURL = UpscaleOutputDestination.makeTemporaryURL(
-            pathExtension: destination.pathExtension,
-            near: destination
+        // 保存先へ直接書き込む。NSSavePanelが付与するPowerboxの権限は選択された
+        // ファイルパスそのものにスコープされ、同一ディレクトリ内であっても別名の
+        // 一時ファイルを新規作成する権限までは含まれない（ローカルディスクでは
+        // 通ることがあるが、SMB等のネットワーク共有では拒否される）。
+        // 一時ファイル＋アトミック確定は諦め、直接書き込みに一本化する。
+        // 途中で失敗・キャンセルした場合、原本は`validate`が既に守っているため
+        // 危険はないが、書きかけの不完全な出力が保存先に残ることは許容する
+        // （エラー表示で利用者にわかる形にし、再試行を促す）
+        try await Self.encode(
+            outputImage,
+            to: destination,
+            contentType: UpscaleOutputDestination.contentType(
+                forPathExtension: destination.pathExtension
+            ) ?? .jpeg,
+            modelID: engine.modelID,
+            isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia
         )
-        // temporaryURLは保存先と同じディレクトリに作る隠しファイルのため、encode/commitの
-        // どちらで失敗しても（キャンセルも含め）ユーザーの目に触れる場所にゴミを残さない
-        do {
-            try await Self.encode(
-                outputImage,
-                to: temporaryURL,
-                contentType: UpscaleOutputDestination.contentType(
-                    forPathExtension: destination.pathExtension
-                ) ?? .jpeg,
-                modelID: engine.modelID,
-                isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia
-            )
-        } catch {
-            try? FileManager.default.removeItem(at: temporaryURL)
-            throw error
-        }
-
-        try UpscaleOutputDestination.commit(temporaryURL: temporaryURL, to: destination)
     }
 
     // MARK: - 上限チェック

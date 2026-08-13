@@ -150,37 +150,6 @@ struct UpscaleOutputDestinationTests {
         #expect(!UpscaleOutputDestination.isSameFileSystemObject(first, second))
     }
 
-    // MARK: - 防御3
-
-    @Test func commitReplacesExistingFileAtomically() throws {
-        let sandbox = try makeSandbox()
-        defer { try? FileManager.default.removeItem(at: sandbox) }
-
-        let destination = sandbox.appendingPathComponent("out.bin")
-        try writeFile(destination, contents: "old")
-
-        let temporary = UpscaleOutputDestination.makeTemporaryURL(pathExtension: "bin", near: destination)
-        try writeFile(temporary, contents: "new")
-        defer { try? FileManager.default.removeItem(at: temporary) }
-
-        try UpscaleOutputDestination.commit(temporaryURL: temporary, to: destination)
-        let contents = try String(contentsOf: destination, encoding: .utf8)
-        #expect(contents == "new")
-    }
-
-    @Test func commitCreatesFileWhenDestinationDoesNotExist() throws {
-        let sandbox = try makeSandbox()
-        defer { try? FileManager.default.removeItem(at: sandbox) }
-
-        let destination = sandbox.appendingPathComponent("fresh.bin")
-        let temporary = UpscaleOutputDestination.makeTemporaryURL(pathExtension: "bin", near: destination)
-        try writeFile(temporary, contents: "new")
-
-        try UpscaleOutputDestination.commit(temporaryURL: temporary, to: destination)
-        let contents = try String(contentsOf: destination, encoding: .utf8)
-        #expect(contents == "new")
-    }
-
     // MARK: - 防御5・防御6
 
     @Test func defaultFileNameAppendsScaleSuffix() {
