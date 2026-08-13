@@ -120,6 +120,24 @@ struct UpscaleOutputDestinationTests {
         #expect(lower.standardizedFileURL != upper.standardizedFileURL)
     }
 
+    @Test func nfcNfdNormalizedNamesResolveToSameFileSystemObject() throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+
+        // NFD（濁点を分解した表現）とNFC（合成済み表現）はSwiftのStringレベルでは
+        // 正準等価として既に`==`が真になるため、UTF-8バイト列で明示的に異なる表現であることを
+        // まず確認したうえで、ファイルシステム上では同一実体として解決されることを検証する。
+        let nfd = "gaz\u{0065}\u{0301}bo.jpg"   // e + 結合用アキュートアクセント（分解形）
+        let nfc = "gaz\u{00e9}bo.jpg"           // é（合成済み文字、precomposed）
+        #expect(Array(nfd.utf8) != Array(nfc.utf8))
+
+        let nfdURL = sandbox.appendingPathComponent(nfd)
+        try writeFile(nfdURL)
+        let nfcURL = sandbox.appendingPathComponent(nfc)
+
+        #expect(UpscaleOutputDestination.isSameFileSystemObject(nfdURL, nfcURL))
+    }
+
     @Test func distinctFilesAreNotConsideredSame() throws {
         let sandbox = try makeSandbox()
         defer { try? FileManager.default.removeItem(at: sandbox) }
