@@ -46,19 +46,7 @@ ShootLog/
 
 新しいコードは、現在の責務に最も近い既存ディレクトリへ追加する。現在の構成を維持し、無関係な大規模移動は行わない。
 
-## 言語・識別子ルール
-
-- ファイル名、型名、関数名、変数名、引数名は英語にする。
-- コメントとドキュメントコメントは日本語にする。
-- Appleフレームワーク名、業界略語（EXIF、ISO、URL、RAWなど）は英語表記を維持する。
-
-```swift
-// 写真一覧を表示するメインビュー
-struct PhotoListView: View { }
-
-// 指定URLからEXIF情報を読み取る
-func readEXIF(from url: URL) async throws -> EXIFInfo { }
-```
+言語・識別子ルール、Observation、非同期処理、エラー処理、UIの規約は `.claude/rules/swift-style.md` を参照。
 
 ## アーキテクチャ
 
@@ -74,7 +62,6 @@ View（SwiftUI）        — レイアウトと表示。状態変更はViewModel
 - ViewModelはView型を直接生成しない。
 - 表示モードの切り替えは `ContentView` が `currentModeID` を見て行う。
 - `ViewModeRegistry` はモードとモード用ViewModelの登録を管理する。
-- ViewModelは `@Observable` と `@MainActor` を使用し、`ObservableObject` / `@Published` は使用しない。
 
 ## ローカライズ
 
@@ -128,11 +115,9 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 ## 非同期処理とファイルI/O
 
-- 非同期処理はSwift Concurrency（`async/await`）を使用する。
-- `Combine` と `DispatchQueue` は直接使用しない。
-- ファイルI/O、ImageIO、ネットワークドライブ上の画像処理は `Task.detached` またはactor内で実行する。
 - `@MainActor`上で同期的なファイル読み込みを行わない。
 - セルが画面外へ移動した場合など、キャンセルを考慮する。
+- 基本原則（async/await、Combine/DispatchQueue不使用など）は `.claude/rules/swift-style.md` を参照。
 
 ## 対応画像とフォルダ読み込み
 
@@ -200,8 +185,6 @@ Sigma fp Lのカラーモード検出は実機サンプルで十分に検証さ�
 
 ## UIルール
 
-- ライト・ダークモードの両方で表示できるようにする。
-- 色はセマンティックカラーまたはAssetsのカラーセットを使い、固定RGB値を避ける。
 - 操作可能な要素には、用途が伝わる `.accessibilityLabel` を付ける。
 - フルスクリーンとスライドショーの背景は黒にする。
 - macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 14向けの代替UIも用意する。
@@ -209,9 +192,6 @@ Sigma fp Lのカラーモード検出は実機サンプルで十分に検証さ�
 
 ## エラー処理
 
-- アプリ固有のエラーは `ShootLogError` enumに追加し、`LocalizedError`へ準拠させる。
-- `try!`は禁止する。
-- `try?`は、失敗を意図的に無視できる場合に限る。永続化失敗など重要なエラーは握りつぶさない。
 - フォルダ操作などユーザー操作の直接結果はAlertで表示する。
 - サムネイルなどバックグラウンド処理の失敗は、処理全体を止めず適切なインライン通知を検討する。
 - 一時的な成功通知はToastで表示し、現在のToastは約2秒で消去する。
