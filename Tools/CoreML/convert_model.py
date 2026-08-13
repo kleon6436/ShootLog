@@ -1,112 +1,83 @@
-"""Real-ESRGAN (realesr-general-x4v3 / SRVGGNetCompact) の PyTorch 重みを
-Core ML .mlpackage へ変換するスクリプトの骨格。
+"""realesr-general-x4v3 (SRVGGNetCompact) を Core ML .mlpackage へ変換する。
 
-ライセンス調査結果は Docs/SuperResolution_モデル選定.md を参照。
-このスクリプトは骨格のみであり、重みのダウンロードと実際の変換は
-別フェーズで実行する（今回は実行しない）。
+入力: Tools/CoreML/weights/realesr-general-x4v3.pth
+出力: Tools/CoreML/build/realesrgan.mlpackage
 
-想定する変換条件:
-- 入力形状: 静的 [1, 3, 128, 128]（NCHW）
-- 精度: fp16
-- 入力レンジ: [0, 1]（ImageIOで正規化してから渡す想定）
+静的入力形状 [1,3,128,128]、fp16、NCHW、[0,1]レンジ。
+実行: /usr/bin/python3 convert_model.py
+（torch, coremltoolsは事前に `pip3 install torch coremltools --break-system-packages` 等で導入すること）
 """
 
-from __future__ import annotations
+import coremltools as ct
+import torch
 
-import argparse
-from pathlib import Path
+from srvgg_arch import SRVGGNetCompact
 
-
-def load_pytorch_model(weights_path: Path):
-    """realesr-general-x4v3.pth を読み込み、SRVGGNetCompact構造で復元する。
-
-    実行時のイメージ（要 basicsr / realesrgan パッケージ、または
-    SRVGGNetCompact 単体実装の同梱）:
-
-        import torch
-        from basicsr.archs.srvgg_arch import SRVGGNetCompact
-
-        model = SRVGGNetCompact(
-            num_in_ch=3, num_out_ch=3, num_feat=64,
-            num_conv=32, upscale=4, act_type="prelu",
-        )
-        state_dict = torch.load(weights_path, map_location="cpu", weights_only=True)
-        model.load_state_dict(state_dict["params"], strict=True)
-        model.eval()
-        return model
-    """
-    raise NotImplementedError("Phase0.5では未実行。別フェーズで実装する。")
+WEIGHTS_PATH = "weights/realesr-general-x4v3.pth"
+OUTPUT_PATH = "build/realesrgan.mlpackage"
+TILE_SIZE = 128
+SCALE = 4
+NUM_FEAT = 64
+NUM_CONV = 32
 
 
-def trace_model(model, input_shape: tuple[int, int, int, int]):
-    """torch.jit.trace でグラフを固定する。
-
-    実行時のイメージ:
-
-        import torch
-
-        example_input = torch.rand(*input_shape)
-        traced = torch.jit.trace(model, example_input)
-        return traced
-    """
-    raise NotImplementedError("Phase0.5では未実行。別フェーズで実装する。")
+def load_model() -> SRVGGNetCompact:
+    model = SRVGGNetCompact(
+        num_in_ch=3, num_out_ch=3, num_feat=NUM_FEAT, num_conv=NUM_CONV,
+        upscale=SCALE, act_type="prelu",
+    )
+    checkpoint = torch.load(WEIGHTS_PATH, map_location="cpu", weights_only=True)
+    state_dict = checkpoint.get("params", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+    model.load_state_dict(state_dict, strict=True)
+    model.eval()
+    return model
 
 
-def convert_to_coreml(traced_model, input_shape: tuple[int, int, int, int], output_path: Path):
-    """coremltools で .mlpackage へ変換する。
+class ImageIOWrapper(torch.nn.Module):
+    """ImageType出力用に [0,1] レンジのモデル出力を [0,255] へスケールしてから返す。
+    ImageType入力はscale=1/255で[0,255]→[0,1]へ変換されるため、出力側もCore MLの
+    画像出力（値をそのままピクセル値として解釈する）に合わせて255倍で返す必要がある"""
 
-    実行時のイメージ:
+    def __init__(self, inner: torch.nn.Module):
+        super().__init__()
+        self.inner = inner
 
-        import coremltools as ct
-
-        mlmodel = ct.convert(
-            traced_model,
-            inputs=[
-                ct.TensorType(
-                    name="input_image",
-                    shape=input_shape,          # 静的 [1, 3, 128, 128]
-                    dtype=ct.converters.mil.mil.types.fp16,
-                )
-            ],
-            outputs=[ct.TensorType(name="output_image")],
-            compute_precision=ct.precision.FLOAT16,
-            compute_units=ct.ComputeUnit.ALL,   # ANE/GPU/CPUを許可
-            minimum_deployment_target=ct.target.macOS14,
-            convert_to="mlprogram",
-        )
-        mlmodel.save(str(output_path))
-        return mlmodel
-    """
-    raise NotImplementedError("Phase0.5では未実行。別フェーズで実装する。")
+    def forward(self, x):
+        return torch.clamp(self.inner(x) * 255.0, 0.0, 255.0)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--weights",
-        type=Path,
-        required=True,
-        help="realesr-general-x4v3.pth へのパス（BSD-3-Clause, xinntao/Real-ESRGAN由来）",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path("realesr_general_x4v3_fp16_static128.mlpackage"),
-        help="出力先の .mlpackage パス",
-    )
-    parser.add_argument(
-        "--input-size",
-        type=int,
-        default=128,
-        help="静的入力の一辺サイズ（デフォルト128、Real-ESRGAN-CoreAI変換版に合わせる）",
-    )
-    args = parser.parse_args()
+    model = ImageIOWrapper(load_model())
+    example_input = torch.rand(1, 3, TILE_SIZE, TILE_SIZE)
 
-    input_shape = (1, 3, args.input_size, args.input_size)
+    with torch.no_grad():
+        traced = torch.jit.trace(model, example_input)
 
-    model = load_pytorch_model(args.weights)
-    traced = trace_model(model, input_shape)
-    convert_to_coreml(traced, input_shape, args.output)
+    # ImageType入出力にすることで、Swift側はCVPixelBufferを直接渡せる
+    # （NCHW/[0,1]レンジへの正規化・出力の非正規化はCore MLランタイム側が行う）。
+    # scale=1/255でuint8 [0,255] -> [0,1] fp16へ変換する
+    mlmodel = ct.convert(
+        traced,
+        inputs=[ct.ImageType(
+            name="input", shape=(1, 3, TILE_SIZE, TILE_SIZE),
+            scale=1.0 / 255.0, bias=[0.0, 0.0, 0.0],
+            color_layout=ct.colorlayout.RGB,
+        )],
+        outputs=[ct.ImageType(name="output", color_layout=ct.colorlayout.RGB)],
+        compute_precision=ct.precision.FLOAT16,
+        minimum_deployment_target=ct.target.macOS14,
+        convert_to="mlprogram",
+    )
+
+    mlmodel.author = "xinntao (Real-ESRGAN, BSD-3-Clause)"
+    mlmodel.short_description = (
+        "realesr-general-x4v3 (SRVGGNetCompact), 128x128 -> 512x512, 4x super resolution. "
+        "Converted for ShootLog on-device tiled inference."
+    )
+    mlmodel.version = "1"
+
+    mlmodel.save(OUTPUT_PATH)
+    print(f"saved: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

@@ -1,12 +1,14 @@
 import CoreGraphics
+import CoreImage
 import CoreML
 import Foundation
 
 /// Core ML モデルによる超解像エンジン。
 ///
-/// 実モデル（`.mlpackage`）はまだ同梱されていないため、現時点では `upscale` は必ず
-/// `.superResolutionModelUnavailable` を投げる。演算ユニットの探索と NaN 検出ガードは
-/// モデル同梱後にそのまま使えるよう先に実装してある。
+/// `realesr-general-x4v3`（SRVGGNetCompact, BSD-3-Clause）をCore ML化したモデルを
+/// `ShootLog/Resources/Models/realesrgan.mlpackage` として同梱している
+/// （変換手順は `Tools/CoreML/convert_model.py`、ライセンス根拠は
+/// `Docs/SuperResolution_モデル選定.md` を参照）。
 /// 呼び出し側が Lanczos へ切り替えられるよう、このエンジン自身は自動フォールバックしない
 struct CoreMLSuperResolutionEngine: SuperResolutionEngine {
     let modelID: String
@@ -86,8 +88,60 @@ struct CoreMLSuperResolutionEngine: SuperResolutionEngine {
         into buffer: OutputPixelBuffer,
         progress: AsyncStream<Double>.Continuation
     ) async throws {
-        // モデル未同梱のため実行できない。呼び出し側が availability() を見て
-        // Lanczos へ切り替える想定で、ここでは黙ってフォールバックしない
-        throw ShootLogError.superResolutionModelUnavailable
+        guard let modelURL else { throw ShootLogError.superResolutionModelUnavailable }
+        guard let unit = await Self.probeComputeUnit(modelURL: modelURL) else {
+            throw ShootLogError.superResolutionModelUnavailable
+        }
+
+        let configuration = MLModelConfiguration()
+        configuration.computeUnits = Self.mlComputeUnits(for: unit)
+        let model = SendableModel(try MLModel(contentsOf: modelURL, configuration: configuration))
+
+        let runner = TiledInferenceRunner(layout: layout)
+        let context = Self.sharedContext
+        let outputSize = layout.outputTileSize
+
+        try await runner.run(input: input, rotation: rotation, into: buffer, progress: progress) { tile in
+            try Self.infer(tile: tile, model: model.value, outputSize: outputSize, context: context)
+        }
+    }
+
+    /// `MLModel` は `Sendable` に準拠していないが、Appleのドキュメント上
+    /// 予測メソッドはスレッドセーフに呼び出せるとされている（本エンジンではタイルループが
+    /// 直列実行のため、そもそも並行アクセスは発生しない）。`nonisolated async` クロージャへ
+    /// キャプチャさせるためのラッパー
+    private struct SendableModel: @unchecked Sendable {
+        let value: MLModel
+        init(_ value: MLModel) { self.value = value }
+    }
+
+    // MARK: - タイル単位の推論
+
+    private static let sharedContext = CIContext(options: [.workingColorSpace: SuperResolutionColorSpace.sRGB as Any])
+
+    /// タイル1枚をモデルへ通す。CVPixelBufferへの変換・実行・CGImageへの読み戻しをここで行う
+    static func infer(tile: CGImage, model: MLModel, outputSize: Int, context: CIContext) throws -> CGImage {
+        let inputBuffer = try MLFeatureValue(
+            cgImage: tile,
+            pixelsWide: tile.width,
+            pixelsHigh: tile.height,
+            pixelFormatType: kCVPixelFormatType_32ARGB,
+            options: nil
+        )
+        let provider = try MLDictionaryFeatureProvider(dictionary: ["input": inputBuffer])
+        let result = try model.prediction(from: provider)
+
+        guard let outputFeature = result.featureValue(for: "output"),
+              let outputPixelBuffer = outputFeature.imageBufferValue else {
+            throw ShootLogError.superResolutionFailed(reason: "model output missing pixel buffer")
+        }
+
+        let ciImage = CIImage(cvPixelBuffer: outputPixelBuffer)
+        let rect = CGRect(x: 0, y: 0, width: CGFloat(outputSize), height: CGFloat(outputSize))
+        guard let colorSpace = SuperResolutionColorSpace.sRGB,
+              let outputImage = context.createCGImage(ciImage, from: rect, format: .RGBA8, colorSpace: colorSpace) else {
+            throw ShootLogError.superResolutionFailed(reason: "output pixel buffer readback failed")
+        }
+        return outputImage
     }
 }

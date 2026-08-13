@@ -3159,7 +3159,6 @@
       }
     },
     "upscale.cancelling" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3176,7 +3175,6 @@
       }
     },
     "upscale.configuring.title" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3193,7 +3191,6 @@
       }
     },
     "upscale.cropNotApplied.note" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3550,7 +3547,6 @@
       }
     },
     "upscale.sizeLimit.exceeded" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3596,57 +3592,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開始"
-          }
-        }
-      }
-    },
-    "viewMode.fullscreen" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Full Screen"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フルスクリーン"
-          }
-        }
-      }
-    },
-    "viewMode.sidebar" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sidebar"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サイドバー"
-          }
-        }
-      }
-    },
-    "viewMode.slideshow" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slideshow"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スライドショー"
           }
         }
       }
@@ -3748,6 +3693,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "写真を選択してください"
+          }
+        }
+      }
+    },
+    "viewMode.fullscreen" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full Screen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フルスクリーン"
+          }
+        }
+      }
+    },
+    "viewMode.sidebar" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sidebar"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サイドバー"
+          }
+        }
+      }
+    },
+    "viewMode.slideshow" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slideshow"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スライドショー"
           }
         }
       }
