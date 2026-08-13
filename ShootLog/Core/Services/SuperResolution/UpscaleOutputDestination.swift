@@ -58,11 +58,27 @@ enum UpscaleOutputDestination {
 
     // MARK: - 防御3
 
-    /// 一時ファイルの URL を作る。書き込みは必ずここへ行い、`commit` で確定させる
-    static func makeTemporaryURL(pathExtension: String) -> URL {
+    /// 一時ファイルの URL を作る。書き込みは必ずここへ行い、`commit` で確定させる。
+    ///
+    /// `NSTemporaryDirectory()`（アプリコンテナ内の tmp）は保存先とは別のセキュリティドメインに
+    /// あるため、サンドボックス下では `replaceItem`/`moveItem` によるそこから保存先への確定が
+    /// 失敗しうる（Powerboxが保存先に付与した権限は同一ドメイン内の操作のみを想定しているため）。
+    /// `FileManager.url(for: .itemReplacementDirectory, ...)` は保存先と同じボリューム上の
+    /// 一時ディレクトリを返し、この問題を避ける。取得できない場合のみコンテナ内tmpへフォールバックする
+    static func makeTemporaryURL(pathExtension: String, near destination: URL) -> URL {
         let name = UUID().uuidString
-        let url = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent(name, isDirectory: false)
+        let base: URL
+        if let replacementDirectory = try? FileManager.default.url(
+            for: .itemReplacementDirectory,
+            in: .userDomainMask,
+            appropriateFor: destination,
+            create: true
+        ) {
+            base = replacementDirectory
+        } else {
+            base = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        }
+        let url = base.appendingPathComponent(name, isDirectory: false)
         return pathExtension.isEmpty ? url : url.appendingPathExtension(pathExtension)
     }
 

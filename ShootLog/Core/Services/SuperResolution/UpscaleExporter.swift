@@ -74,7 +74,8 @@ struct UpscaleExporter: Sendable {
         }
 
         let temporaryURL = UpscaleOutputDestination.makeTemporaryURL(
-            pathExtension: destination.pathExtension
+            pathExtension: destination.pathExtension,
+            near: destination
         )
         try await Self.encode(
             outputImage,
