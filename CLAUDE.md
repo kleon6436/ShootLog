@@ -186,9 +186,28 @@ Sigma fp Lのカラーモード検出は実機サンプルで十分に検証さ�
 ## UIルール
 
 - 操作可能な要素には、用途が伝わる `.accessibilityLabel` を付ける。
-- フルスクリーンとスライドショーの背景は黒にする。
-- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 14向けの代替UIも用意する。
+- 写真ビューア（フルスクリーン・スライドショー・サイドバーモードの右ペイン）の背景は `Color.viewerCanvas` を使い、システム外観に追従させる。ライトでは中間グレー、ダークでは黒になる。ライトで純白を使わないのは、写真の白飛び・ハイライトを目視判定できなくなるため。
+- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 14向けの代替UIも用意する。両分岐で同じ意味の配色になるようにする（一方だけを固定色にしない）。
 - UIのレイアウトやインタラクションは `Docs/UI_モックアップ.html` とApple HIGを参照する。
+
+### 色の扱い
+
+Viewに色リテラルを直書きせず、以下のいずれかを使う。
+
+| 種類 | 使い方 |
+|------|--------|
+| システムのセマンティックカラー | `.primary` `.secondary` `.quaternary` `.tint` `Color.accentColor` |
+| アプリ固有の色 | `ShootLog/Assets.xcassets/Colors/` にColor Setを追加し、Xcodeが自動生成するシンボル（`Color.viewerCanvas` 等）で参照する |
+
+Color Setはライト・ダークの2スロットを必ず定義する。Xcodeが Asset Symbol を自動生成するため、
+`DesignSystem.swift` に手書きのアクセサを定義してはならない（`invalid redeclaration` でビルドが通らない）。
+
+Material・Liquid Glassはシステム外観に追従するため、その上に載せる前景色を固定色にしない。
+またこれらは機能層（ツールバー・フローティングコントロール・HUD）にのみ使い、コンテンツ層
+（EXIFカード・履歴行などのリスト項目）には `.quaternary` 等の塗りで階層を付ける。
+
+チャートのデータ系列色（`AnalysisView` の `chartForegroundStyleScale`）は系列識別が目的の
+意図的な固定色であり、この規約の対象外とする。
 
 ## エラー処理
 
