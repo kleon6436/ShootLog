@@ -159,7 +159,7 @@ struct UpscaleOutputDestinationTests {
         let destination = sandbox.appendingPathComponent("out.bin")
         try writeFile(destination, contents: "old")
 
-        let temporary = UpscaleOutputDestination.makeTemporaryURL(pathExtension: "bin")
+        let temporary = UpscaleOutputDestination.makeTemporaryURL(pathExtension: "bin", near: destination)
         try writeFile(temporary, contents: "new")
         defer { try? FileManager.default.removeItem(at: temporary) }
 
@@ -173,7 +173,7 @@ struct UpscaleOutputDestinationTests {
         defer { try? FileManager.default.removeItem(at: sandbox) }
 
         let destination = sandbox.appendingPathComponent("fresh.bin")
-        let temporary = UpscaleOutputDestination.makeTemporaryURL(pathExtension: "bin")
+        let temporary = UpscaleOutputDestination.makeTemporaryURL(pathExtension: "bin", near: destination)
         try writeFile(temporary, contents: "new")
 
         try UpscaleOutputDestination.commit(temporaryURL: temporary, to: destination)
