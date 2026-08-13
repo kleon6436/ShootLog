@@ -79,7 +79,10 @@ private struct EXIFCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.medium)
-        .glassOrMaterial(cornerRadius: CornerRadius.medium)
+        // インスペクタ自体が Material 背景を持つため、カードにも Material を重ねると
+        // ライトモードで境界が消える。コンテンツ層には塗りで階層を付ける
+        // （AnalysisView のセクションカードと同じ視覚言語）
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
     }
 }
 
@@ -117,8 +120,8 @@ private struct EXIFColorModeBadge: View {
                 .font(.subheadline)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.blue.opacity(0.15))
-                .foregroundStyle(.blue)
+                .background(.tint.opacity(0.15))
+                .foregroundStyle(.tint)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
     }

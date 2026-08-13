@@ -2,9 +2,9 @@ import SwiftUI
 
 // MARK: - デザイントークン一元管理
 //
-// アプリ全体で散在していた角丸・シャドウ・フォント・黒背景用カラーを
-// このファイルに集約する。値の変更はここ1箇所で行い、各Viewは
-// トークンを参照するだけにする（Phase 3/5 で各Viewを順次移行）。
+// アプリ全体で散在していた角丸・余白・シャドウ・フォントをこのファイルに集約する。
+// 値の変更はここ1箇所で行い、各Viewはトークンを参照するだけにする。
+// 色だけは Assets.xcassets/Colors/ の Color Set が定義元になる（後述のカラートークン節を参照）。
 
 // MARK: - 角丸
 
@@ -54,10 +54,10 @@ enum Spacing {
 enum Elevation {
     case card
 
-    // シャドウ色
+    // シャドウ色。ライト/ダークで濃度を変える必要があるため Color Set 側で定義する
     var color: Color {
         switch self {
-        case .card: Color.black.opacity(0.45)
+        case .card: Color.cardShadow
         }
     }
 
@@ -129,9 +129,10 @@ private struct HUDButtonBody: View {
             // clipShape(Circle())等は見た目のクリップのみでヒットテストには影響しないため、
             // ここで明示的にラベル全体（frameで指定した矩形）をヒット領域にする
             .contentShape(Rectangle())
-            // ホバー中は薄い白の円形ハイライトを背後に重ね、押せるボタンだと分かるようにする
+            // ホバー中は円形ハイライトを背後に重ね、押せるボタンだと分かるようにする。
+            // ハイライト色は外観で反転する（ライトでは暗く、ダークでは明るく乗せる）
             .background {
-                Circle().fill(Color.white.opacity(isHovered ? 0.18 : 0))
+                Circle().fill(Color.hudHoverHighlight.opacity(isHovered ? 1 : 0))
             }
             .opacity(configuration.isPressed ? 0.55 : 1)
             .scaleEffect(configuration.isPressed ? 0.92 : (isHovered ? 1.06 : 1))
@@ -141,19 +142,28 @@ private struct HUDButtonBody: View {
     }
 }
 
-// MARK: - 黒背景（ダークキャンバス）用カラー
+// MARK: - カラートークン
 //
-// これらは意図的にセマンティック（ライト/ダーク適応）ではない固定色。
-// 写真ビューアの黒背景（CLAUDE.md 規定により .black 固定が正）の上に乗る
-// テキスト/アイコン用で、背景が固定である以上これらの前景色も固定でよい。
-// 散在していた Color.white / .white.opacity(0.7) リテラルをここに集約し、
-// 将来の調整を1箇所で行えるようにする（Phase 3 で各Viewを移行）。
-extension Color {
-    // 黒背景上の主要テキスト/アイコン色（Color.white の集約先）
-    static let onDarkCanvas = Color.white
-    // 黒背景上の副次/減光テキスト・アイコン色（.white.opacity(0.7) の集約先）
-    static let onDarkCanvasSecondary = Color.white.opacity(0.7)
-}
+// 色は Assets.xcassets/Colors/ の Color Set で定義し、ライト/ダークの2スロットを持たせる。
+// Xcode が Color Set から Asset Symbol を自動生成するため、ここに手書きのアクセサは置かない
+// （置くと `invalid redeclaration` でビルドが通らない）。各Viewからは自動生成された
+// `Color.viewerCanvas` のようなプロパティを使う。Color Set 名のタイポは
+// 自動生成シンボル経由なら実行時ではなくコンパイル時に検出される。
+//
+// 現在のトークンと用途:
+//   ViewerCanvas             … 写真ビューアの背景。ライトは中間グレー、ダークは黒。
+//                              ライトで純白を使わないのは、写真の白飛び・ハイライトを
+//                              目視判定できなくなるため
+//   OnViewerCanvas           … ビューア背景上の主要テキスト/アイコン色
+//   OnViewerCanvasSecondary  … 同・副次/減光要素
+//   CropMask                 … トリミング範囲外を覆うマスク。ライトでは背景が明るい分だけ薄くする
+//   CardShadow               … Elevation.card のドロップシャドウ色。ライト背景では影を弱める
+//   HUDHoverHighlight        … HUDボタンのホバーハイライト。ライトでは暗く、ダークでは明るく乗せる
+//
+// 写真ビューアの背景は以前 .black 固定だったが、その上に重ねる Material /
+// Liquid Glass がシステム外観に追従するため、ライトモードでは「明るい背景に
+// 白い前景」という判読不能な組み合わせが生じていた。背景側も外観追従にすることで、
+// Material / Glass は自動的に正しい明度で描画され、前景色の指定だけで整合が取れる。
 
 // MARK: - リキッドグラスヘルパー（同一モジュール内で使用可能）
 //
@@ -173,7 +183,10 @@ extension View {
         }
     }
 
-    // カプセル形状版
+    // カプセル形状版。
+    // 以前は macOS 26 未満で白文字＋黒背景を固定していたため、同じ部品が
+    // OSバージョンによって正反対の配色になっていた。どちらの分岐も外観追従の
+    // 背景＋ .primary の前景に統一する
     @ViewBuilder
     func glassOrMaterialCapsule() -> some View {
         if #available(macOS 26, *) {
@@ -182,8 +195,8 @@ extension View {
                 .glassEffect(in: Capsule())
         } else {
             self
-                .foregroundStyle(.white)
-                .background(Color.black.opacity(0.75), in: Capsule())
+                .foregroundStyle(.primary)
+                .background(.regularMaterial, in: Capsule())
         }
     }
 

@@ -24,15 +24,17 @@ struct CropOverlayView: View {
             ZStack {
                 // クロップ外の半透明マスク（クロップ領域は透明に抜く）
                 Canvas { ctx, canvasSize in
-                    ctx.fill(Path(CGRect(origin: .zero, size: canvasSize)), with: .color(.black.opacity(0.5)))
+                    ctx.fill(Path(CGRect(origin: .zero, size: canvasSize)), with: .color(.cropMask))
                     ctx.blendMode = .clear
+                    // blendMode が .clear のため描画色は使われずアルファのみが抜かれる。
+                    // ここの .black はAPIが色を要求するためのプレースホルダで、外観追従の対象ではない
                     ctx.fill(Path(pixRect), with: .color(.black))
                 }
                 .allowsHitTesting(false)
 
                 // クロップ枠
                 Rectangle()
-                    .strokeBorder(Color.onDarkCanvas, lineWidth: 1.5)
+                    .strokeBorder(Color.onViewerCanvas, lineWidth: 1.5)
                     .frame(width: pixRect.width, height: pixRect.height)
                     .position(x: pixRect.midX, y: pixRect.midY)
                     .allowsHitTesting(false)
@@ -50,7 +52,7 @@ struct CropOverlayView: View {
                         p.addLine(to: CGPoint(x: pixRect.maxX, y: pixRect.minY + offset))
                     }
                 }
-                .stroke(Color.onDarkCanvas.opacity(0.3), lineWidth: 0.5)
+                .stroke(Color.onViewerCanvas.opacity(0.3), lineWidth: 0.5)
                 .allowsHitTesting(false)
 
                 // コーナーハンドル（4 隅）
@@ -104,7 +106,7 @@ private struct CropHandleView: View {
         ZStack {
             Color.clear.frame(width: 36, height: 36)  // 大きいタップ領域
             RoundedRectangle(cornerRadius: 2)
-                .fill(Color.onDarkCanvas)
+                .fill(Color.onViewerCanvas)
                 .frame(width: 12, height: 12)
                 .elevation(.card)
         }
@@ -136,7 +138,7 @@ private struct CropActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color.onDarkCanvas)
+            .foregroundStyle(Color.onViewerCanvas)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
             .background(backgroundColor(isPressed: configuration.isPressed))
@@ -145,8 +147,8 @@ private struct CropActionButtonStyle: ButtonStyle {
 
     private func backgroundColor(isPressed: Bool) -> Color {
         if isPrimary {
-            return Color.blue.opacity(isPressed ? 0.8 : 1.0)
+            return Color.accentColor.opacity(isPressed ? 0.8 : 1.0)
         }
-        return Color.onDarkCanvas.opacity(isPressed ? 0.3 : 0.2)
+        return Color.onViewerCanvas.opacity(isPressed ? 0.3 : 0.2)
     }
 }
