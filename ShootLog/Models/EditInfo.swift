@@ -1,7 +1,9 @@
 import Foundation
 import SwiftData
 
-/// 非破壊編集情報。元ファイルは変更せず、表示・エクスポート時のみ適用する
+/// 非破壊編集情報。元ファイルは変更しない。rotationは表示時（rotationEffect）と
+/// 超解像書き出し時に適用される。cropRectは現在CropOverlayViewの初期矩形としてのみ
+/// 使用され、表示にも書き出しにも適用されていない
 @Model
 final class EditInfo {
     var photoID: UUID

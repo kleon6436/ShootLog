@@ -6,7 +6,14 @@ import Foundation
 @MainActor
 final class ContentViewModel {
     // フォルダ
-    var currentFolderURL: URL?
+    // 超解像書き出しジョブは「フォルダを閉じる」タイミングでのみ中断する必要があるため、
+    // フォルダURLの変更（新規選択・履歴からの復元）を検知してここで打ち切る
+    var currentFolderURL: URL? {
+        didSet {
+            guard oldValue != currentFolderURL else { return }
+            cancelUpscaleExportIfNeeded()
+        }
+    }
     var folderHistories: [FolderHistory] = []
 
     // 実体が存在しないと判定されたフォルダ履歴。レコード自体は削除せず表示からのみ除外する
@@ -43,6 +50,18 @@ final class ContentViewModel {
     // 編集
     var currentEditInfo: EditInfo?
     var isCropMode: Bool = false
+
+    // AI超解像書き出し。ジョブ（Task）はモード切替・写真選択変更をまたいで継続し、
+    // currentFolderURLの変更（フォルダを閉じる）またはアプリ終了時にのみ中断する。
+    // ContentViewModel+Upscale.swift から参照するため internal とする
+    var isUpscaleExportPresented: Bool = false
+    var upscaleExportViewModel: UpscaleExportViewModel?
+    var upscaleExportTask: Task<Void, Never>?
+
+    // 超解像書き出し専用の入力ファイルの読み取りアクセス。フォルダ全体の bookmarkScopedURL
+    // （ContentViewModel+Folder.swift、フォルダ切替のたびに解放される）とは独立して保持し、
+    // 書き出し処理中にフォルダ側のスコープ解放の影響を受けないようにする
+    var upscaleInputAccessURL: URL?
 
     // 選択中写真のインデックス（未フィルタの photos 基準）
     var selectedIndex: Int {
