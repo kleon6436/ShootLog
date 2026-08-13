@@ -1,7 +1,10 @@
 import CoreGraphics
 import Foundation
 import ImageIO
+import OSLog
 import UniformTypeIdentifiers
+
+private let upscaleExportLogger = Logger(subsystem: "com.shootlog.app", category: "UpscaleExporter")
 
 /// 超解像の書き出しパイプライン全体を組み立てる。
 /// 保存先の検証 → 原本のフルデコード → タイル推論 → エンコード → アトミック確定 の順に進む
@@ -70,6 +73,7 @@ struct UpscaleExporter: Sendable {
         guard UpscaleOutputDestination.hasSufficientCapacity(
             at: destination, estimatedBytes: outputPixels * 4
         ) else {
+            upscaleExportLogger.error("export failed: insufficient capacity at \(destination.path, privacy: .public)")
             throw ShootLogError.superResolutionExportFailed
         }
 
@@ -78,6 +82,9 @@ struct UpscaleExporter: Sendable {
         // 一時ファイルを新規作成する権限までは含まれない（ローカルディスクでは
         // 通ることがあるが、SMB等のネットワーク共有では拒否される）。
         // 一時ファイル＋アトミック確定は諦め、直接書き込みに一本化する。
+        // さらに`CGImageDestinationCreateWithURL`のURL直書きもSMBでは権限エラーの
+        // 原因になりうるため、`encode`内ではメモリエンコード後に`Data.write`で
+        // 書き込む方式にしている。
         // 途中で失敗・キャンセルした場合、原本は`validate`が既に守っているため
         // 危険はないが、書きかけの不完全な出力が保存先に残ることは許容する
         // （エラー表示で利用者にわかる形にし、再試行を促す）
@@ -129,7 +136,14 @@ struct UpscaleExporter: Sendable {
 
     // MARK: - エンコード
 
-    /// 出力画像を一時ファイルへ書き出す。AI生成マーカーもここで付与する
+    /// 出力画像を書き出す。AI生成マーカーもここで付与する。
+    /// SMB等のネットワーク共有では`CGImageDestinationCreateWithURL`によるURL直書きが
+    /// サンドボックス権限エラーで失敗するため、メモリ上にエンコードしてから
+    /// `Data.write`（POSIX write経由）で書き込む。`.atomic`オプションは使わない
+    /// （内部で一時ファイル＋renameを使うため、SMBでの権限問題を再度踏む）。
+    /// `NSSavePanel`が返すURLは通常startAccessingSecurityScopedResource不要とされるが、
+    /// ネットワーク共有では自動付与が効かないことがあるため念のため明示的に呼ぶ
+    /// （通常URLではno-op）
     static func encode(
         _ image: CGImage,
         to url: URL,
@@ -141,13 +155,25 @@ struct UpscaleExporter: Sendable {
             modelID: modelID, isTrainedAlgorithmicMedia: isTrainedAlgorithmicMedia
         )
         let handle = Task.detached(priority: .userInitiated) { () throws -> Void in
-            guard let destination = CGImageDestinationCreateWithURL(
-                url as CFURL, contentType.identifier as CFString, 1, nil
+            let data = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(
+                data, contentType.identifier as CFString, 1, nil
             ) else {
+                upscaleExportLogger.error("export failed: CGImageDestinationCreateWithData returned nil (contentType=\(contentType.identifier, privacy: .public))")
                 throw ShootLogError.superResolutionExportFailed
             }
             CGImageDestinationAddImage(destination, image, properties as CFDictionary)
             guard CGImageDestinationFinalize(destination) else {
+                upscaleExportLogger.error("export failed: CGImageDestinationFinalize returned false")
+                throw ShootLogError.superResolutionExportFailed
+            }
+
+            _ = url.startAccessingSecurityScopedResource()
+            defer { url.stopAccessingSecurityScopedResource() }
+            do {
+                try (data as Data).write(to: url, options: [])
+            } catch {
+                upscaleExportLogger.error("export failed: Data.write to \(url.path, privacy: .public) — \(error as NSError, privacy: .public)")
                 throw ShootLogError.superResolutionExportFailed
             }
         }
