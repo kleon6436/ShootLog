@@ -60,30 +60,29 @@ enum UpscaleOutputDestination {
 
     /// 一時ファイルの URL を作る。書き込みは必ずここへ行い、`commit` で確定させる。
     ///
-    /// `NSTemporaryDirectory()`（アプリコンテナ内の tmp）は保存先とは別のセキュリティドメインに
-    /// あるため、サンドボックス下では `replaceItem`/`moveItem` によるそこから保存先への確定が
-    /// 失敗しうる（Powerboxが保存先に付与した権限は同一ドメイン内の操作のみを想定しているため）。
-    /// `FileManager.url(for: .itemReplacementDirectory, ...)` は保存先と同じボリューム上の
-    /// 一時ディレクトリを返し、この問題を避ける。取得できない場合のみコンテナ内tmpへフォールバックする
+    /// 一時ファイルは**保存先と同じディレクトリ内**に隠しファイルとして作る。
+    ///
+    /// 以前は `FileManager.url(for: .itemReplacementDirectory, ...)` で「保存先と同じボリューム上」の
+    /// 一時ディレクトリを取得していたが、これはSMB等のネットワーク共有では信頼できないことが判明した
+    /// （ボリューム解決自体が失敗する、あるいは解決できても実体は別ディレクトリ経由の操作になり、
+    /// SMBサーバー側の実装によっては後続の `replaceItem`/`moveItem` が使うリネーム系操作をサポートしない
+    /// ことがある）。**同一ディレクトリ内でのリネームはほぼ全てのファイルシステム（SMB/AFP/NFS含む）で
+    /// 素直にサポートされる**ため、ボリューム跨ぎの曖昧さそのものを避けられる
     static func makeTemporaryURL(pathExtension: String, near destination: URL) -> URL {
-        let name = UUID().uuidString
-        let base: URL
-        if let replacementDirectory = try? FileManager.default.url(
-            for: .itemReplacementDirectory,
-            in: .userDomainMask,
-            appropriateFor: destination,
-            create: true
-        ) {
-            base = replacementDirectory
-        } else {
-            base = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        }
-        let url = base.appendingPathComponent(name, isDirectory: false)
+        let name = ".shootlog-upscale-\(UUID().uuidString)"
+        let url = destination.deletingLastPathComponent().appendingPathComponent(name, isDirectory: false)
         return pathExtension.isEmpty ? url : url.appendingPathExtension(pathExtension)
     }
 
-    /// 一時ファイルを保存先へアトミックに置き換える。
-    /// 途中でクラッシュしても保存先が中途半端な内容になることはない
+    /// 一時ファイルを保存先へ確定させる。
+    ///
+    /// `replaceItem` はローカルボリュームでは真にアトミックだが、SMB等のネットワーク共有では
+    /// 内部で使うリネーム系操作がサーバー実装依存でエラーになることがある。同一ディレクトリ内なら
+    /// `moveItem`（単純なrename）はより広く動作するため、`replaceItem` が失敗した場合は
+    /// 既存ファイルを削除してから `moveItem` で確定させる（ネットワーク共有では完全な
+    /// アトミック性を諦め、上書き前に一時ファイルへ退避しない設計になるが、一時ファイルは
+    /// 既に完成済みの出力であるため、削除〜moveの間にクラッシュしても失われるのは
+    /// 「これから書き込むはずだった新しい出力」だけで、原本は無関係のため影響しない）
     static func commit(temporaryURL: URL, to destination: URL) throws {
         do {
             try FileManager.default.replaceItem(
@@ -93,16 +92,19 @@ enum UpscaleOutputDestination {
                 options: [],
                 resultingItemURL: nil
             )
+            return
         } catch {
-            // 保存先が未作成の場合 replaceItem は失敗するため、移動で確定させる
-            guard !FileManager.default.fileExists(atPath: destination.path) else {
-                throw ShootLogError.superResolutionExportFailed
-            }
-            do {
-                try FileManager.default.moveItem(at: temporaryURL, to: destination)
-            } catch {
-                throw ShootLogError.superResolutionExportFailed
-            }
+            // replaceItemが使えない場合のフォールバックへ進む
+        }
+
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try? FileManager.default.removeItem(at: destination)
+        }
+        do {
+            try FileManager.default.moveItem(at: temporaryURL, to: destination)
+        } catch {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            throw ShootLogError.superResolutionExportFailed
         }
     }
 

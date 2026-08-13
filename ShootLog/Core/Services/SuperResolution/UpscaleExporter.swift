@@ -77,15 +77,22 @@ struct UpscaleExporter: Sendable {
             pathExtension: destination.pathExtension,
             near: destination
         )
-        try await Self.encode(
-            outputImage,
-            to: temporaryURL,
-            contentType: UpscaleOutputDestination.contentType(
-                forPathExtension: destination.pathExtension
-            ) ?? .jpeg,
-            modelID: engine.modelID,
-            isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia
-        )
+        // temporaryURLは保存先と同じディレクトリに作る隠しファイルのため、encode/commitの
+        // どちらで失敗しても（キャンセルも含め）ユーザーの目に触れる場所にゴミを残さない
+        do {
+            try await Self.encode(
+                outputImage,
+                to: temporaryURL,
+                contentType: UpscaleOutputDestination.contentType(
+                    forPathExtension: destination.pathExtension
+                ) ?? .jpeg,
+                modelID: engine.modelID,
+                isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            throw error
+        }
 
         try UpscaleOutputDestination.commit(temporaryURL: temporaryURL, to: destination)
     }
