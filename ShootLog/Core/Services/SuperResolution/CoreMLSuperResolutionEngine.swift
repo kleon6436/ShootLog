@@ -1,6 +1,7 @@
 import CoreGraphics
 import CoreImage
 import CoreML
+import CoreVideo
 import Foundation
 
 /// Core ML モデルによる超解像エンジン。
@@ -134,6 +135,19 @@ struct CoreMLSuperResolutionEngine: SuperResolutionEngine {
         guard let outputFeature = result.featureValue(for: "output"),
               let outputPixelBuffer = outputFeature.imageBufferValue else {
             throw ShootLogError.superResolutionFailed(reason: "model output missing pixel buffer")
+        }
+
+        // モデルの実出力サイズが期待サイズ(outputSize)と食い違うと、下のreadback rectで
+        // サイレントにクロップ（部分画像化）されてしまうため、ここで明示的に検出する。
+        // MLModelを直接モックできるテストインフラが無いため、このガード自体はユニットテストで
+        // 直接カバーされていない（ShootLogTests/TiledInferenceRunnerTests.swiftのテストは
+        // TiledInferenceRunner.run側の別ガードを経由している）
+        let actualWidth = CVPixelBufferGetWidth(outputPixelBuffer)
+        let actualHeight = CVPixelBufferGetHeight(outputPixelBuffer)
+        guard actualWidth == outputSize, actualHeight == outputSize else {
+            throw ShootLogError.superResolutionFailed(
+                reason: "model output size mismatch: expected \(outputSize)x\(outputSize), got \(actualWidth)x\(actualHeight)"
+            )
         }
 
         let ciImage = CIImage(cvPixelBuffer: outputPixelBuffer)

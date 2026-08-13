@@ -135,10 +135,12 @@ extension ContentViewModel {
                 isTrainedAlgorithmicMedia: false
             )
         case .aiSuperResolution:
+            // RealESRGANモデルは128→512px固定の4倍専用のため、呼び出し元のUI選択倍率(scaleFactor)は使わず、
+            // モデル仕様に合わせて常に4倍で組み立てる（防御的ガード）
             SuperResolutionModelDescriptor(
                 id: "realesrgan",
-                scaleFactor: scaleFactor,
-                tileLayout: .scaled(by: scaleFactor),
+                scaleFactor: 4,
+                tileLayout: .scaled(by: 4),
                 isTrainedAlgorithmicMedia: true
             )
         }

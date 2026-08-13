@@ -3478,6 +3478,22 @@
         }
       }
     },
+    "upscale.scaleFactor.aiFixedNotice" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI super resolution is fixed at 4x. Switch to the traditional method for 2x."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI超解像度は4倍固定です。2倍が必要な場合は従来方式に切り替えてください。"
+          }
+        }
+      }
+    },
     "upscale.scaleFactor.double" : {
       "extractionState" : "stale",
       "localizations" : {

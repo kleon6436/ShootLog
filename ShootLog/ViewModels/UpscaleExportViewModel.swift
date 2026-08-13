@@ -77,14 +77,20 @@ final class UpscaleExportViewModel {
 
     var state: State = .configuring
 
-    var scaleFactor: ScaleFactor = .double {
+    var scaleFactor: ScaleFactor = .quadruple {
         didSet {
             guard oldValue != scaleFactor else { return }
             acceptsDownscaledProcessing = false
         }
     }
 
-    var engineKind: EngineKind = .aiSuperResolution
+    // AIモデルは4倍専用固定(128→512px)のため、AI選択時は倍率を強制する
+    var engineKind: EngineKind = .aiSuperResolution {
+        didSet {
+            guard engineKind == .aiSuperResolution else { return }
+            scaleFactor = .quadruple
+        }
+    }
     var outputFormat: OutputFormat = .jpeg
 
     // 入力写真のピクセルサイズ。上限判定・所要時間見積りに使う（取得できない場合は概算を出さない）
@@ -100,6 +106,11 @@ final class UpscaleExportViewModel {
 
     init(inputPixelSize: CGSize?) {
         self.inputPixelSize = inputPixelSize
+    }
+
+    // AI版はモデルが4倍専用固定のため選択肢を1つに絞る
+    var availableScaleFactors: [ScaleFactor] {
+        engineKind == .aiSuperResolution ? [.quadruple] : ScaleFactor.allCases
     }
 
     // 選択中の倍率での概算出力ピクセル数
@@ -128,6 +139,7 @@ final class UpscaleExportViewModel {
 
     // 上限超過時の選択肢: 倍率を下げる
     func reduceScale() {
+        guard engineKind != .aiSuperResolution else { return }
         guard scaleFactor == .quadruple else { return }
         scaleFactor = .double
     }

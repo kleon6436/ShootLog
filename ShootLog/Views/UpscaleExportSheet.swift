@@ -45,7 +45,7 @@ struct UpscaleExportSheet: View {
 
             Form {
                 Picker("upscale.scaleFactor", selection: $viewModel.scaleFactor) {
-                    ForEach(UpscaleExportViewModel.ScaleFactor.allCases) { factor in
+                    ForEach(viewModel.availableScaleFactors) { factor in
                         Text(factor.displayName).tag(factor)
                     }
                 }
@@ -66,6 +66,13 @@ struct UpscaleExportSheet: View {
                 .accessibilityLabel("upscale.outputFormat")
             }
             .pickerStyle(.menu)
+
+            // Form内にラベルなしのTextを挟むとPicker行と整列が崩れるため、Form外に配置する
+            if viewModel.engineKind == .aiSuperResolution {
+                Text("upscale.scaleFactor.aiFixedNotice")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if let duration = viewModel.estimatedDuration {
                 Label(
@@ -105,7 +112,7 @@ struct UpscaleExportSheet: View {
 
             HStack {
                 Button("upscale.sizeLimit.reduceScale") { viewModel.reduceScale() }
-                    .disabled(viewModel.scaleFactor == .double)
+                    .disabled(viewModel.engineKind == .aiSuperResolution || viewModel.scaleFactor == .double)
                     .accessibilityLabel("upscale.sizeLimit.reduceScale")
                 Button("upscale.sizeLimit.downscaleThenProcess") { viewModel.acceptDownscaledProcessing() }
                     .accessibilityLabel("upscale.sizeLimit.downscaleThenProcess")

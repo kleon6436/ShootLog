@@ -171,6 +171,22 @@ struct TiledInferenceRunnerTests {
         stream.continuation.finish()
     }
 
+    @Test func mismatchedInferenceOutputSizeThrows() async throws {
+        // Core MLモデルの実出力サイズが期待値(128→512px)と食い違った場合、
+        // サイレントなクロップではなく確実にエラーとして伝播することを保証する
+        let runner = TiledInferenceRunner(layout: .default)
+        let input = try #require(TestImageFactory.makeSolidImage(width: 128, height: 128, red: 10, green: 20, blue: 30))
+        let buffer = try #require(OutputPixelBuffer(width: 512, height: 512))
+        let stream = AsyncStream<Double>.makeStream()
+
+        await #expect(throws: ShootLogError.self) {
+            try await runner.run(input: input, rotation: 0, into: buffer, progress: stream.continuation) { _ in
+                try #require(TestImageFactory.makeSolidImage(width: 256, height: 256, red: 0, green: 0, blue: 0))
+            }
+        }
+        stream.continuation.finish()
+    }
+
     // MARK: - キャンセル
 
     @Test func cancellationStopsTileLoop() async throws {
