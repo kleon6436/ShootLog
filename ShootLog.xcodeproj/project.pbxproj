@@ -565,7 +565,7 @@
 		09EAC2A88F76920D7C515DEE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ShootLog;
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
@@ -584,7 +584,7 @@
 		0AD515B5E481F91099A055C1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ShootLog;
 				CODE_SIGN_ENTITLEMENTS = ShootLog/ShootLog.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
