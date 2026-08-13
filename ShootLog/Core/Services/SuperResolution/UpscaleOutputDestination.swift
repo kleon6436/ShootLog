@@ -90,14 +90,25 @@ enum UpscaleOutputDestination {
     static let requiredCapacityMultiplier = 1.5
 
     /// 保存先ボリュームの空き容量が推定出力サイズに対して十分かを返す。
-    /// 容量を取得できない場合は書き込みを妨げないよう true を返す
+    /// 容量を取得できない場合は書き込みを妨げないよう true を返す。
+    /// SMB等一部のネットワーク共有では`volumeAvailableCapacityForImportantUsageKey`が
+    /// 例外を投げずに0を返すことがある（正しく容量を報告できていないだけで、実際に
+    /// 空き容量が無いわけではない）ため、0は「取得失敗」とみなし、より基本的な
+    /// `volumeAvailableCapacityKey`にフォールバックする
     static func hasSufficientCapacity(at destination: URL, estimatedBytes: Int) -> Bool {
         let directory = destination.deletingLastPathComponent()
-        guard let values = try? directory.resourceValues(
-            forKeys: [.volumeAvailableCapacityForImportantUsageKey]
-        ), let available = values.volumeAvailableCapacityForImportantUsage else { return true }
-
         let required = Double(estimatedBytes) * requiredCapacityMultiplier
-        return Double(available) >= required
+
+        if let values = try? directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+           let available = values.volumeAvailableCapacityForImportantUsage, available > 0 {
+            return Double(available) >= required
+        }
+
+        if let values = try? directory.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
+           let available = values.volumeAvailableCapacity, available > 0 {
+            return Double(available) >= required
+        }
+
+        return true
     }
 }
