@@ -19,6 +19,7 @@
 		2DF06D9ABCC05247D3C95A5F /* PhotoRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38DCCF54537DA8318CC0813 /* PhotoRepository.swift */; };
 		320EB5024F5CACDE698678FA /* FolderAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11C6C12F60B2B0D0F861DFE /* FolderAvailabilityChecker.swift */; };
 		33120C24CC572BDCF8D097FF /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763EE10565D38482AD27DB18 /* ContentViewModel.swift */; };
+		359FE7F552FE80D5F2F2379E /* realesrgan.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 4676ECFB30A59BD8D90D2B4D /* realesrgan.mlpackage */; };
 		3B657497480D3E0441EBA0B6 /* UpscaleExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA8B9351D4D2F28C376679E /* UpscaleExportSheet.swift */; };
 		3DB863D2D45699FDB4A78B65 /* SidebarModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12E9306D3A3C4A2213D21AC /* SidebarModeView.swift */; };
 		40F9A27F3AB730F493F2CF13 /* PreviewAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3E1646FCCD5020BEABA0153 /* PreviewAdapter.swift */; };
@@ -66,6 +67,7 @@
 		D28DB6E2AD582B366940AA5B /* EditablePhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84404E85187227393FC4CA60 /* EditablePhotoView.swift */; };
 		DA4D0DF31B3247533A360159 /* UpscaleOutputDestinationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9FFCCED2E889F08B17BD94 /* UpscaleOutputDestinationTests.swift */; };
 		DA668B81B4CF5A47C0840CEA /* AnalysisViewModel+Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24E871D51C2284C8F024F552 /* AnalysisViewModel+Session.swift */; };
+		DE5384D0CD84FD23E3CDAEB0 /* ShootLog.icon in Resources */ = {isa = PBXBuildFile; fileRef = E2D360343E3C8AEEA3BDD7B6 /* ShootLog.icon */; };
 		E040C0A60AEA8A9771A3BEF7 /* AppSettingsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B31DFB97694482C78CB89E3 /* AppSettingsKeys.swift */; };
 		E21E7A36736BEF8F142B900C /* PhotoImageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FBFC71504C70FD717EC25E /* PhotoImageViewModel.swift */; };
 		E2B3F1BC9DA69E3416910059 /* UpscaleExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C31DE456D389A0941F5D8FD /* UpscaleExporter.swift */; };
@@ -117,6 +119,7 @@
 		3EA753C93782AE9EA822AAF9 /* ShootLogTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShootLogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		40631F5AD94C18E166DF3A55 /* SlideshowViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideshowViewModel.swift; sourceTree = "<group>"; };
 		40A5871EEFCC54199ECDA2F6 /* ViewModeProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModeProtocol.swift; sourceTree = "<group>"; };
+		4676ECFB30A59BD8D90D2B4D /* realesrgan.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = realesrgan.mlpackage; sourceTree = "<group>"; };
 		473987B891CAA36C8577A20C /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		486E30AF949E00541CC2CC1D /* PageDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageDotsView.swift; sourceTree = "<group>"; };
 		49F7F6E392E8A396396F2056 /* TiledInferenceRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiledInferenceRunner.swift; sourceTree = "<group>"; };
@@ -165,6 +168,7 @@
 		D54B7A657E5C95915EC1419C /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		DC422688CDA11BB4470BF6E4 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		DE5F98F0201F18F0FFDCA729 /* CustomAppAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAppAdapter.swift; sourceTree = "<group>"; };
+		E2D360343E3C8AEEA3BDD7B6 /* ShootLog.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = ShootLog.icon; sourceTree = "<group>"; };
 		EC8AF43F85D5945C8B6AD938 /* EditInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditInfo.swift; sourceTree = "<group>"; };
 		EF13A531C7944060A4EB1AAC /* PhotoViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoViewerView.swift; sourceTree = "<group>"; };
 		EFE2FB0C28A6AD8CF11DFFB3 /* OutputPixelBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputPixelBuffer.swift; sourceTree = "<group>"; };
@@ -256,6 +260,14 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		595D9777773734E83DDE2EEB /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				4676ECFB30A59BD8D90D2B4D /* realesrgan.mlpackage */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		5B884B4CECC64074CAF4A4B6 /* SuperResolution */ = {
 			isa = PBXGroup;
 			children = (
@@ -287,6 +299,7 @@
 				0A83DBE9107D998FD6C6C202 /* Assets.xcassets */,
 				A122532B35DFC65BD2CCD4FD /* Info.plist */,
 				C0F6FD2202EF7C6F0CBF8B3C /* ShootLog.entitlements */,
+				E2D360343E3C8AEEA3BDD7B6 /* ShootLog.icon */,
 				198877FDF708601484B8399F /* ShootLogApp.swift */,
 				5F0AAA0C11BA464AA30A191C /* Core */,
 				4B40C2554110FC867A0A9D2F /* Models */,
@@ -310,6 +323,7 @@
 			isa = PBXGroup;
 			children = (
 				DC422688CDA11BB4470BF6E4 /* Localizable.xcstrings */,
+				595D9777773734E83DDE2EEB /* Models */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -442,6 +456,7 @@
 			files = (
 				596A821645C828B7F53D0580 /* Assets.xcassets in Resources */,
 				031916913080F36A0ED7E4FC /* Localizable.xcstrings in Resources */,
+				DE5384D0CD84FD23E3CDAEB0 /* ShootLog.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -522,6 +537,7 @@
 				862B7B6E7B111B7C6AB46193 /* ViewModelBox.swift in Sources */,
 				F4A3E0368E52525903858AF6 /* WindowChromeConfigurator.swift in Sources */,
 				9C0FD3A05414302E017E4D6F /* ZoomPanGeometry.swift in Sources */,
+				359FE7F552FE80D5F2F2379E /* realesrgan.mlpackage in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
