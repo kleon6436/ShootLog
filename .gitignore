@@ -66,6 +66,9 @@ fastlane/test_output
 .omc/
 .claude/
 
+# Python (Scripts/xcodegen-postprocess.sh)
+__pycache__/
+
 # Docs
 Docs/
 # 超解像モデル変換の中間生成物（Tools/CoreML/README.md 参照。実行時に再生成する）

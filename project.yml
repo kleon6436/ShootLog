@@ -1,4 +1,6 @@
 name: ShootLog
+attributes:
+  LastUpgradeCheck: "2660"
 options:
   bundleIdPrefix: com.shootlog
   deploymentTarget:
@@ -7,6 +9,7 @@ options:
   generateEmptyDirectories: true
   createIntermediateGroups: true
   developmentLanguage: ja
+  postGenCommand: "Scripts/xcodegen-postprocess.sh"
 
 settings:
   base:
@@ -18,6 +21,10 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: YES
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
     # 日本語識別子を許容するためSwiftLintは別途設定
     OTHER_SWIFT_FLAGS: ""
 
@@ -39,7 +46,10 @@ targets:
       base:
         INFOPLIST_FILE: ShootLog/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.shootlog.app
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: ShootLog
+        DEVELOPMENT_TEAM: 235777R328
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
+        DEAD_CODE_STRIPPING: YES
     dependencies: []
 
   ShootLogTests:
@@ -53,6 +63,7 @@ targets:
       base:
         PRODUCT_NAME: ShootLogTests
         PRODUCT_BUNDLE_IDENTIFIER: com.shootlog.app.tests
+        DEAD_CODE_STRIPPING: YES
 
 schemes:
   ShootLog:
