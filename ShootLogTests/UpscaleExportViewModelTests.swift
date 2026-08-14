@@ -32,6 +32,24 @@ struct UpscaleExportViewModelTests {
         #expect(viewModel.availableScaleFactors.count == 2)
     }
 
+    @Test func initialJPEGQualityIsHighest() {
+        let viewModel = UpscaleExportViewModel(inputPixelSize: nil)
+        #expect(viewModel.jpegQuality == .highest)
+        #expect(viewModel.jpegQuality.rawValue == 1.0)
+    }
+
+    // 品質はフォーマット非依存の設定として保持する（切り替えでリセットしない設計の回帰防止）
+    @Test func jpegQualitySurvivesOutputFormatChanges() {
+        let viewModel = UpscaleExportViewModel(inputPixelSize: nil)
+        viewModel.jpegQuality = .medium
+
+        viewModel.outputFormat = .tiff
+        #expect(viewModel.jpegQuality == .medium)
+
+        viewModel.outputFormat = .jpeg
+        #expect(viewModel.jpegQuality == .medium)
+    }
+
     // AI版は4倍固定で倍率を下げて回避できないため、書き出しパイプラインの実上限
     // (UpscaleExporter.maximumOutputMegapixels)を超える入力では常に上限超過になる。
     // これは書き出し時のメモリ制約をUIが正しく反映した結果であり、

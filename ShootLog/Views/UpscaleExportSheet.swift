@@ -71,6 +71,16 @@ struct UpscaleExportSheet: View {
                     }
                     .accessibilityLabel("upscale.outputFormat")
 
+                    // TIFF/PNGは可逆形式のため品質の概念が存在せず、選択肢自体を出さない
+                    if viewModel.outputFormat == .jpeg {
+                        Picker("upscale.jpegQuality", selection: $viewModel.jpegQuality) {
+                            ForEach(UpscaleExportViewModel.JPEGQuality.allCases) { quality in
+                                Text(quality.displayName).tag(quality)
+                            }
+                        }
+                        .accessibilityLabel("upscale.jpegQuality")
+                    }
+
                     if viewModel.engineKind == .aiSuperResolution {
                         Text("upscale.scaleFactor.aiFixedNotice")
                             .font(.caption)
