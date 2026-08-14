@@ -32,17 +32,23 @@ struct UpscaleExportViewModelTests {
         #expect(viewModel.availableScaleFactors.count == 2)
     }
 
-    // AI版は4倍固定で倍率を下げられないため、出力px基準(入力px×16)で判定すると
-    // 一般的な写真サイズでも常に上限超過になってしまう回帰があった。入力px基準で判定することを確認する
-    @Test func aiEngineUsesInputPixelCountForSizeLimit() {
-        // 24MP相当(6000x4000)の一般的な写真ではAI版でも上限超過にならない
-        let normalPhoto = UpscaleExportViewModel(inputPixelSize: CGSize(width: 6000, height: 4000))
-        #expect(normalPhoto.engineKind == .aiSuperResolution)
-        #expect(!normalPhoto.exceedsSizeLimit)
+    // AI版は4倍固定で倍率を下げて回避できないため、書き出しパイプラインの実上限
+    // (UpscaleExporter.maximumOutputMegapixels)を超える入力では常に上限超過になる。
+    // これは書き出し時のメモリ制約をUIが正しく反映した結果であり、
+    // AI版だけ別の（実上限と食い違う）緩い目安値を使うのは誤り
+    @Test func aiEngineUsesOutputPixelCountForSizeLimit() {
+        let capPixels = Double(UpscaleExporter.maximumOutputMegapixels) * 1_000_000
+        let quadrupleFactor = 16.0
 
-        // 80MP相当(10000x8000)の巨大な写真ではAI版で上限超過になる
-        let hugePhoto = UpscaleExportViewModel(inputPixelSize: CGSize(width: 10000, height: 8000))
-        #expect(hugePhoto.exceedsSizeLimit)
+        // 実上限の半分に収まる入力サイズでは超過にならない
+        let safeInputSide = (capPixels / quadrupleFactor / 2).squareRoot()
+        let safePhoto = UpscaleExportViewModel(inputPixelSize: CGSize(width: safeInputSide, height: safeInputSide))
+        #expect(safePhoto.engineKind == .aiSuperResolution)
+        #expect(!safePhoto.exceedsSizeLimit)
+
+        // 24MP相当(6000x4000)は4倍出力(384MP)が実上限(160MP)を超えるため超過になる
+        let normalPhoto = UpscaleExportViewModel(inputPixelSize: CGSize(width: 6000, height: 4000))
+        #expect(normalPhoto.exceedsSizeLimit)
     }
 
     // 従来方式(Lanczos)は倍率を下げれば出力pxが下がり上限を回避できることを確認する
