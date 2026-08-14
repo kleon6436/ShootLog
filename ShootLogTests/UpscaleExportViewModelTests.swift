@@ -56,4 +56,20 @@ struct UpscaleExportViewModelTests {
         viewModel.scaleFactor = .double
         #expect(!viewModel.exceedsSizeLimit)
     }
+
+    // UIの上限判定値が書き出しパイプラインの実上限(UpscaleExporter.maximumOutputMegapixels)より
+    // 低いと、実際は書き出せるはずの組み合わせもUIが不必要に「上限超過」として弾いてしまう
+    // （100MP固定だった頃は6000x4000の一般的な写真ですら4倍で常に超過扱いになっていた）
+    @Test func traditionalEngineSizeLimitMatchesExporterCap() {
+        let capPixels = Double(UpscaleExporter.maximumOutputMegapixels) * 1_000_000
+        let quadrupleFactor = 16.0
+        let safeInputSide = (capPixels / quadrupleFactor / 2).squareRoot()
+        let viewModel = UpscaleExportViewModel(
+            inputPixelSize: CGSize(width: safeInputSide, height: safeInputSide)
+        )
+        viewModel.engineKind = .traditional
+        viewModel.scaleFactor = .quadruple
+
+        #expect(!viewModel.exceedsSizeLimit)
+    }
 }
