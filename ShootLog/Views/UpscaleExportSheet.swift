@@ -117,6 +117,7 @@ struct UpscaleExportSheet: View {
             Text("upscale.sizeLimit.exceeded")
                 .font(.caption)
                 .foregroundStyle(.orange)
+                .padding(.leading, Self.formSectionLabelLeadingInset - Spacing.medium)
 
             HStack {
                 Button("upscale.sizeLimit.reduceScale") { viewModel.reduceScale() }
