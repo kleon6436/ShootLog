@@ -31,6 +31,16 @@ final class EXIFPanelViewModel {
         return mode
     }
 
+    var dimensionsText: String? {
+        guard let w = photo?.pixelWidth, let h = photo?.pixelHeight else { return nil }
+        return "\(w) x \(h)"
+    }
+
+    var fileSizeText: String? {
+        guard let bytes = photo?.fileSizeBytes else { return nil }
+        return Self.byteCountFormatter.string(fromByteCount: bytes)
+    }
+
     var isFavorite: Bool { photo?.isFavorite ?? false }
 
     // 成功要因タグの唯一の読取経路。View側は自身のphotoではなくこちらを参照する
@@ -40,6 +50,13 @@ final class EXIFPanelViewModel {
         guard let note = photo?.note, !note.isEmpty else { return nil }
         return note
     }
+
+    // ファイルサイズ表示用フォーマッタ。ロケールに応じた単位・桁区切りをシステムに委ねる
+    private static let byteCountFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f
+    }()
 
     // 小数点記号をロケールに追随させる。桁区切りは撮影値の表記として不自然なため付けない
     private static func decimalText(_ value: Double, fractionLength: Int) -> String {

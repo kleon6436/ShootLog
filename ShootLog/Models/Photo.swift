@@ -36,6 +36,9 @@ final class Photo {
     var iso: Int?
     var focalLength: Double?    // mm
     var colorMode: String?      // Sigma fp L 等のカラーモード名（例: "PowderBlue"）
+    var pixelWidth: Int?
+    var pixelHeight: Int?
+    var fileSizeBytes: Int64?
     var isFavorite: Bool
     var note: String
     var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）

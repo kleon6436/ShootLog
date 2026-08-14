@@ -1763,6 +1763,23 @@
         }
       }
     },
+    "exif.label.dimensions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dimensions"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "寸法"
+          }
+        }
+      }
+    },
     "exif.label.fileName" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1776,6 +1793,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ファイル名"
+          }
+        }
+      }
+    },
+    "exif.label.fileSize" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Size"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルサイズ"
           }
         }
       }
