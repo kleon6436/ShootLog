@@ -112,6 +112,9 @@ extension ContentViewModel {
         photo.iso          = exif.iso
         photo.focalLength  = exif.focalLength
         photo.colorMode    = exif.colorMode
+        photo.pixelWidth   = exif.pixelWidth
+        photo.pixelHeight  = exif.pixelHeight
+        photo.fileSizeBytes = exif.fileSizeBytes
         if let date = exif.shootingDate { photo.shootingDate = date }
         photo.exifFetchedAt = Date()
     }

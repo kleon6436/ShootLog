@@ -13,6 +13,8 @@ struct EXIFPanelView: View {
             VStack(alignment: .leading, spacing: Spacing.medium) {
                 EXIFCard {
                     EXIFRow(label: "exif.label.fileName", value: vm.fileNameText)
+                    EXIFRow(label: "exif.label.dimensions", value: vm.dimensionsText, isNumeric: true)
+                    EXIFRow(label: "exif.label.fileSize", value: vm.fileSizeText, isNumeric: true)
                 }
                 EXIFCard {
                     EXIFRow(label: "exif.label.camera", value: vm.cameraModelText)

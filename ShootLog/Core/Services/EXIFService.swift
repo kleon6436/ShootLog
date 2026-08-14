@@ -97,8 +97,17 @@ actor EXIFService {
             iso:           (exif[kCGImagePropertyExifISOSpeedRatings]  as? [Int])?.first,
             focalLength:   exif[kCGImagePropertyExifFocalLength]       as? Double,
             shootingDate:  parseDate(exif[kCGImagePropertyExifDateTimeOriginal] as? String),
-            colorMode:     extractColorMode(from: props)
+            colorMode:     extractColorMode(from: props),
+            pixelWidth:    props[kCGImagePropertyPixelWidth]           as? Int,
+            pixelHeight:   props[kCGImagePropertyPixelHeight]          as? Int,
+            fileSizeBytes: fileSize(at: url)
         )
+    }
+
+    // ファイルサイズをバイト単位で取得する。取得失敗（アクセス不可等）は非致命的なためnilを返す
+    nonisolated private static func fileSize(at url: URL) -> Int64? {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return (attributes?[.size] as? NSNumber)?.int64Value
     }
 
     // MARK: - Private
@@ -172,4 +181,7 @@ struct EXIFInfo: Sendable {
     var focalLength:  Double?      // mm
     var shootingDate: Date?
     var colorMode:    String?      // Sigma fp L 等のカラーモード名
+    var pixelWidth:   Int?
+    var pixelHeight:  Int?
+    var fileSizeBytes: Int64?
 }
