@@ -80,10 +80,13 @@ extension ContentViewModel {
     private func runUpscaleExport(photo: Photo, destination: URL, viewModel: UpscaleExportViewModel) async {
         defer { endUpscaleInputAccess() }
 
-        let descriptor = Self.descriptor(
+        guard let descriptor = Self.descriptor(
             for: viewModel.engineKind,
             scaleFactor: viewModel.scaleFactor.rawValue
-        )
+        ) else {
+            viewModel.state = .failed(.superResolutionModelUnavailable)
+            return
+        }
         let engine = SuperResolutionModelCatalog.makeEngine(for: descriptor)
         let exporter = UpscaleExporter(engine: engine, descriptor: descriptor)
 
@@ -120,30 +123,19 @@ extension ContentViewModel {
         }
     }
 
-    // AIモデルはまだ同梱されていない（Docs/SuperResolution_モデル選定.md 参照、実装予定はRealESRGAN系）。
-    // .aiSuperResolutionを選んでもCoreMLSuperResolutionEngineがsuperResolutionModelUnavailableを
-    // 投げるだけなので、失敗画面から.traditionalへ切り替えて再試行できる
-    private static func descriptor(
+    // 4倍(realesr-general-x4v3)・2倍(RealESRGAN_x2plus)とも .mlpackage を同梱済みで、
+    // AIエンジンはどちらの倍率でも実際に推論できる。UI側の選択肢
+    // (UpscaleExportViewModel.availableScaleFactors)もカタログ登録済みの倍率に連動するため、
+    // AI選択時にモデルが引けない倍率は通常のUI操作では発生しない
+    static func descriptor(
         for engineKind: UpscaleExportViewModel.EngineKind,
         scaleFactor: Int
-    ) -> SuperResolutionModelDescriptor {
+    ) -> SuperResolutionModelDescriptor? {
         switch engineKind {
         case .traditional:
-            SuperResolutionModelDescriptor(
-                id: "lanczos",
-                scaleFactor: scaleFactor,
-                tileLayout: .scaled(by: scaleFactor),
-                isTrainedAlgorithmicMedia: false
-            )
+            SuperResolutionModelCatalog.lanczos(scaleFactor: scaleFactor)
         case .aiSuperResolution:
-            // RealESRGANモデルは128→512px固定の4倍専用のため、呼び出し元のUI選択倍率(scaleFactor)は使わず、
-            // モデル仕様に合わせて常に4倍で組み立てる（防御的ガード）
-            SuperResolutionModelDescriptor(
-                id: "realesrgan",
-                scaleFactor: 4,
-                tileLayout: .scaled(by: 4),
-                isTrainedAlgorithmicMedia: true
-            )
+            SuperResolutionModelCatalog.aiModel(forScaleFactor: scaleFactor)
         }
     }
 

@@ -14,6 +14,11 @@ struct SettingsView: View {
                 .tabItem {
                     Label("settings.tab.integration", systemImage: "app.connected.to.app.below.fill")
                 }
+
+            AcknowledgementsView()
+                .tabItem {
+                    Label("settings.tab.acknowledgements", systemImage: "text.book.closed")
+                }
         }
         // 高さは「一般」タブの5セクションがスクロールなしで収まる値に合わせる
         .frame(width: 460, height: 520)
