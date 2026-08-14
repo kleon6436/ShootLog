@@ -99,8 +99,11 @@ final class UpscaleExportViewModel {
     // 「縮小して処理する」を選んだ場合に true。scaleFactorを変更すると選び直しが必要なためリセットする
     var acceptsDownscaledProcessing = false
 
-    // 従来方式(Lanczos)向け: 出力ピクセル数の概算上限（目安値）。倍率を下げれば回避できるため出力側で判定する
-    private static let maxOutputPixelCount: Double = 100_000_000
+    // 従来方式(Lanczos)向け: 出力ピクセル数の概算上限。倍率を下げれば回避できるため出力側で判定する。
+    // 実際の書き出しパイプラインが許容する上限（UpscaleExporter.maximumOutputMegapixels）と同じ基準にする。
+    // 別の目安値のままだと、UIでは通れたのに書き出し時にsuperResolutionOutputTooLargeで失敗する、
+    // または逆に実際は処理できる組み合わせをUIが不必要に弾く、という食い違いが起きる
+    private static let maxOutputPixelCount = Double(UpscaleExporter.maximumOutputMegapixels) * 1_000_000
     // AI版向け: 入力ピクセル数の上限（目安値）。AIモデルは4倍固定で倍率を下げられないため、
     // 出力pxではなく入力pxそのもので判定する（出力px基準だと常に入力px×16になり倍率で回避できない）
     private static let maxAIInputPixelCount: Double = 63_000_000
