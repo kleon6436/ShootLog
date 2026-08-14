@@ -99,8 +99,11 @@ final class UpscaleExportViewModel {
     // 「縮小して処理する」を選んだ場合に true。scaleFactorを変更すると選び直しが必要なためリセットする
     var acceptsDownscaledProcessing = false
 
-    // 出力ピクセル数の概算上限（目安値）。実測に基づく調整はエンジン実装完了後に見直す
+    // 従来方式(Lanczos)向け: 出力ピクセル数の概算上限（目安値）。倍率を下げれば回避できるため出力側で判定する
     private static let maxOutputPixelCount: Double = 100_000_000
+    // AI版向け: 入力ピクセル数の上限（目安値）。AIモデルは4倍固定で倍率を下げられないため、
+    // 出力pxではなく入力pxそのもので判定する（出力px基準だと常に入力px×16になり倍率で回避できない）
+    private static let maxAIInputPixelCount: Double = 63_000_000
     // 所要時間見積りに使う概算処理速度（px/秒、目安値）。同上
     private static let assumedPixelsPerSecond: Double = 2_000_000
 
@@ -122,8 +125,14 @@ final class UpscaleExportViewModel {
 
     // 概算上限を超えるかどうか。サイズ不明時は判定できないため false（呼び出し側でブロックしない）
     var exceedsSizeLimit: Bool {
-        guard let estimatedOutputPixelCount else { return false }
-        return estimatedOutputPixelCount > Self.maxOutputPixelCount
+        guard let inputPixelSize else { return false }
+        switch engineKind {
+        case .aiSuperResolution:
+            return inputPixelSize.width * inputPixelSize.height > Self.maxAIInputPixelCount
+        case .traditional:
+            guard let estimatedOutputPixelCount else { return false }
+            return estimatedOutputPixelCount > Self.maxOutputPixelCount
+        }
     }
 
     // 開始ボタンを有効にできるかどうか。上限超過時は「縮小して処理する」への同意が必要
