@@ -162,6 +162,14 @@ struct ContentView: View {
         )) {
             AnalysisView(photos: vm.photos)
         }
+        .sheet(isPresented: Binding(
+            get: { vm.isUpscaleExportPresented },
+            set: { if !$0 { vm.dismissUpscaleExport() } }
+        )) {
+            if let upscaleExportViewModel = vm.upscaleExportViewModel {
+                UpscaleExportSheet(contentViewModel: vm, viewModel: upscaleExportViewModel)
+            }
+        }
         .alert("common.error", isPresented: Binding(
             get: { vm.error != nil },
             set: { if !$0 { vm.error = nil } }

@@ -68,3 +68,6 @@ fastlane/test_output
 
 # Docs
 Docs/
+# 超解像モデル変換の中間生成物（Tools/CoreML/README.md 参照。実行時に再生成する）
+Tools/CoreML/weights/
+Tools/CoreML/build/

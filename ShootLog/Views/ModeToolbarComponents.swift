@@ -116,7 +116,7 @@ struct RotateButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "rotate.right")
-                .foregroundStyle(Color.onDarkCanvasSecondary)
+                .foregroundStyle(Color.onViewerCanvasSecondary)
                 .frame(width: 44, height: 44)
                 .glassOrMaterialCircle()
         }
@@ -124,6 +124,23 @@ struct RotateButton: View {
         .help("toolbar.rotate.help")
         .accessibilityLabel("a11y.toolbar.rotate")
         .keyboardShortcut(shortcut.map { KeyboardShortcut($0, modifiers: []) })
+    }
+}
+
+// 黒背景HUD上のAI超解像書き出しボタン。RotateButtonと同じスタイル・配置規則に揃える
+struct UpscaleButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "wand.and.sparkles")
+                .foregroundStyle(Color.onViewerCanvasSecondary)
+                .frame(width: 44, height: 44)
+                .glassOrMaterialCircle()
+        }
+        .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
+        .help("toolbar.upscale.help")
+        .accessibilityLabel("a11y.toolbar.upscale")
     }
 }
 

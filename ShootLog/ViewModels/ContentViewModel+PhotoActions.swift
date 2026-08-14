@@ -124,6 +124,16 @@ extension ContentViewModel {
         adapter.open(url: url)
     }
 
+    // 任意のURLを指定の外部アプリで開く（超解像書き出し完了後の「他のアプリで開く」用）。
+    // 呼び出し前にアプリの利用可否を確認し、falseならエラーを通知して開かない
+    func openInExternalApp(url: URL, adapter: any ExternalAppProtocol) {
+        guard adapter.isAvailable else {
+            error = ShootLogError.applicationInfoUnavailable(name: adapter.displayName)
+            return
+        }
+        adapter.open(url: url)
+    }
+
     // MARK: - Analysis
 
     // 分析シートを開き、未取得EXIFをバックグラウンドで一括ロードする。
