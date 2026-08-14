@@ -38,10 +38,15 @@ struct UpscaleExportSheet: View {
 
     // MARK: - 設定
 
+    // Form(.formStyle(.grouped))はSection内のラベル（見出し・Picker）をカード端からこの分だけ内側に描画する
+    // （実機目視で計測した近似値）。タイトルをそのラベル群と左端で揃えるために使う
+    private static let formSectionLabelLeadingInset: CGFloat = 43
+
     private var configuringView: some View {
         VStack(alignment: .leading, spacing: Spacing.xLarge) {
             Text("upscale.configuring.title")
                 .font(.headline)
+                .padding(.leading, Self.formSectionLabelLeadingInset)
 
             Form {
                 Section("upscale.section.export") {
