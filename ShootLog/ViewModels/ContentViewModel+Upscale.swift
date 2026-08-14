@@ -98,6 +98,7 @@ extension ContentViewModel {
                 rotation: currentEditInfo?.rotation ?? 0,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),
+                jpegQuality: viewModel.jpegQuality.rawValue,
                 progress: stream.continuation
             )
             result = .success(())

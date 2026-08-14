@@ -183,7 +183,7 @@ struct UpscaleOutputDestinationTests {
 
     @Test func lanczosOutputDoesNotClaimAIGeneration() {
         let properties = UpscaleExporter.imageProperties(
-            modelID: "lanczos", isTrainedAlgorithmicMedia: false
+            modelID: "lanczos", isTrainedAlgorithmicMedia: false, jpegQuality: nil
         )
         #expect(!properties.keys.contains(kCGImagePropertyIPTCDictionary))
         #expect(properties.keys.contains(kCGImagePropertyTIFFDictionary))
@@ -191,7 +191,7 @@ struct UpscaleOutputDestinationTests {
 
     @Test func modelOutputCarriesDigitalSourceType() {
         let properties = UpscaleExporter.imageProperties(
-            modelID: "realesrgan-x4", isTrainedAlgorithmicMedia: true
+            modelID: "realesrgan-x4", isTrainedAlgorithmicMedia: true, jpegQuality: nil
         )
         let iptc = properties[kCGImagePropertyIPTCDictionary] as? [CFString: Any]
         #expect(iptc?[kCGImagePropertyIPTCExtDigitalSourceType] as? String

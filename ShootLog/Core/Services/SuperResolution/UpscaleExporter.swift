@@ -34,12 +34,14 @@ struct UpscaleExporter: Sendable {
     ///   - rotation: `EditInfo.rotation` 由来の 0 / 90 / 180 / 270
     ///   - currentFolder: 現在開いているフォルダ（防御1に使う）
     ///   - folderPhotoURLs: 現在フォルダ内の写真 URL 一覧（防御2に使う）
+    ///   - jpegQuality: JPEG の圧縮品質（0.0〜1.0）。JPEG 以外の形式では無視される
     func export(
         source: URL,
         destination: URL,
         rotation: Int,
         currentFolder: URL?,
         folderPhotoURLs: [URL],
+        jpegQuality: Double,
         progress: AsyncStream<Double>.Continuation
     ) async throws {
         try UpscaleOutputDestination.validate(
@@ -95,7 +97,8 @@ struct UpscaleExporter: Sendable {
                 forPathExtension: destination.pathExtension
             ) ?? .jpeg,
             modelID: engine.modelID,
-            isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia
+            isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia,
+            jpegQuality: jpegQuality
         )
     }
 
@@ -149,10 +152,14 @@ struct UpscaleExporter: Sendable {
         to url: URL,
         contentType: UTType,
         modelID: String,
-        isTrainedAlgorithmicMedia: Bool
+        isTrainedAlgorithmicMedia: Bool,
+        jpegQuality: Double
     ) async throws {
+        // 可逆形式（TIFF/PNG）では品質の概念がないため、キー自体を含めない
         let properties = imageProperties(
-            modelID: modelID, isTrainedAlgorithmicMedia: isTrainedAlgorithmicMedia
+            modelID: modelID,
+            isTrainedAlgorithmicMedia: isTrainedAlgorithmicMedia,
+            jpegQuality: contentType == .jpeg ? jpegQuality : nil
         )
         let handle = Task.detached(priority: .userInitiated) { () throws -> Void in
             let data = NSMutableData()
@@ -188,12 +195,17 @@ struct UpscaleExporter: Sendable {
     /// Lanczos は学習済みモデルではないため DigitalSourceType を付与しない
     static func imageProperties(
         modelID: String,
-        isTrainedAlgorithmicMedia: Bool
+        isTrainedAlgorithmicMedia: Bool,
+        jpegQuality: Double?
     ) -> [CFString: Any] {
         var properties: [CFString: Any] = [:]
         properties[kCGImagePropertyTIFFDictionary] = [
             kCGImagePropertyTIFFSoftware: softwareTag(modelID: modelID)
         ] as [CFString: Any]
+
+        if let jpegQuality {
+            properties[kCGImageDestinationLossyCompressionQuality] = jpegQuality
+        }
 
         // IPTC Extension のキーは IPTC 辞書の下に置く。ImageIO がこれを
         // XMP の Iptc4xmpExt:DigitalSourceType として書き出す

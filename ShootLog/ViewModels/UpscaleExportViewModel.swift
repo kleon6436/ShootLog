@@ -75,6 +75,25 @@ final class UpscaleExportViewModel {
         }
     }
 
+    // JPEGの圧縮品質。rawValueはそのままkCGImageDestinationLossyCompressionQualityへ渡す
+    enum JPEGQuality: Double, CaseIterable, Identifiable {
+        case highest = 1.0
+        case high = 0.85
+        case medium = 0.65
+        case low = 0.4
+
+        var id: Double { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .highest: String(localized: "upscale.jpegQuality.highest")
+            case .high: String(localized: "upscale.jpegQuality.high")
+            case .medium: String(localized: "upscale.jpegQuality.medium")
+            case .low: String(localized: "upscale.jpegQuality.low")
+            }
+        }
+    }
+
     var state: State = .configuring
 
     var scaleFactor: ScaleFactor = .quadruple {
@@ -92,6 +111,9 @@ final class UpscaleExportViewModel {
         }
     }
     var outputFormat: OutputFormat = .jpeg
+
+    // 品質はフォーマット非依存の設定として保持する（TIFF/PNGへ切り替えて戻しても選択を失わない）
+    var jpegQuality: JPEGQuality = .highest
 
     // 入力写真のピクセルサイズ。上限判定・所要時間見積りに使う（取得できない場合は概算を出さない）
     let inputPixelSize: CGSize?
