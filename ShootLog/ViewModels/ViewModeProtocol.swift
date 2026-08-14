@@ -63,6 +63,8 @@ extension ContentViewModelProxy {
     func openFolder() { content.openFolder() }
     func openAnalysis() { content.openAnalysis() }
     func openInExternalApp(_ adapter: any ExternalAppProtocol) { content.openInExternalApp(adapter) }
+    // AI超解像書き出しシートを開く（Sidebar/Fullscreen双方の起動ボタンから使う共通委譲）
+    func presentUpscaleExport() { content.presentUpscaleExport() }
 
     // ModeToolbarComponents（ModeTogglePicker/ExternalAppMenu）へ渡す一覧。
     // シングルトンアクセスはContentViewModel側に集約し、Viewは委譲経由で受け取るだけにする

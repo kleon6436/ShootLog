@@ -1,0 +1,5 @@
+# Real-ESRGAN (realesr-general-x4v3) PyTorch -> Core ML 変換用の依存パッケージ。
+# Docs/SuperResolution_モデル選定.md 参照。実行は別フェーズ。
+coremltools>=7.2
+torch>=2.2
+numpy<2

@@ -26,7 +26,7 @@ struct FullscreenModeView: View {
 
     // HUD内のフォーカス対象
     private enum HUDControl: Hashable {
-        case previous, next, favorite, rotate, close
+        case previous, next, favorite, rotate, upscale, close
     }
 
     // ダブルクリック時に切り替えるズーム倍率
@@ -36,7 +36,7 @@ struct FullscreenModeView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.viewerCanvas.ignoresSafeArea()
 
             photoLayer
 
@@ -159,6 +159,9 @@ struct FullscreenModeView: View {
 
                 RotateButton { rotateSelectedPhoto() }
                     .focused($focusedHUDControl, equals: .rotate)
+
+                UpscaleButton { vm.presentUpscaleExport() }
+                    .focused($focusedHUDControl, equals: .upscale)
 
                 Spacer()
 
@@ -420,7 +423,7 @@ private struct NavButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: direction == .prev ? "chevron.left" : "chevron.right")
-                .foregroundStyle(Color.onDarkCanvas)
+                .foregroundStyle(Color.onViewerCanvas)
                 .frame(width: 44, height: 44)
                 .glassOrMaterialCircle()
         }
@@ -436,7 +439,7 @@ private struct FavoriteButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: isFavorite ? "star.fill" : "star")
-                .foregroundStyle(isFavorite ? Color.yellow : Color.onDarkCanvasSecondary)
+                .foregroundStyle(isFavorite ? Color.yellow : Color.onViewerCanvasSecondary)
                 .frame(width: 44, height: 44)
                 .glassOrMaterialCircle()
         }
@@ -451,7 +454,7 @@ private struct CloseButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(Color.onDarkCanvasSecondary)
+                .foregroundStyle(Color.onViewerCanvasSecondary)
                 .frame(width: 44, height: 44)
                 .glassOrMaterialCircle()
         }

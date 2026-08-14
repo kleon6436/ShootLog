@@ -37,6 +37,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BABFB158B561E6AEDCCCCF59"
+               BuildableName = "ShootLogTests.xctest"
+               BlueprintName = "ShootLogTests"
+               ReferencedContainer = "container:ShootLog.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -92,7 +92,7 @@ struct SidebarModeView: View {
             onCropApply: { rect in vm.setCropRect(rect) },
             onCropCancel: { vm.isCropMode = false }
         )
-        .background(.black)
+        .background(Color.viewerCanvas)
         .overlay(alignment: .bottomTrailing) {
             if vm.selectedPhoto != nil {
                 EditorToolbarView(
@@ -102,7 +102,8 @@ struct SidebarModeView: View {
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
                     onToggleFavorite: { vm.toggleFavorite() },
-                    onReset: { vm.resetEdits() }
+                    onReset: { vm.resetEdits() },
+                    onUpscale: { vm.presentUpscaleExport() }
                 )
             }
         }

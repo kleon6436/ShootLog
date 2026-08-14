@@ -8,7 +8,7 @@ struct SlideshowModeView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.viewerCanvas.ignoresSafeArea()
 
             PhotoViewerView(photo: vm.selectedPhoto, editInfo: vm.currentEditInfo)
 
@@ -23,7 +23,7 @@ struct SlideshowModeView: View {
                             Text(verbatim: "\(Int(sec))s")
                                 .font(HUDTypography.label)
                                 .fontWeight(isSelected ? .semibold : .regular)
-                                .foregroundStyle(isSelected ? Color.onDarkCanvas : Color.onDarkCanvasSecondary)
+                                .foregroundStyle(isSelected ? Color.onViewerCanvas : Color.onViewerCanvasSecondary)
                                 .frame(width: 44, height: 44)
                                 .glassOrMaterialCircle()
                         }
@@ -52,7 +52,7 @@ struct SlideshowModeView: View {
                         vm.switchToSidebar()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(Color.onDarkCanvasSecondary)
+                            .foregroundStyle(Color.onViewerCanvasSecondary)
                             .frame(width: 44, height: 44)
                             .glassOrMaterialCircle()
                     }
@@ -73,7 +73,7 @@ struct SlideshowModeView: View {
                         vm.selectPrevious()
                     } label: {
                         Image(systemName: "backward.end.fill")
-                            .foregroundStyle(Color.onDarkCanvasSecondary)
+                            .foregroundStyle(Color.onViewerCanvasSecondary)
                     }
                     .buttonStyle(HUDButtonStyle())
                     .accessibilityLabel("viewer.previousPhoto")
@@ -83,7 +83,7 @@ struct SlideshowModeView: View {
                         vm.togglePlayback()
                     } label: {
                         Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
-                            .foregroundStyle(Color.onDarkCanvas)
+                            .foregroundStyle(Color.onViewerCanvas)
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.controlLarge))
                     .accessibilityLabel(vm.isPlaying ? "slideshow.pause" : "slideshow.play")
@@ -93,7 +93,7 @@ struct SlideshowModeView: View {
                         vm.advanceSlideshow()
                     } label: {
                         Image(systemName: "forward.end.fill")
-                            .foregroundStyle(Color.onDarkCanvasSecondary)
+                            .foregroundStyle(Color.onViewerCanvasSecondary)
                     }
                     .buttonStyle(HUDButtonStyle())
                     .accessibilityLabel("viewer.nextPhoto")
@@ -102,7 +102,7 @@ struct SlideshowModeView: View {
                     ProgressView(value: vm.progress)
                         .progressViewStyle(.linear)
                         .frame(width: 100)
-                        .tint(Color.onDarkCanvasSecondary)
+                        .tint(Color.onViewerCanvasSecondary)
 
                     Text(verbatim: "\(vm.remainingSeconds)s")
                         .font(HUDTypography.caption)

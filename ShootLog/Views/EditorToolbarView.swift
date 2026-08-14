@@ -9,6 +9,7 @@ struct EditorToolbarView: View {
     let onToggleCrop: () -> Void
     let onToggleFavorite: () -> Void
     let onReset: () -> Void
+    let onUpscale: () -> Void
 
     var body: some View {
         HStack(spacing: 2) {
@@ -20,6 +21,7 @@ struct EditorToolbarView: View {
                 isActive: isFavorite,
                 action: onToggleFavorite
             )
+            EditorButton(symbolName: "wand.and.sparkles", help: "editor.upscale", action: onUpscale)
 
             if editInfo != nil {
                 Divider().frame(height: 16).padding(.horizontal, 2)

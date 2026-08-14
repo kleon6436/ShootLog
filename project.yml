@@ -16,6 +16,8 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
     SWIFT_STRICT_CONCURRENCY: complete
+    ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
     # 日本語識別子を許容するためSwiftLintは別途設定
     OTHER_SWIFT_FLAGS: ""
 
@@ -40,6 +42,18 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies: []
 
+  ShootLogTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ShootLogTests
+    dependencies:
+      - target: ShootLog
+    settings:
+      base:
+        PRODUCT_NAME: ShootLogTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.shootlog.app.tests
+
 schemes:
   ShootLog:
     build:
@@ -49,6 +63,8 @@ schemes:
       config: Debug
     test:
       config: Debug
+      targets:
+        - ShootLogTests
     profile:
       config: Release
     analyze:
