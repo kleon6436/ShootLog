@@ -12,7 +12,9 @@ struct UpscaleExportViewModelTests {
         #expect(viewModel.scaleFactor == .quadruple)
     }
 
-    @Test func switchingToAIEngineForcesQuadrupleScale() {
+    // 2倍モデル同梱前は「AI選択時は4倍固定」だった。倍率を選んだままエンジンを
+    // AIへ切り替えても倍率が勝手に書き換わらないことを確認する（強制ロジック撤廃の回帰防止）
+    @Test func switchingToAIEngineKeepsSelectedScale() {
         let viewModel = UpscaleExportViewModel(inputPixelSize: nil)
 
         viewModel.engineKind = .traditional
@@ -20,16 +22,43 @@ struct UpscaleExportViewModelTests {
         #expect(viewModel.scaleFactor == .double)
 
         viewModel.engineKind = .aiSuperResolution
-        #expect(viewModel.scaleFactor == .quadruple)
+        #expect(viewModel.scaleFactor == .double)
     }
 
-    @Test func availableScaleFactorsDependOnEngineKind() {
+    // 倍率を変えてもエンジン選択が強制変更されないこと
+    @Test func changingScaleKeepsSelectedEngine() {
         let viewModel = UpscaleExportViewModel(inputPixelSize: nil)
-        #expect(viewModel.availableScaleFactors == [.quadruple])
+        #expect(viewModel.engineKind == .aiSuperResolution)
+
+        viewModel.scaleFactor = .double
+        #expect(viewModel.engineKind == .aiSuperResolution)
+
+        viewModel.scaleFactor = .quadruple
+        #expect(viewModel.engineKind == .aiSuperResolution)
+    }
+
+    // AI版の選択肢はカタログ登録済みモデルの倍率に連動する（2倍・4倍とも同梱済み）
+    @Test func availableScaleFactorsCoverBothEngines() {
+        let viewModel = UpscaleExportViewModel(inputPixelSize: nil)
+        #expect(viewModel.availableScaleFactors.contains(.double))
+        #expect(viewModel.availableScaleFactors.contains(.quadruple))
+        #expect(viewModel.availableScaleFactors.count == 2)
 
         viewModel.engineKind = .traditional
         #expect(viewModel.availableScaleFactors == UpscaleExportViewModel.ScaleFactor.allCases)
         #expect(viewModel.availableScaleFactors.count == 2)
+    }
+
+    // AI版でも上限超過時に倍率を下げて回避できる（2倍モデル同梱前はAI版だけ下げられなかった）
+    @Test func reduceScaleWorksForAIEngine() {
+        let viewModel = UpscaleExportViewModel(inputPixelSize: CGSize(width: 6000, height: 4000))
+        #expect(viewModel.engineKind == .aiSuperResolution)
+        #expect(viewModel.scaleFactor == .quadruple)
+        #expect(viewModel.exceedsSizeLimit)
+
+        viewModel.reduceScale()
+        #expect(viewModel.scaleFactor == .double)
+        #expect(!viewModel.exceedsSizeLimit)
     }
 
     @Test func initialJPEGQualityIsHighest() {
@@ -50,9 +79,7 @@ struct UpscaleExportViewModelTests {
         #expect(viewModel.jpegQuality == .medium)
     }
 
-    // AI版は4倍固定で倍率を下げて回避できないため、書き出しパイプラインの実上限
-    // (UpscaleExporter.maximumOutputMegapixels)を超える入力では常に上限超過になる。
-    // これは書き出し時のメモリ制約をUIが正しく反映した結果であり、
+    // AI版も書き出しパイプラインの実上限(UpscaleExporter.maximumOutputMegapixels)を基準にする。
     // AI版だけ別の（実上限と食い違う）緩い目安値を使うのは誤り
     @Test func aiEngineUsesOutputPixelCountForSizeLimit() {
         let capPixels = Double(UpscaleExporter.maximumOutputMegapixels) * 1_000_000

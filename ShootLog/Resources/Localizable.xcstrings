@@ -3597,22 +3597,6 @@
         }
       }
     },
-    "upscale.scaleFactor.aiFixedNotice" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI super resolution is fixed at 4x. Switch to the traditional method for 2x."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像度は4倍固定です。2倍が必要な場合は従来方式に切り替えてください。"
-          }
-        }
-      }
-    },
     "upscale.scaleFactor.double" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3896,6 +3880,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "スライドショー"
+          }
+        }
+      }
+    },
+    "settings.tab.acknowledgements" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acknowledgements"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "謝辞"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ShootLog's super-resolution feature uses the following third-party model."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本アプリの超解像機能は以下のモデルを使用しています。"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.realesrgan.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Real-ESRGAN"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Real-ESRGAN"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.realesrgan.copyright" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copyright (c) 2021, Xintao Wang"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copyright (c) 2021, Xintao Wang"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.realesrgan.license" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licensed under the BSD 3-Clause License."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licensed under the BSD 3-Clause License."
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.basicsr.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BasicSR"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BasicSR"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.basicsr.copyright" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copyright (c) 2018-2022 BasicSR Authors"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copyright (c) 2018-2022 BasicSR Authors"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.basicsr.license" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licensed under the Apache License 2.0."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licensed under the Apache License 2.0."
           }
         }
       }

@@ -81,12 +81,6 @@ struct UpscaleExportSheet: View {
                         .accessibilityLabel("upscale.jpegQuality")
                     }
 
-                    if viewModel.engineKind == .aiSuperResolution {
-                        Text("upscale.scaleFactor.aiFixedNotice")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
                     if let duration = viewModel.estimatedDuration {
                         Label(
                             String(localized: "upscale.estimatedDuration \(Self.formattedDuration(duration))"),

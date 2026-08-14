@@ -103,13 +103,7 @@ final class UpscaleExportViewModel {
         }
     }
 
-    // AIモデルは4倍専用固定(128→512px)のため、AI選択時は倍率を強制する
-    var engineKind: EngineKind = .aiSuperResolution {
-        didSet {
-            guard engineKind == .aiSuperResolution else { return }
-            scaleFactor = .quadruple
-        }
-    }
+    var engineKind: EngineKind = .aiSuperResolution
     var outputFormat: OutputFormat = .jpeg
 
     // 品質はフォーマット非依存の設定として保持する（TIFF/PNGへ切り替えて戻しても選択を失わない）
@@ -124,9 +118,7 @@ final class UpscaleExportViewModel {
     // 出力ピクセル数の概算上限。AI版・従来方式ともに実際の書き出しパイプラインが許容する上限
     // （UpscaleExporter.maximumOutputMegapixels）と同じ基準にする。エンジンごとに別の目安値を
     // 持つと、UIでは通れたのに書き出し時にsuperResolutionOutputTooLargeで失敗する、または
-    // 逆に実際は処理できる組み合わせをUIが不必要に弾く、という食い違いが起きる。
-    // AI版は4倍固定で倍率を下げて回避できないため、大きめの写真では常に超過扱いになりうるが、
-    // それは書き出しパイプラインの実際のメモリ制約を正しく反映した結果であり、UI側の判定不備ではない
+    // 逆に実際は処理できる組み合わせをUIが不必要に弾く、という食い違いが起きる
     private static let maxOutputPixelCount = Double(UpscaleExporter.maximumOutputMegapixels) * 1_000_000
     // 所要時間見積りに使う概算処理速度（px/秒、目安値）。同上
     private static let assumedPixelsPerSecond: Double = 2_000_000
@@ -135,9 +127,13 @@ final class UpscaleExportViewModel {
         self.inputPixelSize = inputPixelSize
     }
 
-    // AI版はモデルが4倍専用固定のため選択肢を1つに絞る
+    // AI版で選べる倍率は、同梱モデルのカタログに登録されている倍率に連動する。
+    // 従来方式(Lanczos)は補間アルゴリズムのため任意倍率を選べる
     var availableScaleFactors: [ScaleFactor] {
-        engineKind == .aiSuperResolution ? [.quadruple] : ScaleFactor.allCases
+        guard engineKind == .aiSuperResolution else { return ScaleFactor.allCases }
+        return ScaleFactor.allCases.filter {
+            SuperResolutionModelCatalog.aiModel(forScaleFactor: $0.rawValue) != nil
+        }
     }
 
     // 選択中の倍率での概算出力ピクセル数
@@ -164,10 +160,9 @@ final class UpscaleExportViewModel {
         return estimatedOutputPixelCount / Self.assumedPixelsPerSecond
     }
 
-    // 上限超過時の選択肢: 倍率を下げる
+    // 上限超過時の選択肢: 倍率を下げる。AI版も2倍モデルを同梱しているため下げられる
     func reduceScale() {
-        guard engineKind != .aiSuperResolution else { return }
-        guard scaleFactor == .quadruple else { return }
+        guard scaleFactor == .quadruple, availableScaleFactors.contains(.double) else { return }
         scaleFactor = .double
     }
 
