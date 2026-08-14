@@ -44,48 +44,51 @@ struct UpscaleExportSheet: View {
                 .font(.headline)
 
             Form {
-                Picker("upscale.scaleFactor", selection: $viewModel.scaleFactor) {
-                    ForEach(viewModel.availableScaleFactors) { factor in
-                        Text(factor.displayName).tag(factor)
+                Section("upscale.section.export") {
+                    Picker("upscale.scaleFactor", selection: $viewModel.scaleFactor) {
+                        ForEach(viewModel.availableScaleFactors) { factor in
+                            Text(factor.displayName).tag(factor)
+                        }
                     }
-                }
-                .accessibilityLabel("upscale.scaleFactor")
+                    .accessibilityLabel("upscale.scaleFactor")
 
-                Picker("upscale.engine", selection: $viewModel.engineKind) {
-                    ForEach(UpscaleExportViewModel.EngineKind.allCases) { kind in
-                        Text(kind.displayName).tag(kind)
+                    Picker("upscale.engine", selection: $viewModel.engineKind) {
+                        ForEach(UpscaleExportViewModel.EngineKind.allCases) { kind in
+                            Text(kind.displayName).tag(kind)
+                        }
                     }
-                }
-                .accessibilityLabel("upscale.engine")
+                    .accessibilityLabel("upscale.engine")
 
-                Picker("upscale.outputFormat", selection: $viewModel.outputFormat) {
-                    ForEach(UpscaleExportViewModel.OutputFormat.allCases) { format in
-                        Text(format.displayName).tag(format)
+                    Picker("upscale.outputFormat", selection: $viewModel.outputFormat) {
+                        ForEach(UpscaleExportViewModel.OutputFormat.allCases) { format in
+                            Text(format.displayName).tag(format)
+                        }
                     }
+                    .accessibilityLabel("upscale.outputFormat")
+
+                    if viewModel.engineKind == .aiSuperResolution {
+                        Text("upscale.scaleFactor.aiFixedNotice")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let duration = viewModel.estimatedDuration {
+                        Label(
+                            String(localized: "upscale.estimatedDuration \(Self.formattedDuration(duration))"),
+                            systemImage: "clock"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+
+                    Text("upscale.cropNotApplied.note")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .accessibilityLabel("upscale.outputFormat")
             }
             .pickerStyle(.menu)
-
-            // Form内にラベルなしのTextを挟むとPicker行と整列が崩れるため、Form外に配置する
-            if viewModel.engineKind == .aiSuperResolution {
-                Text("upscale.scaleFactor.aiFixedNotice")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let duration = viewModel.estimatedDuration {
-                Label(
-                    String(localized: "upscale.estimatedDuration \(Self.formattedDuration(duration))"),
-                    systemImage: "clock"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Text("upscale.cropNotApplied.note")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // 注記のラベルなしTextをPicker行と左端で揃えるため.groupedを使う（既定の.columnsでは値カラムに寄って崩れる）
+            .formStyle(.grouped)
 
             if viewModel.exceedsSizeLimit {
                 sizeLimitPrompt
