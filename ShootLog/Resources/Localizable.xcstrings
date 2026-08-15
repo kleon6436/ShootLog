@@ -773,6 +773,23 @@
         }
       }
     },
+    "analysis.page.focalLength" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focal Length"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "焦点距離"
+          }
+        }
+      }
+    },
     "analysis.page.iso" : {
       "extractionState" : "stale",
       "localizations" : {
