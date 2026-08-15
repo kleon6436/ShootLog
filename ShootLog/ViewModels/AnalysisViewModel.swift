@@ -11,6 +11,7 @@ final class AnalysisViewModel {
         case aperture
         case shutterSpeed
         case iso
+        case focalLength
     }
 
     // 画面のページ選択。チャート系列セレクタである ChartTab とは別軸で、
@@ -19,6 +20,7 @@ final class AnalysisViewModel {
         case aperture
         case shutterSpeed
         case iso
+        case focalLength
         case session
 
         // セグメントピッカーに表示するページ名
@@ -27,6 +29,7 @@ final class AnalysisViewModel {
             case .aperture:     "analysis.page.aperture"
             case .shutterSpeed: "analysis.page.shutterSpeed"
             case .iso:          "analysis.page.iso"
+            case .focalLength:  "analysis.page.focalLength"
             case .session:      "analysis.page.session"
             }
         }
@@ -37,6 +40,7 @@ final class AnalysisViewModel {
             case .aperture:     .aperture
             case .shutterSpeed: .shutterSpeed
             case .iso:          .iso
+            case .focalLength:  .focalLength
             case .session:      nil
             }
         }
@@ -73,9 +77,9 @@ final class AnalysisViewModel {
 
     var totalCount: Int { photos.count }
 
-    // EXIF取得済み（絞り・SS・ISO のいずれかがある）写真の枚数
+    // EXIF取得済み（絞り・SS・ISO・焦点距離 のいずれかがある）写真の枚数
     var exifCount: Int {
-        photos.filter { $0.aperture != nil || $0.shutterSpeed != nil || $0.iso != nil }.count
+        photos.filter { $0.aperture != nil || $0.shutterSpeed != nil || $0.iso != nil || $0.focalLength != nil }.count
     }
 
     // EXIFから取得できたカメラモデルの重複なし一覧（ソート済み）
@@ -103,6 +107,7 @@ final class AnalysisViewModel {
         case .aperture:     return computeAperture(base: base, overlay: fav)
         case .shutterSpeed: return computeShutterSpeed(base: base, overlay: fav)
         case .iso:          return computeISO(base: base, overlay: fav)
+        case .focalLength:  return computeFocalLength(base: base, overlay: fav)
         }
     }
 
@@ -193,6 +198,40 @@ final class AnalysisViewModel {
             values: overlay.compactMap(\.iso),
             candidates: Self.standardISOs,
             label: Self.isoLabel,
+            series: .favorites
+        )
+        return mergePoints(base: basePoints, overlay: overlayPoints)
+    }
+
+    // MARK: - 焦点距離（代表単焦点距離バケット）
+
+    static let standardFocalLengths: [Double] = [
+        14, 20, 24, 28, 35, 50, 85, 105, 135, 200, 300, 400, 600
+    ]
+
+    static func focalLengthLabel(_ value: Double) -> String {
+        "\(Int(value.rounded()))mm"
+    }
+
+    // レンズが焦点距離を電子的に報告しない場合、EXIFに0が書き込まれることがある。
+    // これはnilではなく「未報告」を意味する値のため、compactMapでは除外されず
+    // snapLogがそのまま候補先頭(14mm)へ誤スナップしてしまう。ここで明示的に除外する
+    static func validFocalLengths(_ photos: [Photo]) -> [Double] {
+        photos.compactMap(\.focalLength).filter { $0 > 0 }
+    }
+
+    private func computeFocalLength(base: [Photo], overlay: [Photo]?) -> [DataPoint] {
+        let basePoints = bucketizeDouble(
+            values: Self.validFocalLengths(base),
+            candidates: Self.standardFocalLengths,
+            label: Self.focalLengthLabel,
+            series: .all
+        )
+        guard let overlay else { return basePoints }
+        let overlayPoints = bucketizeDouble(
+            values: Self.validFocalLengths(overlay),
+            candidates: Self.standardFocalLengths,
+            label: Self.focalLengthLabel,
             series: .favorites
         )
         return mergePoints(base: basePoints, overlay: overlayPoints)

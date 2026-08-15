@@ -47,12 +47,26 @@ extension AnalysisViewModel {
         return Self.insightText(points: points, total: values.count)
     }
 
+    // 焦点距離タブ用のinsight文。母集団はカメラ絞り込み後のお気に入りのうち焦点距離値ありのもの
+    var focalLengthInsightText: String? {
+        let values = Self.validFocalLengths(favoriteFilteredPhotos)
+        guard values.count >= Self.insightMinimumSampleCount else { return nil }
+        let points = bucketizeDouble(
+            values: values,
+            candidates: Self.standardFocalLengths,
+            label: Self.focalLengthLabel,
+            series: .favorites
+        )
+        return Self.insightText(points: points, total: values.count)
+    }
+
     // 選択中ページに対応するinsight文。セッションページではnil
     var currentInsightText: String? {
         switch selectedPage.chartTab {
         case .aperture:     apertureInsightText
         case .shutterSpeed: shutterSpeedInsightText
         case .iso:          isoInsightText
+        case .focalLength:  focalLengthInsightText
         case nil:           nil
         }
     }
