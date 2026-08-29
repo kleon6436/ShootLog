@@ -234,6 +234,28 @@ struct ImageDevelopmentEngineTests {
         #expect(try meanLuma(of: brightened) > meanLuma(of: neutral))
     }
 
+    /// プレビュー（縮小）と書き出し（フル解像度）が同じ調整結果になること（WYSIWYG）。
+    /// 2 つの解像度でレンダーし、共通サイズへ縮小して平均色を比較する。
+    @Test func adjustmentIsSizeInvariant() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 400, height: 300, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        var parameters = DevelopParameters.neutral
+        parameters.exposure = 0.8
+        parameters.contrast = 40
+        parameters.saturation = -30
+
+        let small = try #require(
+            await engine.renderPreview(url: url, parameters: parameters, targetMaxPixelSize: 128)
+        )
+        let large = try #require(
+            await engine.renderFull(url: url, parameters: parameters, rotation: 0, cropRect: nil)
+        )
+
+        #expect(abs(try meanLuma(of: small) - meanLuma(of: large)) < 6)
+    }
+
     @Test func renderFullQuarterRotationSwapsDimensions() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 120, height: 80, in: sandbox)

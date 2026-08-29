@@ -167,13 +167,16 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - 回転・トリミング情報のSwiftData保存（元ファイルは変更しない）
 - 絞り、シャッター速度、ISOなどの分析画面
 - Capture One、Lightroom、Photoshop、Affinity Photo、Preview、Finder向けアダプターによる写真起動
+- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・色温度・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・シャープ・ノイズ低減。Core Image ベース、非破壊（`DevelopSettings` に保存）
+- 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）
 
 ## SwiftDataモデル
 
-主なモデルは `Photo`、`EditInfo`、`FolderHistory`。
+主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`FolderHistory`。
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
+- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版、更新日時。`EditInfo` とは独立
 - `FolderHistory`: フォルダURL、セキュリティブックマーク、最終アクセス日時、表示名
 
 元画像は上書きしない。編集情報はSwiftDataに保持し、表示時に適用する。
@@ -220,18 +223,19 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース）、現像結果のJPEG/TIFF書き出し。
 
 ### 制限付き・検証継続中
 
 - Sigma fp LのPictureMode検出は暫定実装。
-- RAWは現像処理を行わず、ImageIOの対応範囲でプレビューする。
+- サムネイル/一覧表示は引き続きImageIOの対応範囲でプレビューする（現像は「編集」タブ選択時のみ）。
+- 現像編集: カラー別HSLはCore Imageに単一フィルタが無いためCPU生成の3D LUT（`CIColorCube`）による近似。出力カラースペースはsRGB固定。`CIRAWFilter`のRAW固有現像パラメータ（exposure等のオフセット写像）はv1では未適用でベースデコード専用。トリミングのライブプレビューは未対応で書き出し時にのみ矩形を適用する。RAW実ファイルでのデコード経路は実機サンプル不足のため継続検証中。詳細は `Docs/ShootLog_設計書.md` 6章。
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
 
 ### 未着手・スコープ外
 
-- RAW現像、露出や色温度などの本格編集
+- ローカル調整（マスク・レイヤー）、レンズ補正、Display P3出力、編集プリセット
 - 複数フォルダの同時表示
 - iCloud写真ライブラリ連携
 - 外部アプリとの双方向同期
