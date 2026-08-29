@@ -51,6 +51,9 @@ final class ContentViewModel {
     var currentEditInfo: EditInfo?
     var isCropMode: Bool = false
 
+    // サイドバーモードの現像編集パネルが参照する。selectPhoto で遅延ロードする
+    var currentDevelopSettings: DevelopSettings?
+
     // AI超解像書き出し。ジョブ（Task）はモード切替・写真選択変更をまたいで継続し、
     // currentFolderURLの変更（フォルダを閉じる）またはアプリ終了時にのみ中断する。
     // ContentViewModel+Upscale.swift から参照するため internal とする

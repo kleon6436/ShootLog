@@ -8,7 +8,7 @@ struct ShootLogApp: App {
     private let sharedModelContainer: ModelContainer = {
         do {
             return try ModelContainer(
-                for: Photo.self, EditInfo.self, FolderHistory.self, IntegrationAppSetting.self
+                for: Photo.self, EditInfo.self, DevelopSettings.self, FolderHistory.self, IntegrationAppSetting.self
             )
         } catch {
             // コンテナを作れない場合はアプリとして動作できないため起動を継続しない
