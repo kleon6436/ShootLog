@@ -8,6 +8,8 @@ struct EditablePhotoView: View {
     let photo: Photo?
     let editInfo: EditInfo?
     let isCropMode: Bool
+    // 現像プレビュー。previewImage があればベース画像の代わりに表示する
+    let developViewModel: DevelopViewModel
     // 前後1枚の先読み対象URL。URLの決定（先頭・末尾の境界処理を含む）は呼び出し元の責務とする
     var neighborPrefetchURLs: [URL] = []
     let onCropApply: (CGRect) -> Void
@@ -23,6 +25,11 @@ struct EditablePhotoView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task(id: photo?.id) {
                     await vm.load(photo: photo, displaySize: geometry.size)
+                    // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）
+                    developViewModel.load(photo: photo, displaySize: geometry.size)
+                }
+                .onChange(of: geometry.size) { _, newSize in
+                    developViewModel.updateDisplaySize(newSize)
                 }
                 // 先読みは表示中写真のロードとは別タスクにする。写真IDをキーに共有すると、
                 // お気に入り絞り込みの切替で前後URLだけが変わった場合に古いURLのまま確定してしまう
@@ -35,13 +42,15 @@ struct EditablePhotoView: View {
     @ViewBuilder
     private var content: some View {
         ZStack {
-            if let image = vm.highRes ?? vm.thumbnail {
+            // 現像プレビューがあれば最優先。無ければ従来の 2 段階ロード結果を表示する
+            if let image = developViewModel.previewImage ?? vm.highRes ?? vm.thumbnail {
                 ZStack(alignment: .bottomTrailing) {
                     // 回転を適用する（EditInfo に保存された値を使う）
                     rotatedImage(image)
 
-                    // サムネイル表示中かつ高解像度ロード待ちのときスピナーを右下に表示
-                    if vm.highRes == nil && vm.isLoadingHighRes {
+                    // 現像レンダリング中、またはサムネイル表示中で高解像度ロード待ちのときスピナー
+                    if developViewModel.isRendering
+                        || (developViewModel.previewImage == nil && vm.highRes == nil && vm.isLoadingHighRes) {
                         ProgressView()
                             .controlSize(.small)
                             .padding(8)

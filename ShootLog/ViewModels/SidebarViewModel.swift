@@ -44,6 +44,10 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     let content: ContentViewModel
 
+    // 現像編集パネル / ビューアプレビューの状態。写真切り替えは EditablePhotoView の
+    // .task(id:) が load(photo:) を呼んで追従させる（キーボード送りも含め選択経路が1本化される）
+    let developViewModel: DevelopViewModel
+
     // 検索テキスト
     var searchText: String = ""
     // EXIFパネル可視性フラグ
@@ -62,6 +66,7 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     init(content: ContentViewModel) {
         self.content = content
+        self.developViewModel = DevelopViewModel(content: content)
     }
 
     // searchText（ファイル名・カメラ名の部分一致）と showFavoritesOnly の AND 条件で photos を絞り込む
