@@ -2209,6 +2209,23 @@
         }
       }
     },
+    "develop.toneCurve.point": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トーンカーブ制御点"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tone curve point"
+          }
+        }
+      }
+    },
     "develop.toneCurve.reset": {
       "extractionState": "manual",
       "localizations": {

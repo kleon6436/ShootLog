@@ -149,6 +149,14 @@ private struct CurveCanvas: View {
                 )
                 .gesture(dragGesture(index: index, size: size))
                 .onTapGesture(count: 2) { removePoint(at: index) }
+                .accessibilityElement()
+                .accessibilityLabel("develop.toneCurve.point")
+                .accessibilityValue(Text("\(Int(point.x * 255)), \(Int(point.y * 255))"))
+                .accessibilityAdjustableAction { direction in
+                    let delta = direction == .increment ? 0.04 : -0.04
+                    let newY = min(max(point.y + delta, 0), 1)
+                    points[index] = CurvePoint(x: point.x, y: newY)
+                }
         }
     }
 
