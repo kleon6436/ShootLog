@@ -216,7 +216,7 @@ struct ImageDevelopmentEngineTests {
         let url = try writePNG(width: 128, height: 96, in: sandbox)
         let engine = ImageDevelopmentEngine()
 
-        let full = try #require(await engine.renderFull(url: url, parameters: .neutral))
+        let full = try #require(await engine.renderFull(url: url, parameters: .neutral, rotation: 0, cropRect: nil))
         #expect(full.width == 128)
         #expect(full.height == 96)
     }
@@ -229,9 +229,34 @@ struct ImageDevelopmentEngineTests {
         var parameters = DevelopParameters.neutral
         parameters.exposure = 1.0
 
-        let neutral = try #require(await engine.renderFull(url: url, parameters: .neutral))
-        let brightened = try #require(await engine.renderFull(url: url, parameters: parameters))
+        let neutral = try #require(await engine.renderFull(url: url, parameters: .neutral, rotation: 0, cropRect: nil))
+        let brightened = try #require(await engine.renderFull(url: url, parameters: parameters, rotation: 0, cropRect: nil))
         #expect(try meanLuma(of: brightened) > meanLuma(of: neutral))
+    }
+
+    @Test func renderFullQuarterRotationSwapsDimensions() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 120, height: 80, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        let rotated = try #require(
+            await engine.renderFull(url: url, parameters: .neutral, rotation: 90, cropRect: nil)
+        )
+        #expect(rotated.width == 80)
+        #expect(rotated.height == 120)
+    }
+
+    @Test func renderFullCropReducesDimensions() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 200, height: 100, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        let crop = CGRect(x: 0.25, y: 0.0, width: 0.5, height: 1.0)
+        let cropped = try #require(
+            await engine.renderFull(url: url, parameters: .neutral, rotation: 0, cropRect: crop)
+        )
+        #expect(cropped.width == 100)
+        #expect(cropped.height == 100)
     }
 
     // MARK: - 失敗系
@@ -244,6 +269,6 @@ struct ImageDevelopmentEngineTests {
         #expect(await engine.renderPreview(
             url: missing, parameters: .neutral, targetMaxPixelSize: 256
         ) == nil)
-        #expect(await engine.renderFull(url: missing, parameters: .neutral) == nil)
+        #expect(await engine.renderFull(url: missing, parameters: .neutral, rotation: 0, cropRect: nil) == nil)
     }
 }

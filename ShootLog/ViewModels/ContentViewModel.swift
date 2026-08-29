@@ -12,6 +12,7 @@ final class ContentViewModel {
         didSet {
             guard oldValue != currentFolderURL else { return }
             cancelUpscaleExportIfNeeded()
+            cancelDevelopExportIfNeeded()
         }
     }
     var folderHistories: [FolderHistory] = []
@@ -50,6 +51,13 @@ final class ContentViewModel {
     // 編集
     var currentEditInfo: EditInfo?
     var isCropMode: Bool = false
+
+    // 現像書き出し。ジョブは超解像と同じくフォルダを閉じる／アプリ終了時のみ中断する。
+    // ContentViewModel+DevelopExport.swift から参照するため internal
+    var isDevelopExportPresented: Bool = false
+    var developExportViewModel: DevelopExportViewModel?
+    var developExportTask: Task<Void, Never>?
+    var developExportInputAccessURL: URL?
 
     // サイドバーモードの現像編集パネルが参照する。selectPhoto で遅延ロードする
     var currentDevelopSettings: DevelopSettings?

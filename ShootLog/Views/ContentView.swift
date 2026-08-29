@@ -170,6 +170,14 @@ struct ContentView: View {
                 UpscaleExportSheet(contentViewModel: vm, viewModel: upscaleExportViewModel)
             }
         }
+        .sheet(isPresented: Binding(
+            get: { vm.isDevelopExportPresented },
+            set: { if !$0 { vm.dismissDevelopExport() } }
+        )) {
+            if let developExportViewModel = vm.developExportViewModel {
+                DevelopExportSheet(contentViewModel: vm, viewModel: developExportViewModel)
+            }
+        }
         .alert("common.error", isPresented: Binding(
             get: { vm.error != nil },
             set: { if !$0 { vm.error = nil } }

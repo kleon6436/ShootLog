@@ -23,7 +23,10 @@ struct InspectorTabContainer: View {
                 EXIFPanelView(photo: photo, onToggleTag: onToggleTag)
             case .develop:
                 if photo != nil {
-                    DevelopPanelView(developViewModel: sidebarViewModel.developViewModel)
+                    DevelopPanelView(
+                        developViewModel: sidebarViewModel.developViewModel,
+                        onExport: { sidebarViewModel.presentDevelopExport() }
+                    )
                 } else {
                     ContentUnavailableView(
                         "develop.empty.noSelection",

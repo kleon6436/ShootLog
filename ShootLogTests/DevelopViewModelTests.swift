@@ -32,7 +32,12 @@ struct DevelopViewModelTests {
             return stub
         }
 
-        func renderFull(url: URL, parameters: DevelopParameters) async -> CGImage? { stub }
+        func renderFull(
+            url: URL,
+            parameters: DevelopParameters,
+            rotation: Int,
+            cropRect: CGRect?
+        ) async -> CGImage? { stub }
 
         func isRAW(url: URL) -> Bool { rawFileNames.contains(url.lastPathComponent) }
     }

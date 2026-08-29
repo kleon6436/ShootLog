@@ -11,12 +11,15 @@ import UniformTypeIdentifiers
 /// 出た段階（Phase 5 の書き出し）で throwing + `ShootLogError` へ昇格させる予定。
 protocol ImageDeveloping: Sendable {
 
-    /// 表示用の縮小プレビューを現像して返す。
+    /// 表示用の縮小プレビューを現像して返す。回転・トリミングは適用しない（ビュー側で行う）。
     /// - Parameter targetMaxPixelSize: 長辺の目標ピクセル数。0 以下・非有限を渡すとフル解像度扱い。
     func renderPreview(url: URL, parameters: DevelopParameters, targetMaxPixelSize: CGFloat) async -> CGImage?
 
-    /// 書き出し用にフル解像度で現像して返す。
-    func renderFull(url: URL, parameters: DevelopParameters) async -> CGImage?
+    /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
+    /// - Parameters:
+    ///   - rotation: 0 / 90 / 180 / 270（時計回り）。
+    ///   - cropRect: 正規化トリミング矩形（左上原点・0...1）。`nil` でトリミングなし。
+    func renderFull(url: URL, parameters: DevelopParameters, rotation: Int, cropRect: CGRect?) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
     func isRAW(url: URL) -> Bool
@@ -81,19 +84,34 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     ) async -> CGImage? {
         guard let base = await baseImage(url: url, targetMaxPixelSize: targetMaxPixelSize) else { return nil }
         guard !Task.isCancelled else { return nil }
-        return await Self.develop(base: base, parameters: parameters, isRAW: isRAW(url: url), cache: pipelineCache)
+        return await Self.develop(
+            base: base,
+            parameters: parameters,
+            isRAW: isRAW(url: url),
+            cache: pipelineCache,
+            rotation: 0,
+            cropRect: nil
+        )
     }
 
-    /// フル解像度の現像結果を返す。
-    ///
-    /// 回転・トリミング（`EditInfo`）はこの Phase では適用しない。書き出しパイプラインへ
-    /// 組み込む Phase 5 で、呼び出し側から明示的に渡す設計にする。
-    ///
+    /// フル解像度の現像結果を返す。回転・トリミングも焼き込む。
     /// フル解像度のベースはメモリを大きく食ううえ再利用機会も乏しいため、キャッシュしない。
-    func renderFull(url: URL, parameters: DevelopParameters) async -> CGImage? {
+    func renderFull(
+        url: URL,
+        parameters: DevelopParameters,
+        rotation: Int,
+        cropRect: CGRect?
+    ) async -> CGImage? {
         guard let base = await Self.decodeBase(url: url, maxPixelSize: 0) else { return nil }
         guard !Task.isCancelled else { return nil }
-        return await Self.develop(base: base, parameters: parameters, isRAW: isRAW(url: url), cache: pipelineCache)
+        return await Self.develop(
+            base: base,
+            parameters: parameters,
+            isRAW: isRAW(url: url),
+            cache: pipelineCache,
+            rotation: rotation,
+            cropRect: cropRect
+        )
     }
 
     // MARK: - Stage A（ベースデコード + キャッシュ）
@@ -203,22 +221,62 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         base: CGImage,
         parameters: DevelopParameters,
         isRAW: Bool,
-        cache: DevelopPipelineCache
+        cache: DevelopPipelineCache,
+        rotation: Int,
+        cropRect: CGRect?
     ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
             let source = CIImage(cgImage: base)
-            let adjusted = DevelopPipeline.apply(parameters, to: source, isRAW: isRAW, cache: cache)
+            var image = DevelopPipeline.apply(parameters, to: source, isRAW: isRAW, cache: cache)
+            image = applyCrop(cropRect, to: image)
+            image = applyRotation(rotation, to: image)
             guard !Task.isCancelled else { return nil }
 
-            let rect = adjusted.extent.integral
+            let rect = image.extent.integral
             guard !rect.isEmpty, !rect.isInfinite else { return nil }
-            return sharedContext.createCGImage(adjusted, from: rect)
+            return sharedContext.createCGImage(image, from: rect)
         }
         return await withTaskCancellationHandler {
             await handle.value
         } onCancel: {
             handle.cancel()
         }
+    }
+
+    /// 正規化トリミング矩形（左上原点）を CIImage の座標系（左下原点）へ変換して切り抜く。
+    private static func applyCrop(_ cropRect: CGRect?, to image: CIImage) -> CIImage {
+        guard let cropRect,
+              cropRect != CGRect(x: 0, y: 0, width: 1, height: 1),
+              cropRect.width > 0, cropRect.height > 0 else {
+            return image
+        }
+        let extent = image.extent
+        let pixelRect = CGRect(
+            x: extent.minX + cropRect.minX * extent.width,
+            y: extent.minY + (1 - cropRect.maxY) * extent.height,
+            width: cropRect.width * extent.width,
+            height: cropRect.height * extent.height
+        ).integral
+        let cropped = image.cropped(to: pixelRect)
+        // 切り抜き後は原点を 0 に寄せてエンコード時の座標ずれを防ぐ
+        return cropped.transformed(by: CGAffineTransform(translationX: -pixelRect.minX, y: -pixelRect.minY))
+    }
+
+    /// 時計回りの回転角（0/90/180/270）を EXIF オリエンテーション経由で適用する。
+    private static func applyRotation(_ rotation: Int, to image: CIImage) -> CIImage {
+        let normalized = ((rotation % 360) + 360) % 360
+        let orientation: CGImagePropertyOrientation?
+        switch normalized {
+        case 90: orientation = .right
+        case 180: orientation = .down
+        case 270: orientation = .left
+        default: orientation = nil
+        }
+        guard let orientation else { return image }
+        let oriented = image.oriented(orientation)
+        return oriented.transformed(
+            by: CGAffineTransform(translationX: -oriented.extent.minX, y: -oriented.extent.minY)
+        )
     }
 }
