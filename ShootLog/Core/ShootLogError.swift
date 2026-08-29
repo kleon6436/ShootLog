@@ -16,6 +16,8 @@ enum ShootLogError: LocalizedError {
     case superResolutionDestinationInSourceFolder
     case superResolutionOverwritesOriginal
     case superResolutionExportFailed
+    case developRenderFailed
+    case developExportFailed
 
     var errorDescription: String? {
         switch self {
@@ -47,6 +49,10 @@ enum ShootLogError: LocalizedError {
             return String(localized: "error.superResolutionOverwritesOriginal")
         case .superResolutionExportFailed:
             return String(localized: "error.superResolutionExportFailed")
+        case .developRenderFailed:
+            return String(localized: "error.developRenderFailed")
+        case .developExportFailed:
+            return String(localized: "error.developExportFailed")
         }
     }
 

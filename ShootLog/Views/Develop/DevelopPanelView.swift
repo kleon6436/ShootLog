@@ -4,6 +4,7 @@ import SwiftUI
 /// スライダーは `developViewModel.parameters` を直接書き換え、VM 側でプレビュー再描画と保存を予約する。
 struct DevelopPanelView: View {
     @Bindable var developViewModel: DevelopViewModel
+    var onExport: () -> Void = {}
 
     var body: some View {
         ScrollView {
@@ -67,11 +68,18 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                Button("develop.reset", role: .destructive) {
-                    developViewModel.reset()
+                HStack {
+                    Button("develop.reset", role: .destructive) {
+                        developViewModel.reset()
+                    }
+                    .disabled(!developViewModel.canReset)
+
+                    Spacer()
+
+                    Button("develop.export", systemImage: "square.and.arrow.up") {
+                        onExport()
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .disabled(!developViewModel.canReset)
             }
             .padding(Spacing.large)
         }

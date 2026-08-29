@@ -76,6 +76,11 @@ final class SidebarViewModel: ContentViewModelProxy {
         isEXIFPanelVisible = true
     }
 
+    // 現像パネルの「書き出し」ボタン用
+    func presentDevelopExport() {
+        content.presentDevelopExport()
+    }
+
     var isSidebarVisible: Bool { content.isSidebarVisible }
     var sidebarToggleRequestID: UUID { content.sidebarToggleRequestID }
     var inspectorToggleRequestID: UUID { content.inspectorToggleRequestID }
