@@ -88,6 +88,7 @@ struct SidebarModeView: View {
             photo: vm.selectedPhoto,
             editInfo: vm.currentEditInfo,
             isCropMode: vm.isCropMode,
+            developViewModel: vm.developViewModel,
             neighborPrefetchURLs: neighborPrefetchURLs,
             onCropApply: { rect in vm.setCropRect(rect) },
             onCropCancel: { vm.isCropMode = false }
