@@ -100,23 +100,31 @@ struct SidebarModeView: View {
                     editInfo: vm.currentEditInfo,
                     isCropMode: vm.isCropMode,
                     isFavorite: vm.isSelectedPhotoFavorite,
+                    isDevelopActive: vm.isEXIFPanelVisible && vm.inspectorTab == .develop,
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
                     onToggleFavorite: { vm.toggleFavorite() },
+                    onEditDevelop: { vm.showDevelopPanel() },
                     onReset: { vm.resetEdits() },
                     onUpscale: { vm.presentUpscaleExport() }
                 )
             }
         }
         .inspector(isPresented: $vm.isEXIFPanelVisible) {
-            EXIFPanelView(
+            InspectorTabContainer(
+                sidebarViewModel: vm,
                 photo: vm.selectedPhoto,
                 onToggleTag: { tag in
                     guard let photo = vm.selectedPhoto else { return }
                     vm.toggleSuccessTag(tag, for: photo)
                 }
             )
-            .inspectorColumnWidth(min: 180, ideal: 200, max: 300)
+            // 編集タブはトーンカーブ・HSL のため広めに取る
+            .inspectorColumnWidth(
+                min: vm.inspectorTab == .develop ? 260 : 180,
+                ideal: vm.inspectorTab == .develop ? 300 : 200,
+                max: vm.inspectorTab == .develop ? 420 : 320
+            )
         }
     }
 

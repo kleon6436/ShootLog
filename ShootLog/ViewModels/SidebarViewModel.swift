@@ -42,6 +42,12 @@ final class SidebarViewModel: ContentViewModelProxy {
         }
     }
 
+    // 右インスペクタのタブ。EXIF 情報表示と現像編集を切り替える
+    enum InspectorTab: String, CaseIterable {
+        case exif
+        case develop
+    }
+
     let content: ContentViewModel
 
     // 現像編集パネル / ビューアプレビューの状態。写真切り替えは EditablePhotoView の
@@ -56,6 +62,20 @@ final class SidebarViewModel: ContentViewModelProxy {
         set { content.isInspectorVisible = newValue }
     }
 
+    // 右インスペクタで開いているタブ。次回起動時に復元する
+    var inspectorTab: InspectorTab {
+        didSet {
+            guard inspectorTab != oldValue else { return }
+            UserDefaults.standard.set(inspectorTab.rawValue, forKey: AppSettingsKeys.inspectorTab)
+        }
+    }
+
+    // ツールバーの「編集」ボタン用。編集タブを開いてインスペクタを表示する
+    func showDevelopPanel() {
+        inspectorTab = .develop
+        isEXIFPanelVisible = true
+    }
+
     var isSidebarVisible: Bool { content.isSidebarVisible }
     var sidebarToggleRequestID: UUID { content.sidebarToggleRequestID }
     var inspectorToggleRequestID: UUID { content.inspectorToggleRequestID }
@@ -67,6 +87,8 @@ final class SidebarViewModel: ContentViewModelProxy {
     init(content: ContentViewModel) {
         self.content = content
         self.developViewModel = DevelopViewModel(content: content)
+        let storedTab = UserDefaults.standard.string(forKey: AppSettingsKeys.inspectorTab)
+        self.inspectorTab = storedTab.flatMap(InspectorTab.init(rawValue:)) ?? .exif
     }
 
     // searchText（ファイル名・カメラ名の部分一致）と showFavoritesOnly の AND 条件で photos を絞り込む

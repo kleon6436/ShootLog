@@ -13,6 +13,8 @@ enum AppSettingsKeys {
     static let thumbnailQuality = "generalSettings.thumbnailQuality" // ThumbnailQuality の rawValue(Int)
     static let networkConcurrency = "generalSettings.networkConcurrency"
     static let folderHistoryLimit = "generalSettings.folderHistoryLimit"
+    // サイドバーモードの右インスペクタで最後に開いていたタブ（InspectorTab の rawValue）
+    static let inspectorTab = "sidebar.inspectorTab"
 
     static let defaultViewModeIDDefault = "sidebar"
     static let defaultFavoritesOnlyDefault = false

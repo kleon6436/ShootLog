@@ -5,14 +5,22 @@ struct EditorToolbarView: View {
     let editInfo: EditInfo?
     let isCropMode: Bool
     let isFavorite: Bool
+    let isDevelopActive: Bool
     let onRotate: () -> Void
     let onToggleCrop: () -> Void
     let onToggleFavorite: () -> Void
+    let onEditDevelop: () -> Void
     let onReset: () -> Void
     let onUpscale: () -> Void
 
     var body: some View {
         HStack(spacing: 2) {
+            EditorButton(
+                symbolName: "slider.horizontal.3",
+                help: "editor.develop",
+                isActive: isDevelopActive,
+                action: onEditDevelop
+            )
             EditorButton(symbolName: "rotate.right", help: "editor.rotate", action: onRotate)
             EditorButton(symbolName: "crop", help: "editor.crop", isActive: isCropMode, action: onToggleCrop)
             EditorButton(
