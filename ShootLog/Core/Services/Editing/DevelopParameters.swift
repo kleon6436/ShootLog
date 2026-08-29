@@ -1,0 +1,211 @@
+import Foundation
+
+/// トーンカーブの制御点。x/y とも正規化座標 0.0〜1.0 を想定する。
+struct CurvePoint: Codable, Equatable, Sendable {
+    var x: Double
+    var y: Double
+
+    init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+
+    /// 恒等カーブ（入力 = 出力）を表す制御点列。
+    static let identity: [CurvePoint] = [
+        CurvePoint(x: 0, y: 0),
+        CurvePoint(x: 1, y: 1)
+    ]
+}
+
+/// カラー別 HSL 調整の帯域識別子。
+///
+/// `allCases` の順序は `DevelopParameters` の `hslHue` / `hslSaturation` / `hslLuminance`
+/// 配列のインデックスと一対一で対応する（0: red 〜 7: magenta）。この順序は永続化される
+/// 配列レイアウトと LUT 生成側の前提を兼ねるため、変更してはならない。
+enum HSLBand: String, CaseIterable, Codable, Sendable {
+    case red
+    case orange
+    case yellow
+    case green
+    case aqua
+    case blue
+    case purple
+    case magenta
+
+    /// 帯域の中心色相（0〜360 度）。HSL LUT 生成側が帯域の三角窓を組み立てる際に使う。
+    var centerHue: Double {
+        switch self {
+        case .red: 0
+        case .orange: 30
+        case .yellow: 60
+        case .green: 120
+        case .aqua: 180
+        case .blue: 240
+        case .purple: 280
+        case .magenta: 320
+        }
+    }
+}
+
+/// RAW 現像 / 非破壊編集の全調整値をまとめた値型。
+///
+/// ピクセルは保持せず、この値を表示・書き出し時にパイプラインへ渡して適用する。
+/// SwiftData には Codable な Data ブロブとして保存されるため、`CodingKeys` は安定した
+/// ASCII 文字列で固定し、`init(from:)` は欠損キーを既定値で埋めることで、将来のフィールド
+/// 追加後も旧 blob をデコードできるようにしている。
+struct DevelopParameters: Codable, Equatable, Sendable {
+
+    // MARK: 基本
+
+    /// 露出補正（EV、範囲目安 -3...3）。他の基本調整と違い EV 単位。
+    var exposure: Double = 0
+    /// コントラスト（範囲目安 -100...100）。
+    var contrast: Double = 0
+    var highlights: Double = 0
+    var shadows: Double = 0
+    var whites: Double = 0
+    var blacks: Double = 0
+    var brightness: Double = 0
+
+    // MARK: 色
+
+    /// 色温度。as-shot（撮影時ホワイトバランス）からのオフセット（範囲目安 -100...100）。
+    var temperature: Double = 0
+    var tint: Double = 0
+    var vibrance: Double = 0
+    var saturation: Double = 0
+
+    // MARK: トーンカーブ（正規化 0...1 の制御点列。既定は恒等カーブ）
+
+    var toneCurveRGB: [CurvePoint] = CurvePoint.identity
+    var toneCurveRed: [CurvePoint] = CurvePoint.identity
+    var toneCurveGreen: [CurvePoint] = CurvePoint.identity
+    var toneCurveBlue: [CurvePoint] = CurvePoint.identity
+
+    // MARK: カラー別 HSL（8 帯域。`HSLBand.allCases` と同順。各 -100...100）
+
+    var hslHue: [Double] = Array(repeating: 0, count: HSLBand.allCases.count)
+    var hslSaturation: [Double] = Array(repeating: 0, count: HSLBand.allCases.count)
+    var hslLuminance: [Double] = Array(repeating: 0, count: HSLBand.allCases.count)
+
+    // MARK: ディテール
+
+    var sharpness: Double = 0
+    var luminanceNoiseReduction: Double = 0
+    var colorNoiseReduction: Double = 0
+
+    /// すべて既定値の中立状態。
+    static let neutral = DevelopParameters()
+
+    /// 一切の調整が加えられていないか。
+    var isNeutral: Bool { self == .neutral }
+
+    /// 指定した帯域の HSL 調整量を取り出す。配列が不正で範囲外の場合は (0, 0, 0) を返す。
+    func hslAdjustment(for band: HSLBand) -> (hue: Double, saturation: Double, luminance: Double) {
+        guard let index = HSLBand.allCases.firstIndex(of: band),
+              hslHue.indices.contains(index),
+              hslSaturation.indices.contains(index),
+              hslLuminance.indices.contains(index) else {
+            return (0, 0, 0)
+        }
+        return (hslHue[index], hslSaturation[index], hslLuminance[index])
+    }
+}
+
+// MARK: - Codable
+
+extension DevelopParameters {
+
+    /// 永続化形式のキー。ローカライズ対象外の安定 ASCII 文字列で固定する。
+    enum CodingKeys: String, CodingKey {
+        case exposure
+        case contrast
+        case highlights
+        case shadows
+        case whites
+        case blacks
+        case brightness
+        case temperature
+        case tint
+        case vibrance
+        case saturation
+        case toneCurveRGB
+        case toneCurveRed
+        case toneCurveGreen
+        case toneCurveBlue
+        case hslHue
+        case hslSaturation
+        case hslLuminance
+        case sharpness
+        case luminanceNoiseReduction
+        case colorNoiseReduction
+    }
+
+    /// HSL 配列を必ず 8 要素へ揃える。不足は 0 埋め、超過は切り捨てる。
+    private static func normalizedBands(_ values: [Double]) -> [Double] {
+        let expected = HSLBand.allCases.count
+        if values.count == expected { return values }
+        var result = Array(values.prefix(expected))
+        if result.count < expected {
+            result.append(contentsOf: Array(repeating: 0, count: expected - result.count))
+        }
+        return result
+    }
+
+    /// 空のトーンカーブは恒等カーブへフォールバックさせる。
+    private static func normalizedCurve(_ points: [CurvePoint]) -> [CurvePoint] {
+        points.isEmpty ? CurvePoint.identity : points
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // try? は既に Optional を返す式に対して層を増やさない（Swift 5+ の flattening）。
+        // 欠損キー・型不一致とも既定値へ倒す（将来のフィールド追加でも旧 blob を読めるように）
+        func double(_ key: CodingKeys) -> Double {
+            (try? container.decodeIfPresent(Double.self, forKey: key)) ?? 0
+        }
+
+        func curve(_ key: CodingKeys) -> [CurvePoint] {
+            guard let points = try? container.decodeIfPresent([CurvePoint].self, forKey: key) else {
+                return CurvePoint.identity
+            }
+            return Self.normalizedCurve(points)
+        }
+
+        func bands(_ key: CodingKeys) -> [Double] {
+            guard let raw = try? container.decodeIfPresent([Double].self, forKey: key) else {
+                return Array(repeating: 0, count: HSLBand.allCases.count)
+            }
+            return Self.normalizedBands(raw)
+        }
+
+        self.init()
+
+        exposure = double(.exposure)
+        contrast = double(.contrast)
+        highlights = double(.highlights)
+        shadows = double(.shadows)
+        whites = double(.whites)
+        blacks = double(.blacks)
+        brightness = double(.brightness)
+
+        temperature = double(.temperature)
+        tint = double(.tint)
+        vibrance = double(.vibrance)
+        saturation = double(.saturation)
+
+        toneCurveRGB = curve(.toneCurveRGB)
+        toneCurveRed = curve(.toneCurveRed)
+        toneCurveGreen = curve(.toneCurveGreen)
+        toneCurveBlue = curve(.toneCurveBlue)
+
+        hslHue = bands(.hslHue)
+        hslSaturation = bands(.hslSaturation)
+        hslLuminance = bands(.hslLuminance)
+
+        sharpness = double(.sharpness)
+        luminanceNoiseReduction = double(.luminanceNoiseReduction)
+        colorNoiseReduction = double(.colorNoiseReduction)
+    }
+}

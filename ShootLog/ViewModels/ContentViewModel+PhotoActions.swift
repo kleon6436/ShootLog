@@ -8,8 +8,13 @@ extension ContentViewModel {
     // 写真を選択し EditInfo と EXIF を遅延ロードする
     func selectPhoto(_ photo: Photo?) {
         selectedPhoto = photo
-        guard let photo else { currentEditInfo = nil; return }
+        guard let photo else {
+            currentEditInfo = nil
+            currentDevelopSettings = nil
+            return
+        }
         loadEditInfo(for: photo)
+        loadDevelopSettings(for: photo)
         Task { await loadEXIFIfNeeded(for: photo) }
     }
 

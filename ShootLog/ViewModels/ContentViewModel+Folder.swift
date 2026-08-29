@@ -133,6 +133,7 @@ extension ContentViewModel {
         photos = []
         selectedPhoto = nil
         currentEditInfo = nil
+        currentDevelopSettings = nil
         isCropMode = false
 
         do {
