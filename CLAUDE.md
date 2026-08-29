@@ -80,7 +80,7 @@ UIに表示する文字列は、日本語をコードに直接書かず、ASCII�
 
 キーは `<スコープ>.<要素>[.<用途>]` 形式とし、`common.` `error.` `toolbar.` `menu.` `exif.` `analysis.` `settings.`
 `empty.` `viewMode.` `photo.tag.` `a11y.` `viewer.` `inspector.` `openPanel.` `sidebar.` `editor.` `externalApp.`
-`integration.` `slideshow.` `toast.` `crop.` `upscale.` のいずれかで始める。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
+`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` のいずれかで始める。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
 
 補間を含む文字列は位置指定プレースホルダ（`%1$@` 形式）を使い、語順が言語で変わってもよいようにする。
 「〜枚」「〜件」のような数を伴う表現は、String Catalog の複数形（plural variation）を必ず設定する。

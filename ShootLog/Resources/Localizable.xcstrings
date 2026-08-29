@@ -1,133 +1,133 @@
 {
-  "sourceLanguage" : "ja",
-  "strings" : {
-    "a11y.analysis.cameraFilter" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Camera filter"
+  "sourceLanguage": "ja",
+  "strings": {
+    "a11y.analysis.cameraFilter": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera filter"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "カメラフィルター"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラフィルター"
           }
         }
       }
     },
-    "a11y.analysis.compareFavorites" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show comparison with favorites"
+    "a11y.analysis.compareFavorites": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show comparison with favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りとの比較を表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りとの比較を表示"
           }
         }
       }
     },
-    "a11y.analysis.favoriteRatio %@ %@ %@" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "a11y.analysis.favoriteRatio %1$@ %2$@ %3$@"
+    "a11y.analysis.favoriteRatio %@ %@ %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "a11y.analysis.favoriteRatio %1$@ %2$@ %3$@"
           }
         }
       }
     },
-    "a11y.analysis.favoriteRatio %lld %lld %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorite ratio: %2$lld of %1$lld photos, %3$lld percent"
+    "a11y.analysis.favoriteRatio %lld %lld %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite ratio: %2$lld of %1$lld photos, %3$lld percent"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入り比率 フォルダ全体%1$lld枚中%2$lld枚、%3$lldパーセント"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入り比率 フォルダ全体%1$lld枚中%2$lld枚、%3$lldパーセント"
           }
         }
       }
     },
-    "a11y.analysis.insight %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorites trend: %@"
+    "a11y.analysis.insight %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites trend: %@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入り傾向: %@"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入り傾向: %@"
           }
         }
       }
     },
-    "a11y.analysis.metricRow %@ %@ %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ %3$@"
+    "a11y.analysis.metricRow %@ %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ %3$@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ %3$@"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ %3$@"
           }
         }
       }
     },
-    "a11y.analysis.tagCount %@ %@" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "a11y.analysis.tagCount %1$@ %2$@"
+    "a11y.analysis.tagCount %@ %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "a11y.analysis.tagCount %1$@ %2$@"
           }
         }
       }
     },
-    "a11y.analysis.tagCount %@ %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tag total: %1$@, %#@count@"
+    "a11y.analysis.tagCount %@ %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag total: %1$@, %#@count@"
           },
-          "substitutions" : {
-            "count" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg photo"
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg photo"
                     }
                   },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg photos"
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg photos"
                     }
                   }
                 }
@@ -135,481 +135,481 @@
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タグ集計 %1$@ %2$lld枚"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグ集計 %1$@ %2$lld枚"
           }
         }
       }
     },
-    "a11y.crop.handle.bottomLeft" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bottom-left crop handle"
+    "a11y.crop.handle.bottomLeft": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom-left crop handle"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "トリミング範囲の左下ハンドル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリミング範囲の左下ハンドル"
           }
         }
       }
     },
-    "a11y.crop.handle.bottomRight" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bottom-right crop handle"
+    "a11y.crop.handle.bottomRight": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom-right crop handle"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "トリミング範囲の右下ハンドル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリミング範囲の右下ハンドル"
           }
         }
       }
     },
-    "a11y.crop.handle.topLeft" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Top-left crop handle"
+    "a11y.crop.handle.topLeft": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top-left crop handle"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "トリミング範囲の左上ハンドル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリミング範囲の左上ハンドル"
           }
         }
       }
     },
-    "a11y.crop.handle.topRight" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Top-right crop handle"
+    "a11y.crop.handle.topRight": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top-right crop handle"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "トリミング範囲の右上ハンドル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリミング範囲の右上ハンドル"
           }
         }
       }
     },
-    "a11y.exif.successTag %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Success factor tag: %@"
+    "a11y.exif.successTag %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Success factor tag: %@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "成功要因タグ: %@"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成功要因タグ: %@"
           }
         }
       }
     },
-    "a11y.history.delete %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %@ from recents"
+    "a11y.history.delete %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %@ from recents"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ を履歴から削除"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を履歴から削除"
           }
         }
       }
     },
-    "a11y.history.open %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open %@"
+    "a11y.history.open %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open %@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ を開く"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を開く"
           }
         }
       }
     },
-    "a11y.integration.enable %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable %@"
+    "a11y.integration.enable %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable %@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@を有効にする"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@を有効にする"
           }
         }
       }
     },
-    "a11y.integration.remove %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %@"
+    "a11y.integration.remove %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@を削除"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@を削除"
           }
         }
       }
     },
-    "a11y.photo.favorite %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@, favorite"
+    "a11y.photo.favorite %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, favorite"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@、お気に入り"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@、お気に入り"
           }
         }
       }
     },
-    "a11y.settings.folderHistoryLimit" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Number of recent folders to keep"
+    "a11y.settings.folderHistoryLimit": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Number of recent folders to keep"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダ履歴の保持件数"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダ履歴の保持件数"
           }
         }
       }
     },
-    "a11y.settings.networkConcurrency" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Concurrent loads on network volumes"
+    "a11y.settings.networkConcurrency": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concurrent loads on network volumes"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ネットワークボリューム同時読み込み数"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネットワークボリューム同時読み込み数"
           }
         }
       }
     },
-    "a11y.settings.slideshowInterval" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slideshow interval"
+    "a11y.settings.slideshowInterval": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slideshow interval"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スライドショー再生間隔"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スライドショー再生間隔"
           }
         }
       }
     },
-    "a11y.slideshow.interval %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld-second interval"
+    "a11y.slideshow.interval %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld-second interval"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld-second interval"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld-second interval"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld秒間隔"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld秒間隔"
           }
         }
       }
     },
-    "a11y.toolbar.rotate" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rotate photo 90° right"
+    "a11y.toolbar.rotate": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate photo 90° right"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "写真を右に90度回転"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を右に90度回転"
           }
         }
       }
     },
-    "a11y.toolbar.upscale" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export with AI Super Resolution"
+    "a11y.toolbar.upscale": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export with AI Super Resolution"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像で書き出す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像で書き出す"
           }
         }
       }
     },
-    "analysis.camera" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Camera"
+    "analysis.camera": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "カメラ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラ"
           }
         }
       }
     },
-    "analysis.camera.all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All Cameras"
+    "analysis.camera.all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Cameras"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "すべてのカメラ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのカメラ"
           }
         }
       }
     },
-    "analysis.chart.count" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Count"
+    "analysis.chart.count": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Count"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "枚数"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "枚数"
           }
         }
       }
     },
-    "analysis.chart.label" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Label"
+    "analysis.chart.label": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Label"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ラベル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ラベル"
           }
         }
       }
     },
-    "analysis.chart.series" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Series"
+    "analysis.chart.series": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Series"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "系列"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系列"
           }
         }
       }
     },
-    "analysis.chartType" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chart Type"
+    "analysis.chartType": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chart Type"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "グラフ種別"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グラフ種別"
           }
         }
       }
     },
-    "analysis.compareFavorites" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compare with Favorites"
+    "analysis.compareFavorites": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare with Favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りと比較"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りと比較"
           }
         }
       }
     },
-    "analysis.empty.subtitle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select a photo to load its EXIF, or choose another tab."
+    "analysis.empty.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a photo to load its EXIF, or choose another tab."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "写真を選択してEXIFを読み込むか、別のタブを選択してください"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を選択してEXIFを読み込むか、別のタブを選択してください"
           }
         }
       }
     },
-    "analysis.empty.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No EXIF Data"
+    "analysis.empty.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No EXIF Data"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFデータがありません"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFデータがありません"
           }
         }
       }
     },
-    "analysis.exifProgress %@ %@" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "analysis.exifProgress %1$@ %2$@"
+    "analysis.exifProgress %@ %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "analysis.exifProgress %1$@ %2$@"
           }
         }
       }
     },
-    "analysis.exifProgress %lld %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIF loaded for %1$lld of %#@total@"
+    "analysis.exifProgress %lld %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIF loaded for %1$lld of %#@total@"
           },
-          "substitutions" : {
-            "total" : {
-              "argNum" : 2,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg photo"
+          "substitutions": {
+            "total": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg photo"
                     }
                   },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg photos"
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg photos"
                     }
                   }
                 }
@@ -617,3426 +617,4174 @@
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIF取得済み %1$lld / %2$lld 枚"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIF取得済み %1$lld / %2$lld 枚"
           }
         }
       }
     },
-    "analysis.filterSummary %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld photo"
+    "analysis.filterSummary %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photo"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld photos"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photos"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 枚"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 枚"
           }
         }
       }
     },
-    "analysis.filterSummary.withFavorites %lld %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld total / %2$lld favorites"
+    "analysis.filterSummary.withFavorites %lld %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld total / %2$lld favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全体 %1$lld 枚 / お気に入り %2$lld 枚"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全体 %1$lld 枚 / お気に入り %2$lld 枚"
           }
         }
       }
     },
-    "analysis.insight.insufficient" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not enough favorites for insights"
+    "analysis.insight.insufficient": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enough favorites for insights"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りが少ないため参考情報なし"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りが少ないため参考情報なし"
           }
         }
       }
     },
-    "analysis.insight.mostCommon %@ %lld %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorites cluster around %1$@ (%2$lld of %3$lld)"
+    "analysis.insight.mostCommon %@ %lld %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites cluster around %1$@ (%2$lld of %3$lld)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りは %1$@ 付近が最多(%2$lld/%3$lld枚)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りは %1$@ 付近が最多(%2$lld/%3$lld枚)"
           }
         }
       }
     },
-    "analysis.metric.aperture" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aperture"
+    "analysis.metric.aperture": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperture"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "絞り"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "絞り"
           }
         }
       }
     },
-    "analysis.metric.iso" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
+    "analysis.metric.iso": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
           }
         }
       }
     },
-    "analysis.metric.shutterSpeed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shutter"
+    "analysis.metric.shutterSpeed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shutter"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SS"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SS"
           }
         }
       }
     },
-    "analysis.page.aperture" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aperture"
+    "analysis.page.aperture": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperture"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "絞り"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "絞り"
           }
         }
       }
     },
-    "analysis.page.focalLength" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Focal Length"
+    "analysis.page.focalLength": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focal Length"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "焦点距離"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "焦点距離"
           }
         }
       }
     },
-    "analysis.page.iso" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
+    "analysis.page.iso": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
           }
         }
       }
     },
-    "analysis.page.session" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Session"
+    "analysis.page.session": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "セッション"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッション"
           }
         }
       }
     },
-    "analysis.page.shutterSpeed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shutter"
+    "analysis.page.shutterSpeed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shutter"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SS"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SS"
           }
         }
       }
     },
-    "analysis.photoCount %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld photo"
+    "analysis.photoCount %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photo"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld photos"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photos"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld枚"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld枚"
           }
         }
       }
     },
-    "analysis.recipe.range %@ %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@–%2$@"
+    "analysis.recipe.range %@ %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@–%2$@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@〜%2$@"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@〜%2$@"
           }
         }
       }
     },
-    "analysis.series.all" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All"
+    "analysis.series.all": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全体"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全体"
           }
         }
       }
     },
-    "analysis.series.favorites" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorites"
+    "analysis.series.favorites": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入り"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入り"
           }
         }
       }
     },
-    "analysis.session.exifNotLoaded" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIF isn’t loaded yet. Select a photo to load it."
+    "analysis.session.exifNotLoaded": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIF isn’t loaded yet. Select a photo to load it."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFが未取得です。写真を選択すると読み込まれます"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFが未取得です。写真を選択すると読み込まれます"
           }
         }
       }
     },
-    "analysis.session.exifRepresentative.prefix" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Typical EXIF values"
+    "analysis.session.exifRepresentative.prefix": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typical EXIF values"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIF代表値"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIF代表値"
           }
         }
       }
     },
-    "analysis.session.exifRepresentative.title %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Typical EXIF values (%lld favorite, values only, whole folder)"
+    "analysis.session.exifRepresentative.title %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Typical EXIF values (%lld favorite, values only, whole folder)"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Typical EXIF values (%lld favorites, values only, whole folder)"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Typical EXIF values (%lld favorites, values only, whole folder)"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIF代表値(お気に入り %lld枚、値ありのみ、フォルダ全体基準)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIF代表値(お気に入り %lld枚、値ありのみ、フォルダ全体基準)"
           }
         }
       }
     },
-    "analysis.session.favoriteRatio.title %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Favorite ratio (%lld photo in folder)"
+    "analysis.session.favoriteRatio.title %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Favorite ratio (%lld photo in folder)"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Favorite ratio (%lld photos in folder)"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Favorite ratio (%lld photos in folder)"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入り比率(フォルダ全体 %lld枚)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入り比率(フォルダ全体 %lld枚)"
           }
         }
       }
     },
-    "analysis.session.favoriteRatio.value %lld %lld %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld of %2$lld (%3$lld%%)"
+    "analysis.session.favoriteRatio.value %lld %lld %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld (%3$lld%%)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld / %2$lld 枚(%3$lld%%)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld / %2$lld 枚(%3$lld%%)"
           }
         }
       }
     },
-    "analysis.session.noFavorites" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No favorites"
+    "analysis.session.noFavorites": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りがありません"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りがありません"
           }
         }
       }
     },
-    "analysis.session.noPhotos" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No photos"
+    "analysis.session.noPhotos": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No photos"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "写真がありません"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真がありません"
           }
         }
       }
     },
-    "analysis.session.noTaggedPhotos" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No tagged photos"
+    "analysis.session.noTaggedPhotos": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tagged photos"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タグ付与写真なし"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグ付与写真なし"
           }
         }
       }
     },
-    "analysis.session.recipe.prefix" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings recipe"
+    "analysis.session.recipe.prefix": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings recipe"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "設定レシピ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定レシピ"
           }
         }
       }
     },
-    "analysis.session.recipe.title %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Settings recipe (%lld favorite, values only, whole folder)"
+    "analysis.session.recipe.title %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Settings recipe (%lld favorite, values only, whole folder)"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Settings recipe (%lld favorites, values only, whole folder)"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Settings recipe (%lld favorites, values only, whole folder)"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "設定レシピ(お気に入り %lld枚、値ありのみ、フォルダ全体基準)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定レシピ(お気に入り %lld枚、値ありのみ、フォルダ全体基準)"
           }
         }
       }
     },
-    "analysis.session.tagAggregation.title %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Tag totals (%lld photo in folder)"
+    "analysis.session.tagAggregation.title %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Tag totals (%lld photo in folder)"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Tag totals (%lld photos in folder)"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Tag totals (%lld photos in folder)"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タグ集計(フォルダ全体 %lld枚)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグ集計(フォルダ全体 %lld枚)"
           }
         }
       }
     },
-    "analysis.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shooting Settings Trends"
+    "analysis.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shooting Settings Trends"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "撮影設定の傾向"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撮影設定の傾向"
           }
         }
       }
     },
-    "common.cancel" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
+    "common.cancel": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "キャンセル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャンセル"
           }
         }
       }
     },
-    "common.close" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close"
+    "common.close": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "閉じる"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "閉じる"
           }
         }
       }
     },
-    "common.delete" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete"
+    "common.delete": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "削除"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除"
           }
         }
       }
     },
-    "common.error" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Error"
+    "common.error": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "エラー"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エラー"
           }
         }
       }
     },
-    "common.loading" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading…"
+    "common.loading": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "読み込み中…"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "読み込み中…"
           }
         }
       }
     },
-    "common.ok" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+    "common.ok": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
     },
-    "common.openFolder" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Folder"
+    "common.openFolder": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Folder"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダを開く"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダを開く"
           }
         }
       }
     },
-    "crop.apply" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply"
+    "crop.apply": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "適用"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用"
           }
         }
       }
     },
-    "editor.crop" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crop"
+    "develop.blacks": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "黒レベル"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "トリミング"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blacks"
           }
         }
       }
     },
-    "editor.reset" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Edits"
+    "develop.brightness": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "明るさ"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "編集をリセット"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brightness"
           }
         }
       }
     },
-    "editor.rotate" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rotate 90° Right"
+    "develop.contrast": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コントラスト"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "右に 90° 回転"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrast"
           }
         }
       }
     },
-    "editor.upscale" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export with AI Super Resolution"
+    "develop.empty.noSelection": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を選択すると編集できます"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像で書き出す"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a photo to edit"
           }
         }
       }
     },
-    "empty.history.delete.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove from Recents"
+    "develop.exposure": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "露出"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "履歴から削除"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exposure"
           }
         }
       }
     },
-    "empty.openFolder.button" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Folder…"
+    "develop.highlights": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ハイライト"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダを開く…"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highlights"
           }
         }
       }
     },
-    "empty.recentFolders" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent Folders"
+    "develop.histogram": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヒストグラム"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最近開いたフォルダ"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Histogram"
           }
         }
       }
     },
-    "empty.subtitle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drag a folder here, or choose one with the button below"
+    "develop.hsl.band.aqua": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクア"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダをここにドラッグ、または下のボタンから選択"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aqua"
           }
         }
       }
     },
-    "empty.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open a Folder"
+    "develop.hsl.band.blue": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブルー"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダを開いてください"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blue"
           }
         }
       }
     },
-    "error.applicationInfoUnavailable %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t get app information (bundle ID) for “%@”."
+    "develop.hsl.band.green": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グリーン"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "「%@」のアプリ情報（バンドルID）を取得できませんでした"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Green"
           }
         }
       }
     },
-    "error.bookmarkRestorationFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t restore access to the saved folder."
+    "develop.hsl.band.magenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マゼンタ"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存済みフォルダへのアクセスを復元できませんでした"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Magenta"
           }
         }
       }
     },
-    "error.duplicateIntegrationApp %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“%@” is already registered as an external app."
+    "develop.hsl.band.orange": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オレンジ"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "「%@」はすでに連携アプリとして登録されています"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orange"
           }
         }
       }
     },
-    "error.exifReadFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to read EXIF data."
+    "develop.hsl.band.purple": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パープル"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIF情報の読み取りに失敗しました"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purple"
           }
         }
       }
     },
-    "error.folderAccessDenied" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You don’t have permission to access this folder."
+    "develop.hsl.band.red": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レッド"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダへのアクセス権限がありません"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Red"
           }
         }
       }
     },
-    "error.photoDataSaveFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to save data."
+    "develop.hsl.band.yellow": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "イエロー"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "データの保存に失敗しました"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yellow"
           }
         }
       }
     },
-    "error.settingsSaveFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t save the external app settings."
+    "develop.hsl.hue": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "色相"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連携アプリの設定を保存できませんでした"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hue"
           }
         }
       }
     },
-    "error.superResolutionDestinationInSourceFolder" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose a save location outside the current folder."
+    "develop.hsl.luminance": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輝度"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "現在開いているフォルダ以外の保存先を選んでください"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luminance"
           }
         }
       }
     },
-    "error.superResolutionExportFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t save the upscaled photo."
+    "develop.hsl.saturation": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彩度"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "超解像書き出し結果を保存できませんでした"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saturation"
           }
         }
       }
     },
-    "error.superResolutionFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI super resolution processing failed."
+    "develop.noiseReduction.color": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラーノイズ低減"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像処理に失敗しました"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color noise reduction"
           }
         }
       }
     },
-    "error.superResolutionModelUnavailable" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The AI super resolution model isn’t available. Try the traditional engine instead."
+    "develop.noiseReduction.luminance": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輝度ノイズ低減"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像モデルを利用できません。従来方式のエンジンをお試しください"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luminance noise reduction"
           }
         }
       }
     },
-    "error.superResolutionOutputTooLarge %lld %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The output size (%1$lld MP) exceeds the limit of %2$lld MP."
+    "develop.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてリセット"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "出力サイズ（%1$lld MP）が上限の%2$lld MPを超えています"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset all"
           }
         }
       }
     },
-    "error.superResolutionOverwritesOriginal" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose a save location that doesn’t overwrite an original photo."
+    "develop.saturation": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彩度"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "元の写真を上書きしない保存先を選んでください"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saturation"
           }
         }
       }
     },
-    "error.unsupportedFormat %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unsupported format: %@"
+    "develop.section.basic": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "基本"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未対応の形式です: %@"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basic"
           }
         }
       }
     },
-    "exif.favorite.registered" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorite"
+    "develop.section.color": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "色"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入り"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color"
           }
         }
       }
     },
-    "exif.favorite.unregistered" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not a Favorite"
+    "develop.section.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ディテール"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未登録"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detail"
           }
         }
       }
     },
-    "exif.label.aperture" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aperture"
+    "develop.section.hsl": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラー"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "絞り"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color Mix"
           }
         }
       }
     },
-    "exif.label.camera" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Camera"
+    "develop.section.toneCurve": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トーンカーブ"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "カメラ"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tone Curve"
           }
         }
       }
     },
-    "exif.label.colorMode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Color Mode"
+    "develop.shadows": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シャドウ"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "カラーモード"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shadows"
           }
         }
       }
     },
-    "exif.label.dimensions" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dimensions"
+    "develop.sharpness": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シャープ"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "寸法"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharpening"
           }
         }
       }
     },
-    "exif.label.fileName" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File Name"
+    "develop.slider.resetValue.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "値をクリックして初期値に戻す"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ファイル名"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the value to reset it"
           }
         }
       }
     },
-    "exif.label.fileSize" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File Size"
+    "develop.temperature": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "色温度"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ファイルサイズ"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature"
           }
         }
       }
     },
-    "exif.label.focalLength" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Focal Length"
+    "develop.tint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "色かぶり補正"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "焦点距離"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tint"
           }
         }
       }
     },
-    "exif.label.iso" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
+    "develop.toneCurve.channel": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チャンネル"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel"
           }
         }
       }
     },
-    "exif.label.lens" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lens"
+    "develop.toneCurve.channel.blue": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブルー"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "レンズ"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blue"
           }
         }
       }
     },
-    "exif.label.note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Note"
+    "develop.toneCurve.channel.green": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グリーン"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "メモ"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Green"
           }
         }
       }
     },
-    "exif.label.shootingDate" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Date Taken"
+    "develop.toneCurve.channel.red": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レッド"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "撮影日時"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Red"
           }
         }
       }
     },
-    "exif.label.shutterSpeed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shutter Speed"
+    "develop.toneCurve.channel.rgb": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RGB"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SS"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RGB"
           }
         }
       }
     },
-    "exif.label.successTags" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Success Factors"
+    "develop.toneCurve.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カーブをリセット"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "成功要因"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset curve"
           }
         }
       }
     },
-    "externalApp.finder" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show in Finder"
+    "develop.vibrance": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自然な彩度"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finder で表示"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vibrance"
           }
         }
       }
     },
-    "externalApp.preview" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preview"
+    "develop.whites": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "白レベル"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "プレビュー"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Whites"
           }
         }
       }
     },
-    "inspector.toggle.hide" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide EXIF Panel"
+    "editor.crop": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crop"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFパネルを隠す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリミング"
           }
         }
       }
     },
-    "inspector.toggle.hide.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide EXIF Panel (⌘⌥E)"
+    "editor.develop": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現像を編集"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFパネルを隠す (⌘⌥E)"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit adjustments"
           }
         }
       }
     },
-    "inspector.toggle.show" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show EXIF Panel"
+    "editor.reset": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Edits"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFパネルを表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集をリセット"
           }
         }
       }
     },
-    "inspector.toggle.show.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show EXIF Panel (⌘⌥E)"
+    "editor.rotate": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate 90° Right"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFパネルを表示 (⌘⌥E)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右に 90° 回転"
           }
         }
       }
     },
-    "integration.add" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add External App"
+    "editor.upscale": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export with AI Super Resolution"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連携アプリを追加"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像で書き出す"
           }
         }
       }
     },
-    "integration.hint" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unchecked apps won’t appear in the toolbar menu."
+    "empty.history.delete.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Recents"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "チェックを外したアプリはツールバーのメニューに表示されません"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "履歴から削除"
           }
         }
       }
     },
-    "menu.file.openFolder" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Folder…"
+    "empty.openFolder.button": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Folder…"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダを開く…"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダを開く…"
           }
         }
       }
     },
-    "menu.view.hideInspector" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide EXIF Panel"
+    "empty.recentFolders": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Folders"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFパネルを隠す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近開いたフォルダ"
           }
         }
       }
     },
-    "menu.view.hideSidebar" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Sidebar"
+    "empty.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag a folder here, or choose one with the button below"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サイドバーを隠す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダをここにドラッグ、または下のボタンから選択"
           }
         }
       }
     },
-    "menu.view.showInspector" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show EXIF Panel"
+    "empty.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a Folder"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EXIFパネルを表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダを開いてください"
           }
         }
       }
     },
-    "menu.view.showSidebar" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Sidebar"
+    "error.applicationInfoUnavailable %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t get app information (bundle ID) for “%@”."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サイドバーを表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」のアプリ情報（バンドルID）を取得できませんでした"
           }
         }
       }
     },
-    "openPanel.app.message" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose an app to integrate"
+    "error.bookmarkRestorationFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t restore access to the saved folder."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連携するアプリを選択してください"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存済みフォルダへのアクセスを復元できませんでした"
           }
         }
       }
     },
-    "openPanel.app.prompt" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add"
+    "error.duplicateIntegrationApp %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” is already registered as an external app."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "追加"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」はすでに連携アプリとして登録されています"
           }
         }
       }
     },
-    "openPanel.folder.message" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose a photo folder"
+    "error.exifReadFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to read EXIF data."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "写真フォルダを選択してください"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIF情報の読み取りに失敗しました"
           }
         }
       }
     },
-    "openPanel.folder.prompt" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open"
+    "error.folderAccessDenied": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You don’t have permission to access this folder."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開く"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダへのアクセス権限がありません"
           }
         }
       }
     },
-    "photo.tag.composition" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Composition"
+    "error.photoDataSaveFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to save data."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "構図"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "データの保存に失敗しました"
           }
         }
       }
     },
-    "photo.tag.editing" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Editing"
+    "error.settingsSaveFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t save the external app settings."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "現像"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携アプリの設定を保存できませんでした"
           }
         }
       }
     },
-    "photo.tag.focus" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Focus"
+    "error.superResolutionDestinationInSourceFolder": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a save location outside the current folder."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ピント"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在開いているフォルダ以外の保存先を選んでください"
           }
         }
       }
     },
-    "photo.tag.light" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light"
+    "error.superResolutionExportFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t save the upscaled photo."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "光"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超解像書き出し結果を保存できませんでした"
           }
         }
       }
     },
-    "photo.tag.timing" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Timing"
+    "error.superResolutionFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI super resolution processing failed."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タイミング"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像処理に失敗しました"
           }
         }
       }
     },
-    "settings.cache.clear" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear Disk Cache"
+    "error.superResolutionModelUnavailable": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI super resolution model isn’t available. Try the traditional engine instead."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ディスクキャッシュを削除"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像モデルを利用できません。従来方式のエンジンをお試しください"
           }
         }
       }
     },
-    "settings.cache.clear.confirm.message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thumbnails will be regenerated the next time they’re shown."
+    "error.superResolutionOutputTooLarge %lld %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The output size (%1$lld MP) exceeds the limit of %2$lld MP."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "次回表示時にサムネイルが再生成されます。"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力サイズ（%1$lld MP）が上限の%2$lld MPを超えています"
           }
         }
       }
     },
-    "settings.cache.clear.confirm.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear the disk cache?"
+    "error.superResolutionOverwritesOriginal": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a save location that doesn’t overwrite an original photo."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ディスクキャッシュを削除しますか？"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元の写真を上書きしない保存先を選んでください"
           }
         }
       }
     },
-    "settings.folderHistory.limit %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Keep %lld folder"
+    "error.unsupportedFormat %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported format: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未対応の形式です: %@"
+          }
+        }
+      }
+    },
+    "exif.favorite.registered": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入り"
+          }
+        }
+      }
+    },
+    "exif.favorite.unregistered": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a Favorite"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未登録"
+          }
+        }
+      }
+    },
+    "exif.label.aperture": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperture"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "絞り"
+          }
+        }
+      }
+    },
+    "exif.label.camera": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラ"
+          }
+        }
+      }
+    },
+    "exif.label.colorMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color Mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラーモード"
+          }
+        }
+      }
+    },
+    "exif.label.dimensions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寸法"
+          }
+        }
+      }
+    },
+    "exif.label.fileName": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File Name"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイル名"
+          }
+        }
+      }
+    },
+    "exif.label.fileSize": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File Size"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルサイズ"
+          }
+        }
+      }
+    },
+    "exif.label.focalLength": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focal Length"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "焦点距離"
+          }
+        }
+      }
+    },
+    "exif.label.iso": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
+          }
+        }
+      }
+    },
+    "exif.label.lens": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レンズ"
+          }
+        }
+      }
+    },
+    "exif.label.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メモ"
+          }
+        }
+      }
+    },
+    "exif.label.shootingDate": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Taken"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撮影日時"
+          }
+        }
+      }
+    },
+    "exif.label.shutterSpeed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shutter Speed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SS"
+          }
+        }
+      }
+    },
+    "exif.label.successTags": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Success Factors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成功要因"
+          }
+        }
+      }
+    },
+    "externalApp.finder": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finder で表示"
+          }
+        }
+      }
+    },
+    "externalApp.preview": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プレビュー"
+          }
+        }
+      }
+    },
+    "inspector.tab": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インスペクタのタブ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspector tab"
+          }
+        }
+      }
+    },
+    "inspector.tab.develop": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        }
+      }
+    },
+    "inspector.tab.exif": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "情報"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Info"
+          }
+        }
+      }
+    },
+    "inspector.toggle.hide": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide EXIF Panel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFパネルを隠す"
+          }
+        }
+      }
+    },
+    "inspector.toggle.hide.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide EXIF Panel (⌘⌥E)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFパネルを隠す (⌘⌥E)"
+          }
+        }
+      }
+    },
+    "inspector.toggle.show": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show EXIF Panel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFパネルを表示"
+          }
+        }
+      }
+    },
+    "inspector.toggle.show.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show EXIF Panel (⌘⌥E)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFパネルを表示 (⌘⌥E)"
+          }
+        }
+      }
+    },
+    "integration.add": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add External App"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携アプリを追加"
+          }
+        }
+      }
+    },
+    "integration.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unchecked apps won’t appear in the toolbar menu."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チェックを外したアプリはツールバーのメニューに表示されません"
+          }
+        }
+      }
+    },
+    "menu.file.openFolder": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Folder…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダを開く…"
+          }
+        }
+      }
+    },
+    "menu.view.hideInspector": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide EXIF Panel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFパネルを隠す"
+          }
+        }
+      }
+    },
+    "menu.view.hideSidebar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Sidebar"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイドバーを隠す"
+          }
+        }
+      }
+    },
+    "menu.view.showInspector": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show EXIF Panel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXIFパネルを表示"
+          }
+        }
+      }
+    },
+    "menu.view.showSidebar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Sidebar"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイドバーを表示"
+          }
+        }
+      }
+    },
+    "openPanel.app.message": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an app to integrate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携するアプリを選択してください"
+          }
+        }
+      }
+    },
+    "openPanel.app.prompt": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加"
+          }
+        }
+      }
+    },
+    "openPanel.folder.message": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a photo folder"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真フォルダを選択してください"
+          }
+        }
+      }
+    },
+    "openPanel.folder.prompt": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開く"
+          }
+        }
+      }
+    },
+    "photo.tag.composition": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Composition"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "構図"
+          }
+        }
+      }
+    },
+    "photo.tag.editing": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現像"
+          }
+        }
+      }
+    },
+    "photo.tag.focus": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ピント"
+          }
+        }
+      }
+    },
+    "photo.tag.light": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "光"
+          }
+        }
+      }
+    },
+    "photo.tag.timing": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイミング"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.basicsr.copyright": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copyright (c) 2018-2022 BasicSR Authors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copyright (c) 2018-2022 BasicSR Authors"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.basicsr.license": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licensed under the Apache License 2.0."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licensed under the Apache License 2.0."
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.basicsr.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BasicSR"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BasicSR"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.intro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ShootLog's super-resolution feature uses the following third-party model."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本アプリの超解像機能は以下のモデルを使用しています。"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.realesrgan.copyright": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copyright (c) 2021, Xintao Wang"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copyright (c) 2021, Xintao Wang"
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.realesrgan.license": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licensed under the BSD 3-Clause License."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licensed under the BSD 3-Clause License."
+          }
+        }
+      }
+    },
+    "settings.acknowledgements.realesrgan.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real-ESRGAN"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real-ESRGAN"
+          }
+        }
+      }
+    },
+    "settings.cache.clear": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Disk Cache"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ディスクキャッシュを削除"
+          }
+        }
+      }
+    },
+    "settings.cache.clear.confirm.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnails will be regenerated the next time they’re shown."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次回表示時にサムネイルが再生成されます。"
+          }
+        }
+      }
+    },
+    "settings.cache.clear.confirm.title": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the disk cache?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ディスクキャッシュを削除しますか？"
+          }
+        }
+      }
+    },
+    "settings.folderHistory.limit %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Keep %lld folder"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Keep %lld folders"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Keep %lld folders"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保持件数: %lld件"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持件数: %lld件"
           }
         }
       }
     },
-    "settings.networkConcurrency %lld" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Concurrent loads on network volumes: %lld file"
+    "settings.networkConcurrency %lld": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Concurrent loads on network volumes: %lld file"
                 }
               },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Concurrent loads on network volumes: %lld files"
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Concurrent loads on network volumes: %lld files"
                 }
               }
             }
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ネットワークボリューム同時読み込み数: %lld件"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネットワークボリューム同時読み込み数: %lld件"
           }
         }
       }
     },
-    "settings.performance.note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Changes to quality and concurrency take effect after the app restarts."
+    "settings.performance.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes to quality and concurrency take effect after the app restarts."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "画質・同時読み込み数の変更は次回アプリ起動後に反映されます"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画質・同時読み込み数の変更は次回アプリ起動後に反映されます"
           }
         }
       }
     },
-    "settings.quality.changed.message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Existing cached thumbnails keep the old quality. To apply the change, clear the disk cache and restart the app."
+    "settings.quality.changed.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Existing cached thumbnails keep the old quality. To apply the change, clear the disk cache and restart the app."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "既存のキャッシュ済みサムネイルは古い画質のまま残ります。反映するにはディスクキャッシュの削除とアプリの再起動が必要です。"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既存のキャッシュ済みサムネイルは古い画質のまま残ります。反映するにはディスクキャッシュの削除とアプリの再起動が必要です。"
           }
         }
       }
     },
-    "settings.quality.changed.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quality setting changed"
+    "settings.quality.changed.title": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quality setting changed"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "画質設定を変更しました"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画質設定を変更しました"
           }
         }
       }
     },
-    "settings.section.cache" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cache"
+    "settings.section.cache": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "キャッシュ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ"
           }
         }
       }
     },
-    "settings.section.display" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Display"
+    "settings.section.display": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示"
           }
         }
       }
     },
-    "settings.section.folderHistory" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent Folders"
+    "settings.section.folderHistory": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Folders"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダ履歴"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダ履歴"
           }
         }
       }
     },
-    "settings.section.performance" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Performance"
+    "settings.section.performance": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "パフォーマンス"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パフォーマンス"
           }
         }
       }
     },
-    "settings.section.slideshow" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slideshow"
+    "settings.section.slideshow": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slideshow"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スライドショー"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スライドショー"
           }
         }
       }
     },
-    "settings.slideshow.autoplay" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable autoplay"
+    "settings.slideshow.autoplay": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable autoplay"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自動再生を有効にする"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動再生を有効にする"
           }
         }
       }
     },
-    "settings.slideshow.interval %.1f" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interval: %.1f s"
+    "settings.slideshow.interval %.1f": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval: %.1f s"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再生間隔: %.1f秒"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再生間隔: %.1f秒"
           }
         }
       }
     },
-    "settings.startupFavoritesOnly" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show favorites only at startup"
+    "settings.startupFavoritesOnly": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show favorites only at startup"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "起動時にお気に入りのみ表示する"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起動時にお気に入りのみ表示する"
           }
         }
       }
     },
-    "settings.startupInspector" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show EXIF panel at startup"
+    "settings.startupInspector": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show EXIF panel at startup"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "起動時にEXIFパネルを表示する"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起動時にEXIFパネルを表示する"
           }
         }
       }
     },
-    "settings.startupMode" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "View mode at startup"
+    "settings.startupMode": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View mode at startup"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "起動時に表示するモード"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起動時に表示するモード"
           }
         }
       }
     },
-    "settings.tab.general" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "General"
+    "settings.tab.acknowledgements": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acknowledgements"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一般"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "謝辞"
           }
         }
       }
     },
-    "settings.tab.integration" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "External Apps"
+    "settings.tab.general": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連携アプリ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一般"
           }
         }
       }
     },
-    "settings.thumbnailQuality" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thumbnail quality"
+    "settings.tab.integration": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External Apps"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サムネイル画質"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携アプリ"
           }
         }
       }
     },
-    "settings.thumbnailQuality.high" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "High (1024px)"
+    "settings.thumbnailQuality": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnail quality"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高（1024px）"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サムネイル画質"
           }
         }
       }
     },
-    "settings.thumbnailQuality.small" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Low (512px)"
+    "settings.thumbnailQuality.high": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High (1024px)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "小（512px）"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高（1024px）"
           }
         }
       }
     },
-    "settings.thumbnailQuality.standard" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Standard (768px)"
+    "settings.thumbnailQuality.small": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low (512px)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "標準（768px）"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小（512px）"
           }
         }
       }
     },
-    "sidebar.toggle.hide" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Sidebar"
+    "settings.thumbnailQuality.standard": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard (768px)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左サイドバーを隠す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準（768px）"
           }
         }
       }
     },
-    "sidebar.toggle.hide.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide Sidebar (⌘\\)"
+    "sidebar.toggle.hide": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Sidebar"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左サイドバーを隠す (⌘\\)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左サイドバーを隠す"
           }
         }
       }
     },
-    "sidebar.toggle.show" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Sidebar"
+    "sidebar.toggle.hide.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Sidebar (⌘\\)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左サイドバーを表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左サイドバーを隠す (⌘\\)"
           }
         }
       }
     },
-    "sidebar.toggle.show.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Sidebar (⌘\\)"
+    "sidebar.toggle.show": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Sidebar"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左サイドバーを表示 (⌘\\)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左サイドバーを表示"
           }
         }
       }
     },
-    "slideshow.pause" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pause"
+    "sidebar.toggle.show.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Sidebar (⌘\\)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一時停止"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左サイドバーを表示 (⌘\\)"
           }
         }
       }
     },
-    "slideshow.play" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play"
+    "slideshow.pause": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再生"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一時停止"
           }
         }
       }
     },
-    "superResolution.computeUnit.all" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All Compute Units"
+    "slideshow.play": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全演算ユニット"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再生"
           }
         }
       }
     },
-    "superResolution.computeUnit.cpuAndGPU" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU + GPU"
+    "superResolution.computeUnit.all": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Compute Units"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU + GPU"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全演算ユニット"
           }
         }
       }
     },
-    "superResolution.computeUnit.cpuAndNeuralEngine" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU + Neural Engine"
+    "superResolution.computeUnit.cpuAndGPU": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU + GPU"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU + Neural Engine"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU + GPU"
           }
         }
       }
     },
-    "superResolution.computeUnit.cpuOnly" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU Only"
+    "superResolution.computeUnit.cpuAndNeuralEngine": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU + Neural Engine"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPUのみ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU + Neural Engine"
           }
         }
       }
     },
-    "superResolution.model.lanczos" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lanczos (Traditional)"
+    "superResolution.computeUnit.cpuOnly": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU Only"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lanczos（従来方式）"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPUのみ"
           }
         }
       }
     },
-    "superResolution.model.unknown" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unknown Model"
+    "superResolution.model.lanczos": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lanczos (Traditional)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不明なモデル"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lanczos（従来方式）"
           }
         }
       }
     },
-    "superResolution.unavailable.modelLoadFailed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The model failed to load."
+    "superResolution.model.unknown": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown Model"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "モデルの読み込みに失敗しました"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不明なモデル"
           }
         }
       }
     },
-    "superResolution.unavailable.modelNotInstalled" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The model isn’t installed."
+    "superResolution.unavailable.modelLoadFailed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model failed to load."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "モデルがインストールされていません"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルの読み込みに失敗しました"
           }
         }
       }
     },
-    "superResolution.unavailable.noSupportedComputeUnit" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No supported compute unit was found."
+    "superResolution.unavailable.modelNotInstalled": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model isn’t installed."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "対応する演算ユニットが見つかりませんでした"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルがインストールされていません"
           }
         }
       }
     },
-    "toast.favorite.added" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Added to Favorites"
+    "superResolution.unavailable.noSupportedComputeUnit": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No supported compute unit was found."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りに追加しました"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対応する演算ユニットが見つかりませんでした"
           }
         }
       }
     },
-    "toast.favorite.removed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Removed from Favorites"
+    "toast.favorite.added": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added to Favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りを解除しました"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りに追加しました"
           }
         }
       }
     },
-    "toolbar.analysis" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analysis"
+    "toast.favorite.removed": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed from Favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分析"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りを解除しました"
           }
         }
       }
     },
-    "toolbar.analysis.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyze Shooting Trends (⌘I)"
+    "toolbar.analysis": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analysis"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "撮影傾向を分析 (⌘I)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分析"
           }
         }
       }
     },
-    "toolbar.externalApp.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open in External App"
+    "toolbar.analysis.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyze Shooting Trends (⌘I)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "外部アプリで開く"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撮影傾向を分析 (⌘I)"
           }
         }
       }
     },
-    "toolbar.favoritesOnly" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Favorites Only"
+    "toolbar.externalApp.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in External App"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りのみ表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部アプリで開く"
           }
         }
       }
     },
-    "toolbar.openFolder.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Folder (⌘O)"
+    "toolbar.favoritesOnly": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Favorites Only"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フォルダを開く (⌘O)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りのみ表示"
           }
         }
       }
     },
-    "toolbar.rotate.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rotate 90° Right (R)"
+    "toolbar.openFolder.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Folder (⌘O)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "右に90度回転 (R)"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダを開く (⌘O)"
           }
         }
       }
     },
-    "toolbar.settings" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Settings"
+    "toolbar.rotate.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate 90° Right (R)"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "設定を開く"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右に90度回転 (R)"
           }
         }
       }
     },
-    "toolbar.upscale.help" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export with AI Super Resolution"
+    "toolbar.settings": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像で書き出す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定を開く"
           }
         }
       }
     },
-    "toolbar.viewMode" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "View Mode"
+    "toolbar.upscale.help": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export with AI Super Resolution"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "表示モード"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像で書き出す"
           }
         }
       }
     },
-    "upscale.aiGeneratedDetail.notice" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Includes AI-generated detail."
+    "toolbar.viewMode": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View Mode"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AIが生成したディテールを含みます"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示モード"
           }
         }
       }
     },
-    "upscale.cancelling" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancelling…"
+    "upscale.aiGeneratedDetail.notice": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includes AI-generated detail."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "中断処理中…"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIが生成したディテールを含みます"
           }
         }
       }
     },
-    "upscale.configuring.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export with AI Super Resolution"
+    "upscale.cancelling": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelling…"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像で書き出し"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中断処理中…"
           }
         }
       }
     },
-    "upscale.cropNotApplied.note" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crop settings are not applied."
+    "upscale.configuring.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export with AI Super Resolution"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "トリミング設定は反映されません"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像で書き出し"
           }
         }
       }
     },
-    "upscale.engine" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Engine"
+    "upscale.cropNotApplied.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crop settings are not applied."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "エンジン"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリミング設定は反映されません"
           }
         }
       }
     },
-    "upscale.engine.aiSuperResolution" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI Super Resolution"
+    "upscale.engine": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Engine"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エンジン"
           }
         }
       }
     },
-    "upscale.engine.traditional" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Traditional Upscale"
+    "upscale.engine.aiSuperResolution": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI Super Resolution"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "従来拡大"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像"
           }
         }
       }
     },
-    "upscale.estimatedDuration %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estimated time: about %1$@"
+    "upscale.engine.traditional": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traditional Upscale"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推定所要時間: 約%1$@"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "従来拡大"
           }
         }
       }
     },
-    "upscale.failed.retry" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry"
+    "upscale.estimatedDuration %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated time: about %1$@"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再試行"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定所要時間: 約%1$@"
           }
         }
       }
     },
-    "upscale.failed.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export Failed"
+    "upscale.failed.retry": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書き出しに失敗しました"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
           }
         }
       }
     },
-    "upscale.finished.revealInFinder" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reveal in Finder"
+    "upscale.failed.title": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Failed"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finderで表示"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出しに失敗しました"
           }
         }
       }
     },
-    "upscale.finished.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export Complete"
+    "upscale.finished.revealInFinder": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal in Finder"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書き出しが完了しました"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finderで表示"
           }
         }
       }
     },
-    "upscale.jpegQuality" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JPEG Quality"
+    "upscale.finished.title": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Complete"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JPEG品質"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出しが完了しました"
           }
         }
       }
     },
-    "upscale.jpegQuality.high" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "High"
+    "upscale.jpegQuality": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JPEG Quality"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JPEG品質"
           }
         }
       }
     },
-    "upscale.jpegQuality.highest" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Highest"
+    "upscale.jpegQuality.high": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最高"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高"
           }
         }
       }
     },
-    "upscale.jpegQuality.low" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Low"
+    "upscale.jpegQuality.highest": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highest"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "低"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最高"
           }
         }
       }
     },
-    "upscale.jpegQuality.medium" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Medium"
+    "upscale.jpegQuality.low": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "中"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低"
           }
         }
       }
     },
-    "upscale.outputFormat" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Output Format"
+    "upscale.jpegQuality.medium": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "出力形式"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中"
           }
         }
       }
     },
-    "upscale.outputFormat.jpeg" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JPEG"
+    "upscale.outputFormat": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output Format"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JPEG"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出力形式"
           }
         }
       }
     },
-    "upscale.outputFormat.png" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PNG"
+    "upscale.outputFormat.jpeg": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JPEG"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PNG"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JPEG"
           }
         }
       }
     },
-    "upscale.outputFormat.tiff" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TIFF"
+    "upscale.outputFormat.png": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TIFF"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PNG"
           }
         }
       }
     },
-    "upscale.progress" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export Progress"
+    "upscale.outputFormat.tiff": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TIFF"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書き出し進捗"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TIFF"
           }
         }
       }
     },
-    "upscale.savePanel.message" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose where to save the upscaled export."
+    "upscale.progress": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Progress"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI超解像で書き出す保存先を選択してください"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出し進捗"
           }
         }
       }
     },
-    "upscale.savePanel.prompt" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export"
+    "upscale.savePanel.message": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose where to save the upscaled export."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書き出す"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI超解像で書き出す保存先を選択してください"
           }
         }
       }
     },
-    "upscale.scaleFactor" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scale"
+    "upscale.savePanel.prompt": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "倍率"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出す"
           }
         }
       }
     },
-    "upscale.scaleFactor.double" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "2×"
+    "upscale.scaleFactor": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scale"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "2×"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "倍率"
           }
         }
       }
     },
-    "upscale.scaleFactor.quadruple" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4×"
+    "upscale.scaleFactor.double": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2×"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4×"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2×"
           }
         }
       }
     },
-    "upscale.section.export" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export Settings"
+    "upscale.scaleFactor.quadruple": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4×"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書き出し設定"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4×"
           }
         }
       }
     },
-    "upscale.sizeLimit.abort" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abort"
+    "upscale.section.export": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Settings"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "中止"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出し設定"
           }
         }
       }
     },
-    "upscale.sizeLimit.downscaleThenProcess" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downscale and Process"
+    "upscale.sizeLimit.abort": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abort"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "縮小して処理する"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中止"
           }
         }
       }
     },
-    "upscale.sizeLimit.exceeded" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The selected settings exceed the processing limit."
+    "upscale.sizeLimit.downscaleThenProcess": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downscale and Process"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選択した設定は処理上限を超えています"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縮小して処理する"
           }
         }
       }
     },
-    "upscale.sizeLimit.reduceScale" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reduce Scale"
+    "upscale.sizeLimit.exceeded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected settings exceed the processing limit."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "倍率を下げる"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択した設定は処理上限を超えています"
           }
         }
       }
     },
-    "upscale.start" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start"
+    "upscale.sizeLimit.reduceScale": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reduce Scale"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開始"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "倍率を下げる"
           }
         }
       }
     },
-    "viewer.backToSidebar" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Back to Sidebar"
+    "upscale.start": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サイドバーに戻る"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始"
           }
         }
       }
     },
-    "viewer.favorite.add" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add to Favorites"
+    "viewMode.fullscreen": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Screen"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りに追加"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルスクリーン"
           }
         }
       }
     },
-    "viewer.favorite.remove" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove from Favorites"
+    "viewMode.sidebar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidebar"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "お気に入りを解除"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイドバー"
           }
         }
       }
     },
-    "viewer.nextPhoto" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next Photo"
+    "viewMode.slideshow": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slideshow"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "次の写真"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スライドショー"
           }
         }
       }
     },
-    "viewer.previousPhoto" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Previous Photo"
+    "viewer.backToSidebar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to Sidebar"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "前の写真"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイドバーに戻る"
           }
         }
       }
     },
-    "viewer.selectPhoto" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select a Photo"
+    "viewer.favorite.add": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "写真を選択してください"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りに追加"
           }
         }
       }
     },
-    "viewMode.fullscreen" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Full Screen"
+    "viewer.favorite.remove": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Favorites"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フルスクリーン"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りを解除"
           }
         }
       }
     },
-    "viewMode.sidebar" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sidebar"
+    "viewer.nextPhoto": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Photo"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サイドバー"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の写真"
           }
         }
       }
     },
-    "viewMode.slideshow" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slideshow"
+    "viewer.previousPhoto": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous Photo"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スライドショー"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前の写真"
           }
         }
       }
     },
-    "settings.tab.acknowledgements" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Acknowledgements"
+    "viewer.selectPhoto": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a Photo"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "謝辞"
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.intro" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ShootLog's super-resolution feature uses the following third-party model."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本アプリの超解像機能は以下のモデルを使用しています。"
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.realesrgan.name" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Real-ESRGAN"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Real-ESRGAN"
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.realesrgan.copyright" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copyright (c) 2021, Xintao Wang"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copyright (c) 2021, Xintao Wang"
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.realesrgan.license" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Licensed under the BSD 3-Clause License."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Licensed under the BSD 3-Clause License."
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.basicsr.name" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "BasicSR"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "BasicSR"
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.basicsr.copyright" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copyright (c) 2018-2022 BasicSR Authors"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copyright (c) 2018-2022 BasicSR Authors"
-          }
-        }
-      }
-    },
-    "settings.acknowledgements.basicsr.license" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Licensed under the Apache License 2.0."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Licensed under the Apache License 2.0."
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真を選択してください"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
