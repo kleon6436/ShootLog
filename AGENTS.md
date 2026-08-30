@@ -1,4 +1,4 @@
-# ShootLog — CLAUDE.md
+# ShootLog — AGENTS.md
 
 ShootLogの実装・保守時に参照する開発規約。詳細な背景と設計判断は
 `Docs/ShootLog_プロジェクト規約書.md`、UIの参考資料は `Docs/UI_モックアップ.html` を参照する。
@@ -46,7 +46,7 @@ ShootLog/
 
 新しいコードは、現在の責務に最も近い既存ディレクトリへ追加する。現在の構成を維持し、無関係な大規模移動は行わない。
 
-言語・識別子ルール、Observation、非同期処理、エラー処理、UIの規約は `.claude/rules/swift-style.md` を参照。
+言語・識別子ルール、Observation、非同期処理、エラー処理、UIの規約は `.Codex/rules/swift-style.md` を参照。
 
 ## アーキテクチャ
 
@@ -118,7 +118,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 - `@MainActor`上で同期的なファイル読み込みを行わない。
 - セルが画面外へ移動した場合など、キャンセルを考慮する。
-- 基本原則（async/await、Combine/DispatchQueue不使用など）は `.claude/rules/swift-style.md` を参照。
+- 基本原則（async/await、Combine/DispatchQueue不使用など）は `.Codex/rules/swift-style.md` を参照。
 
 ## 対応画像とフォルダ読み込み
 
@@ -167,18 +167,17 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - 回転・トリミング情報のSwiftData保存（元ファイルは変更しない）
 - 絞り、シャッター速度、ISOなどの分析画面
 - Capture One、Lightroom、Photoshop、Affinity Photo、Preview、Finder向けアダプターによる写真起動
-- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、モードプリセット、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight、`ColorWheelView`）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差、`schemaVersion` 3）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 5）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時ホワイトバランスは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
-- 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo。プリセット適用は「置き換え」に加え「現在の調整に加算」（相対適用、`DevelopParameters.applying(delta:)`）を選べる。加算系は加算＋クランプ、トーンカーブは関数合成、カラーグレーディングは成分ごと（Master/Shadow/Midtone/Highlight の hue/saturation/lightness）に加算＋クランプ、`lensCorrectionEnabled` は OR
-- レンズ補正プロファイル（`LensCorrectionProfile` @Model、機種・レンズ・焦点距離→3補正量。`LensProfileStore.bestMatch` が完全一致→焦点距離補間→焦点距離非依存の順で検索）。v3では検索基盤とテストのみで、UI連携（自動適用・プロファイル作成）は未実装
+- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 5）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時WBは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
+- 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo。プリセット適用は「置き換え」に加え「現在の調整に加算」（相対適用、`DevelopParameters.applying(delta:)`）を選べる。加算系は加算＋クランプ、トーンカーブは関数合成、`lensCorrectionEnabled` は OR
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）。出力カラースペースはsRGB / Display P3を選択可。書き出し時に超解像を続けて適用する現像→超解像チェーンにも対応（回転は現像段で焼き込み済みのため超解像へは `rotation:0` を渡す）
 
 ## SwiftDataモデル
 
-主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
+主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`FolderHistory`。
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
-- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5）、更新日時。`EditInfo` とは独立。`schemaVersion` 世代: 1=全て標準チェーン / 2=RAW露出・WBを`CIRAWFilter`委譲 / 3=手動レンズ補正 / 4=絶対Kelvin/Tintのホワイトバランス / 5=トーン域マスク カラーグレーディング。version 2〜4 は編集時に 5 へ自動バンプ（`setParameters`、追加値は中立既定で見た目不変）、version 1 は据え置き
+- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5。2〜4 は編集時に 5 へ自動バンプ、1 は据え置き。5=トーン域マスク カラーグレーディング）、更新日時。`EditInfo` とは独立
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
 - `FolderHistory`: フォルダURL、セキュリティブックマーク、最終アクセス日時、表示名
 
@@ -215,7 +214,6 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 チャートのデータ系列色（`AnalysisView` の `chartForegroundStyleScale`）は系列識別が目的の
 意図的な固定色であり、この規約の対象外とする。
-カラーグレーディングの色相環（`ColorWheelView`）とホワイトバランスのトラックグラデーション（`WhiteBalanceSection` の色温度＝青⇔黄、色かぶり＝緑⇔マゼンタ）も、色そのものを操作対象として提示する固定色であり同様に対象外とする。
 
 ## エラー処理
 
@@ -227,21 +225,21 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 5）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW向け手動レンズ補正、`schemaVersion` 5）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）。
 
 ### 制限付き・検証継続中
 
 - Sigma fp LのPictureMode検出は暫定実装。
 - サムネイル/一覧表示は引き続きImageIOの対応範囲でプレビューする（現像は「編集」タブ選択時のみ）。
-- 現像編集: カラー別HSLはCore Imageに単一フィルタが無いためCPU生成の3D LUT（`CIColorCube`）による近似。書き出しはsRGB / Display P3を選択可（`develop`の作業空間linearSRGBと出力段のsRGB LUTは維持し、実体化時にのみP3へ変換）。プレビューは既定sRGB、P3ディスプレイ上ではそのディスプレイの色空間で現像してP3書き出しの見えと一致させる（`DevelopViewModel.setPreviewColorSpace`、`DisplayColorSpaceReader` がウィンドウのディスプレイ移動・構成変更に追従、v3 Phase 4）。作業空間linearSRGBと知覚ブラケットは不変で実体化時にのみ変換。ヒストグラムは常にsRGB基準。RAWの露出・色温度・色かぶりは`CIRAWFilter`のas-shot既定からのオフセットとして委譲（`RAWDevelopMapping`、`DevelopSettings.schemaVersion` 2）。version 1の既存RAWレコードは標準チェーンのまま。ノイズ低減・シャープ・コントラスト等は標準`CIFilter`チェーンを維持（v3 Phase 6 で実RAW検証・却下: `CIRAWFilter`の`sharpnessAmount`/`luminanceNoiseReductionAmount`/`detailAmount`は`scaleFactor`≲0.75で効果が崖落ちし補正係数で吸収できず、縮小プレビューとフル解像度書き出しでWYSIWYGが破れる。`colorNoiseReductionAmount`のみ比較的安定だが単独委譲は割に合わず見送り）。RAWの露出・WBスライダーはドラッグ中は標準チェーンで近似し、離した時点で`CIRAWFilter`再デコードで描き直す。RAWのレンズプロファイル補正は`CIRAWFilter.isLensCorrectionEnabled`のトグル。加えて非RAW/プロファイル無しRAW向けに手動レンズ補正（歪曲・周辺光量・色収差、各 -100...100）を実装（v3 Phase 5、`schemaVersion` 3、`LensCorrectionFilter`）。歪曲は Metal の `[[stitchable]]` ワープ関数（`LensDistortion.ci.metal`、CIKernel専用ビルドフラグ不要）、周辺光量は`CIVignetteEffect`、色収差はR/Bチャンネルの中心基準リスケール。座標は extent 相対で持つのでプレビュー縮小とフル解像度で効きが一致。`DevelopPipeline` のチェーン先頭（幾何変形なので露出等より前）で適用し、RAWの`CIRAWFilter`レンズ補正が有効なときは二重補正を避けてスキップ。`BaseKey`/`decodeHash` は不変（Stage B のみ、スライダー操作で再デコードしない）。RAWのプロファイル補正が有効なときの二重補正回避判定はドラッグ非依存で VM 側（`DevelopViewModel.shouldApplyManualLensCorrection`）が計算する。既存の `schemaVersion` 2〜4 レコードは現像編集時に 5 へ自動バンプ（`setParameters`。追加値は中立既定で見た目不変）、`schemaVersion` 1 は据え置き。`usesManualLensCorrection` は `schemaVersion >= 2`、`usesToneMaskedColorGrading` は `schemaVersion >= 5`。カラーグレーディングはトーン域マスク方式（v3、`schemaVersion` 5）: 入力輝度（Rec.709）から shadow/mid/highlight マスクを作り、Master/Shadow/Midtone/Highlight 各ホイールの色オフセット（hue/saturation を極座標→RGB チントベクトル）＋輝度オフセットを加算する単一パスの Metal `[[stitchable]]` カラーカーネル（`ColorGrading.ci.metal` / `ColorGradingFilter`、`LensDistortion.ci.metal` と同じ流儀、ロード失敗時は入力を素通し）。知覚（ガンマsRGB）ブラケット内で適用。`schemaVersion < 5` の既存レコードは旧 `DevelopPipeline.applyColorBalanceLegacy`（4成分平均→単一適用）で描画し見た目を凍結。ホワイトバランスは絶対 Kelvin/Tint（`schemaVersion` 4〜、`WhiteBalanceSettings`）。撮影時WBは RAW が `CIRAWFilter.neutralTemperature/neutralTint` の as-shot 実測、非RAW は EXIF 色温度ベストエフォート→グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`、`WhiteBalanceSample.isEstimated`）。非RAW の Custom WB は as-shot 基準からのズレを 6500K 基準へ写像して `CITemperatureAndTint` へ渡す（`DevelopParameters.asShotTemperatureKelvin/asShotTint`、非RAW時に `DevelopViewModel.load` で焼き込み）。UI は色温度スライダー（青⇔黄グラデ）＋数値K、色かぶりスライダー（緑⇔マゼンタ）、As Shot 実測/推定キャプション（`WhiteBalanceSection`）。ビルドには Metal Toolchain コンポーネント（`xcodebuild -downloadComponent MetalToolchain`）が必要。回転・トリミングはプレビューにも焼き込むが、トリミング編集中のオーバーレイはベース画像上で操作する。RAW実ファイルでのデコード経路は実機サンプル不足のため継続検証中。詳細は `Docs/ShootLog_設計書.md` 6章。
-- 現像パイプラインの色管理は v3 Phase 1 で 2 ブラケットに統一済み: リニア光（ホワイトバランス・露出・ハイライト/シャドウ・シャープ・ノイズ低減）と ガンマ sRGB（コントラスト・自然な彩度/彩度・白黒レベル・トーンカーブ・カラー別HSL・カラーグレーディング）。知覚ブラケットは `DevelopPipeline` 内で `CILinearToSRGBToneCurve` / `CISRGBToneCurveToLinear` で前後を挟み、区間内の `CIColorCurves` / `CIColorCubeWithColorSpace` は作業空間 linearSRGB を指定して再変換を避ける。span 定数（`contrastSpan` 等）のガンマ空間前提での実画像チューニングは A 系統作業として継続。
+- 現像編集: カラー別HSLはCore Imageに単一フィルタが無いためCPU生成の3D LUT（`CIColorCube`）による近似。書き出しはsRGB / Display P3を選択可（`develop`の作業空間linearSRGBと出力段のsRGB LUTは維持し、実体化時にのみP3へ変換）。プレビューは既定sRGB、P3ディスプレイ上ではそのディスプレイの色空間で現像してP3書き出しの見えと一致させる（`DevelopViewModel.setPreviewColorSpace`、`DisplayColorSpaceReader` がウィンドウのディスプレイ移動・構成変更に追従、v3 Phase 4）。作業空間linearSRGBと知覚ブラケットは不変で実体化時にのみ変換。ヒストグラムは常にsRGB基準。RAWの露出・色温度・色かぶりは`CIRAWFilter`のas-shot既定からのオフセットとして委譲（`RAWDevelopMapping`、`DevelopSettings.schemaVersion` 2）。version 1の既存RAWレコードは標準チェーンのまま。ノイズ低減・シャープ・コントラスト等は縮小デコードとフル解像度で効きが一致しないため標準`CIFilter`チェーンを維持。RAWの露出・WBスライダーはドラッグ中は標準チェーンで近似し、離した時点で`CIRAWFilter`再デコードで描き直す。RAWのレンズ補正は`CIRAWFilter.isLensCorrectionEnabled`のトグル、非RAW/プロファイル無しRAW向けに手動レンズ補正（歪曲・周辺光量・色収差、`LensCorrectionFilter`、`schemaVersion` 3）。カラーグレーディングはトーン域マスク方式（`schemaVersion` 5）: 入力輝度から shadow/mid/highlight マスクを作り 4 ホイールの色・輝度オフセットを加算する単一パス Metal `[[stitchable]]` カラーカーネル（`ColorGrading.ci.metal` / `ColorGradingFilter`）。`schemaVersion < 5` は旧 `applyColorBalanceLegacy` で描画し見た目を凍結。撮影時WBは RAW=`CIRAWFilter` 実測 / 非RAW=EXIF・グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`、`WhiteBalanceSample`）。非RAW Custom WB は as-shot 基準からのズレを 6500K 基準へ写像（`DevelopParameters.asShotTemperatureKelvin/asShotTint`）。ビルドには Metal Toolchain が必要。回転・トリミングはプレビューにも焼き込むが、トリミング編集中のオーバーレイはベース画像上で操作する。RAW実ファイルでのデコード経路は実機サンプル不足のため継続検証中。詳細は `Docs/ShootLog_設計書.md` 6章。
+- 現像パイプラインの色管理は v3 Phase 1 で 2 ブラケットに統一済み: リニア光（ホワイトバランス・露出・ハイライト/シャドウ・シャープ・ノイズ低減）と ガンマ sRGB（コントラスト・自然な彩度/彩度・白黒レベル・トーンカーブ・カラー別HSL）。知覚ブラケットは `DevelopPipeline` 内で `CILinearToSRGBToneCurve` / `CISRGBToneCurveToLinear` で前後を挟み、区間内の `CIColorCurves` / `CIColorCubeWithColorSpace` は作業空間 linearSRGB を指定して再変換を避ける。span 定数（`contrastSpan` 等）のガンマ空間前提での実画像チューニングは A 系統作業として継続。
 - 単体の超解像書き出し（`UpscaleExporter`）も `EditInfo.cropRect` を適用する（v3 Phase 2）。回転前の原本を表示画像基準の矩形へ逆変換して切り抜いてから回転・拡大するため、現像→超解像チェーンと同じ構図・寸法になる。上限判定・所要時間見積り（`UpscaleExportViewModel.croppedInputPixelSize`）も切り抜き後の画素数で行う。
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
 
 ### 未着手・スコープ外
 
-- ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
+- ローカル調整（マスク・レイヤー）、非RAWのレンズ補正・RAWの手動レンズ補正UI、広色域プレビュー
 - 複数フォルダの同時表示
 - iCloud写真ライブラリ連携
 - 外部アプリとの双方向同期
