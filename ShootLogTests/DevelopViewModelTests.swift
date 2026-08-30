@@ -592,6 +592,36 @@ struct DevelopViewModelTests {
         #expect(engine.lastUsesManualLensCorrection)
     }
 
+    @Test func nonRAWVersion3SettingsCanEditManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        let (content, context, photo) = try makeContentViewModel()
+        let settings = DevelopSettings(photoID: photo.id)
+        context.insert(settings)
+        try context.save()
+        content.loadDevelopSettings(for: photo)
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.canEditManualLensCorrection)
+    }
+
+    @Test func changingLensDistortionRendersPreview() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 20
+        vm.parameters = parameters
+        await settle()
+
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastParameters?.lensDistortion == 20)
+    }
+
     @Test func version2SettingsDisableManualLensCorrectionEditing() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
