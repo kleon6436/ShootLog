@@ -62,6 +62,10 @@ final class ContentViewModel {
     // サイドバーモードの現像編集パネルが参照する。selectPhoto で遅延ロードする
     var currentDevelopSettings: DevelopSettings?
 
+    // 現像調整プリセット（写真をまたいで共有）。configure(context:) でロードする。
+    // ContentViewModel+DevelopPreset.swift から更新する
+    var developPresets: [DevelopPreset] = []
+
     // AI超解像書き出し。ジョブ（Task）はモード切替・写真選択変更をまたいで継続し、
     // currentFolderURLの変更（フォルダを閉じる）またはアプリ終了時にのみ中断する。
     // ContentViewModel+Upscale.swift から参照するため internal とする
@@ -135,6 +139,7 @@ final class ContentViewModel {
         modelContext = context
         applyGeneralSettingsDefaults()
         loadHistories()
+        loadDevelopPresets()
     }
 
     // 「一般」設定タブで指定された起動時の既定値を反映する

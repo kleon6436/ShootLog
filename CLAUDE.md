@@ -167,16 +167,18 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - 回転・トリミング情報のSwiftData保存（元ファイルは変更しない）
 - 絞り、シャッター速度、ISOなどの分析画面
 - Capture One、Lightroom、Photoshop、Affinity Photo、Preview、Finder向けアダプターによる写真起動
-- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・色温度・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・シャープ・ノイズ低減。Core Image ベース、非破壊（`DevelopSettings` に保存）
+- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・色温度・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・シャープ・ノイズ低減。Core Image ベース、非破壊（`DevelopSettings` に保存）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
+- 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）
 
 ## SwiftDataモデル
 
-主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`FolderHistory`。
+主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`FolderHistory`。
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
 - `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版、更新日時。`EditInfo` とは独立
+- `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
 - `FolderHistory`: フォルダURL、セキュリティブックマーク、最終アクセス日時、表示名
 
 元画像は上書きしない。編集情報はSwiftDataに保持し、表示時に適用する。
@@ -223,7 +225,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース）、現像結果のJPEG/TIFF書き出し。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し。
 
 ### 制限付き・検証継続中
 

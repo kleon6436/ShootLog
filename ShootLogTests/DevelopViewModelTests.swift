@@ -310,6 +310,72 @@ struct DevelopViewModelTests {
         #expect(engine.lastRotation == 180)
     }
 
+    // MARK: - プリセット / コピー & ペースト / Undo
+
+    @Test func applyPresetReplacesParametersAndSchedulesRenderAndPersist() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photo) = try makeContentViewModel()
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.exposure = 1.25
+        let preset = DevelopPreset(name: "P", parameters: params, sortIndex: 0)
+
+        vm.applyPreset(preset)
+        #expect(vm.parameters.exposure == 1.25)
+        #expect(vm.canUndo)
+
+        await settle(120)
+        #expect(engine.previewCallCount == 1)
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        #expect(rows.first?.parameters.exposure == 1.25)
+    }
+
+    @Test func undoRestoresParametersBeforeApply() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var start = DevelopParameters.neutral
+        start.contrast = 10
+        vm.parameters = start
+        await settle()
+
+        var presetParams = DevelopParameters.neutral
+        presetParams.contrast = 90
+        vm.applyPreset(DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0))
+        #expect(vm.parameters.contrast == 90)
+
+        vm.undoLastApply()
+        #expect(vm.parameters.contrast == 10)
+        #expect(vm.canUndo == false)
+    }
+
+    @Test func copyThenPasteMovesAdjustments() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.saturation = 33
+        vm.parameters = params
+        await settle()
+
+        vm.copyAdjustments()
+        #expect(vm.canPaste)
+
+        vm.reset()
+        #expect(vm.parameters == .neutral)
+
+        vm.pasteAdjustments()
+        #expect(vm.parameters.saturation == 33)
+        #expect(vm.canUndo)
+    }
+
     @Test func switchingPhotoDiscardsStalePreview() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
