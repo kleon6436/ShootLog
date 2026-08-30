@@ -20,10 +20,20 @@ struct DevelopSettingsTests {
     @Test func initialStateIsNeutral() {
         let settings = DevelopSettings(photoID: UUID())
 
+        #expect(DevelopSettings.currentSchemaVersion == 3)
         #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
         #expect(settings.usesRAWParameterMapping)
+        #expect(settings.usesManualLensCorrection)
         #expect(settings.parameters == .neutral)
         #expect(!settings.parametersData.isEmpty)
+    }
+
+    @Test func version2KeepsRAWMappingButDisablesManualLensCorrection() {
+        let settings = DevelopSettings(photoID: UUID())
+        settings.schemaVersion = 2
+
+        #expect(settings.usesRAWParameterMapping)
+        #expect(settings.usesManualLensCorrection == false)
     }
 
     // MARK: - パラメータの往復

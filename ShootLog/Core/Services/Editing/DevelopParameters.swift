@@ -99,12 +99,24 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     /// `CIRAWFilter` のプロファイルベースのレンズ補正（歪曲・周辺光量・色収差）を有効にするか。
     /// RAW かつ `DevelopSettings.schemaVersion` >= 2 のときだけ効く。非 RAW では無視。
     var lensCorrectionEnabled: Bool = false
+    /// 手動の歪曲補正量（-100...100）。非 RAW / プロファイル無し RAW 向け。
+    /// `DevelopSettings.schemaVersion` >= 3 でのみ適用。`LensCorrectionFilter.corrected` の distortion に対応。
+    var lensDistortion: Double = 0
+    /// 手動の周辺光量補正量（-100...100）。同上。`corrected` の vignette に対応。
+    var lensVignette: Double = 0
+    /// 手動の色収差補正量（-100...100）。同上。`corrected` の chromaticAberration に対応。
+    var lensChromaticAberration: Double = 0
 
     /// すべて既定値の中立状態。
     static let neutral = DevelopParameters()
 
     /// 一切の調整が加えられていないか。
     var isNeutral: Bool { self == .neutral }
+
+    /// 手動レンズ補正のいずれかが効いているか。
+    var hasManualLensCorrection: Bool {
+        lensDistortion != 0 || lensVignette != 0 || lensChromaticAberration != 0
+    }
 
     /// 指定した帯域の HSL 調整量を取り出す。配列が不正で範囲外の場合は (0, 0, 0) を返す。
     func hslAdjustment(for band: HSLBand) -> (hue: Double, saturation: Double, luminance: Double) {
@@ -160,6 +172,9 @@ extension DevelopParameters {
         result.colorNoiseReduction = Self.clampUnit(colorNoiseReduction + delta.colorNoiseReduction)
 
         result.lensCorrectionEnabled = lensCorrectionEnabled || delta.lensCorrectionEnabled
+        result.lensDistortion = Self.clampUnit(lensDistortion + delta.lensDistortion)
+        result.lensVignette = Self.clampUnit(lensVignette + delta.lensVignette)
+        result.lensChromaticAberration = Self.clampUnit(lensChromaticAberration + delta.lensChromaticAberration)
         return result
     }
 
@@ -245,6 +260,9 @@ extension DevelopParameters {
         case luminanceNoiseReduction
         case colorNoiseReduction
         case lensCorrectionEnabled
+        case lensDistortion
+        case lensVignette
+        case lensChromaticAberration
     }
 
     /// HSL 配列を必ず 8 要素へ揃える。不足は 0 埋め、超過は切り捨てる。
@@ -318,5 +336,8 @@ extension DevelopParameters {
         luminanceNoiseReduction = double(.luminanceNoiseReduction)
         colorNoiseReduction = double(.colorNoiseReduction)
         lensCorrectionEnabled = bool(.lensCorrectionEnabled)
+        lensDistortion = double(.lensDistortion)
+        lensVignette = double(.lensVignette)
+        lensChromaticAberration = double(.lensChromaticAberration)
     }
 }

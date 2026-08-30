@@ -34,6 +34,9 @@ struct DevelopParametersTests {
         #expect(neutral.sharpness == 0)
         #expect(neutral.luminanceNoiseReduction == 0)
         #expect(neutral.colorNoiseReduction == 0)
+        #expect(neutral.lensDistortion == 0)
+        #expect(neutral.lensVignette == 0)
+        #expect(neutral.lensChromaticAberration == 0)
 
         #expect(neutral.toneCurveRGB == CurvePoint.identity)
         #expect(neutral.toneCurveRed == CurvePoint.identity)
@@ -75,6 +78,9 @@ struct DevelopParametersTests {
         parameters.hslSaturation[3] = 55
         parameters.colorNoiseReduction = 20
         parameters.lensCorrectionEnabled = true
+        parameters.lensDistortion = 35
+        parameters.lensVignette = -40
+        parameters.lensChromaticAberration = 25
 
         let decoded = try roundTrip(parameters)
         #expect(decoded == parameters)
@@ -83,6 +89,9 @@ struct DevelopParametersTests {
     @Test func missingLensCorrectionKeyDefaultsToFalse() throws {
         let decoded = try decode(json: #"{"exposure": 1.0}"#)
         #expect(decoded.lensCorrectionEnabled == false)
+        #expect(decoded.lensDistortion == 0)
+        #expect(decoded.lensVignette == 0)
+        #expect(decoded.lensChromaticAberration == 0)
     }
 
     // MARK: - 欠損キーの補完
@@ -250,5 +259,37 @@ struct DevelopParametersTests {
         var deltaOn = DevelopParameters.neutral
         deltaOn.lensCorrectionEnabled = true
         #expect(DevelopParameters.neutral.applying(delta: deltaOn).lensCorrectionEnabled == true)
+    }
+
+    @Test func applyingAddsManualLensCorrectionAndClampsToRange() {
+        var base = DevelopParameters.neutral
+        base.lensDistortion = 80
+        base.lensVignette = -80
+        base.lensChromaticAberration = 10
+
+        var delta = DevelopParameters.neutral
+        delta.lensDistortion = 40
+        delta.lensVignette = -40
+        delta.lensChromaticAberration = -25
+
+        let result = base.applying(delta: delta)
+        #expect(result.lensDistortion == 100)
+        #expect(result.lensVignette == -100)
+        #expect(result.lensChromaticAberration == -15)
+        #expect(base.applying(delta: .neutral) == base)
+    }
+
+    @Test func hasManualLensCorrectionTracksAllFields() {
+        #expect(DevelopParameters.neutral.hasManualLensCorrection == false)
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 1
+        #expect(parameters.hasManualLensCorrection)
+        parameters = .neutral
+        parameters.lensVignette = 1
+        #expect(parameters.hasManualLensCorrection)
+        parameters = .neutral
+        parameters.lensChromaticAberration = 1
+        #expect(parameters.hasManualLensCorrection)
     }
 }

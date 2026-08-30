@@ -17,6 +17,7 @@ struct DevelopViewModelTests {
         private var lastRotationValue = 0
         private var lastCropValue: CGRect?
         private var lastRAWMappingValue = false
+        private var lastUsesManualLensCorrectionValue = false
         var rawFileNames: Set<String> = []
         var stub: CGImage?
 
@@ -25,6 +26,7 @@ struct DevelopViewModelTests {
         var lastRotation: Int { lock.withLock { lastRotationValue } }
         var lastCropRect: CGRect? { lock.withLock { lastCropValue } }
         var lastRAWMapping: Bool { lock.withLock { lastRAWMappingValue } }
+        var lastUsesManualLensCorrection: Bool { lock.withLock { lastUsesManualLensCorrectionValue } }
 
         private var lastPreviewColorSpaceValue: CGColorSpace?
         var lastPreviewColorSpace: CGColorSpace? { lock.withLock { lastPreviewColorSpaceValue } }
@@ -36,7 +38,8 @@ struct DevelopViewModelTests {
             rotation: Int,
             cropRect: CGRect?,
             previewColorSpace: CGColorSpace?,
-            useRAWParameterMapping: Bool
+            useRAWParameterMapping: Bool,
+            usesManualLensCorrection: Bool
         ) async -> CGImage? {
             lock.withLock {
                 previewCalls += 1
@@ -45,6 +48,7 @@ struct DevelopViewModelTests {
                 lastCropValue = cropRect
                 lastPreviewColorSpaceValue = previewColorSpace
                 lastRAWMappingValue = useRAWParameterMapping
+                lastUsesManualLensCorrectionValue = usesManualLensCorrection
             }
             return stub
         }
@@ -55,8 +59,12 @@ struct DevelopViewModelTests {
             rotation: Int,
             cropRect: CGRect?,
             outputColorSpace: CGColorSpace?,
-            useRAWParameterMapping: Bool
-        ) async -> CGImage? { stub }
+            useRAWParameterMapping: Bool,
+            usesManualLensCorrection: Bool
+        ) async -> CGImage? {
+            lock.withLock { lastUsesManualLensCorrectionValue = usesManualLensCorrection }
+            return stub
+        }
 
         func isRAW(url: URL) -> Bool { rawFileNames.contains(url.lastPathComponent) }
     }
@@ -568,6 +576,54 @@ struct DevelopViewModelTests {
 
         #expect(engine.lastRAWMapping == false)
         #expect(vm.canDelegateToRAWFilter == false)
+    }
+
+    @Test func photoWithoutSettingsUsesManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 20
+        vm.parameters = parameters
+        await settle()
+
+        #expect(engine.lastUsesManualLensCorrection)
+    }
+
+    @Test func version2SettingsDisableManualLensCorrectionEditing() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.canEditManualLensCorrection == false)
+    }
+
+    @Test func resetVersion2SettingsEnablesManualLensCorrectionForNewEdits() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(vm.canEditManualLensCorrection == false)
+
+        vm.reset()
+        #expect(vm.canEditManualLensCorrection)
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 20
+        vm.parameters = parameters
+        await settle(220)
+
+        #expect(engine.lastUsesManualLensCorrection)
     }
 
     @Test func draggingRAWParameterSuppressesMappingUntilRelease() async throws {

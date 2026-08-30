@@ -56,6 +56,9 @@ enum DevelopPipeline {
     ///   - cache: HSL cube の再計算を省くためのメモ。`nil` なら毎回計算する（テスト用の後方互換）。
     ///   - skipExposureAndWhiteBalance: RAW で露出・WB を `CIRAWFilter` 側へ委譲した場合に `true`。
     ///     このチェーンでは露出・色温度・色かぶりを適用しない（二重適用の防止）。
+    ///   - applyManualLensCorrection: このレコードの schemaVersion が手動レンズ補正を許可するか
+    ///     （`DevelopSettings.usesManualLensCorrection`）。RAW で `CIRAWFilter` のレンズ補正が有効なときは
+    ///     二重補正を防ぐため、これが `true` でも手動補正を適用しない。
     /// - Returns: 調整後の画像。`parameters.isNeutral` の場合は `input` をそのまま返す。
     ///   フィルタ生成に失敗したステップは黙って読み飛ばし、直前の画像を維持する。
     ///
@@ -75,11 +78,24 @@ enum DevelopPipeline {
         to input: CIImage,
         isRAW: Bool,
         cache: DevelopPipelineCache? = nil,
-        skipExposureAndWhiteBalance: Bool = false
+        skipExposureAndWhiteBalance: Bool = false,
+        applyManualLensCorrection: Bool = false
     ) -> CIImage {
         guard !parameters.isNeutral else { return input }
 
         var image = input
+
+        // --- レンズ補正（幾何変形。他の調整より前）---
+        if applyManualLensCorrection,
+           parameters.hasManualLensCorrection,
+           !(skipExposureAndWhiteBalance && parameters.lensCorrectionEnabled) {
+            image = LensCorrectionFilter.corrected(
+                image,
+                distortion: parameters.lensDistortion,
+                vignette: parameters.lensVignette,
+                chromaticAberration: parameters.lensChromaticAberration
+            )
+        }
 
         // --- リニア光ブラケット（物理的な光の操作）---
         if !skipExposureAndWhiteBalance {
