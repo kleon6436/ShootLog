@@ -11,9 +11,19 @@ import UniformTypeIdentifiers
 /// 出た段階（Phase 5 の書き出し）で throwing + `ShootLogError` へ昇格させる予定。
 protocol ImageDeveloping: Sendable {
 
-    /// 表示用の縮小プレビューを現像して返す。回転・トリミングは適用しない（ビュー側で行う）。
-    /// - Parameter targetMaxPixelSize: 長辺の目標ピクセル数。0 以下・非有限を渡すとフル解像度扱い。
-    func renderPreview(url: URL, parameters: DevelopParameters, targetMaxPixelSize: CGFloat) async -> CGImage?
+    /// 表示用の縮小プレビューを現像して返す。回転・トリミングも焼き込む（書き出しと同じ構図にする）。
+    /// - Parameters:
+    ///   - targetMaxPixelSize: 長辺の目標ピクセル数。0 以下・非有限を渡すとフル解像度扱い。
+    ///     `cropRect` がある場合、切り抜き後の表示領域がこの解像度になるようベースデコードを拡大方向へ寄せる。
+    ///   - rotation: 0 / 90 / 180 / 270（時計回り）。
+    ///   - cropRect: 回転適用後の表示画像を基準にした正規化矩形（左上原点・0...1）。`nil` でトリミングなし。
+    func renderPreview(
+        url: URL,
+        parameters: DevelopParameters,
+        targetMaxPixelSize: CGFloat,
+        rotation: Int,
+        cropRect: CGRect?
+    ) async -> CGImage?
 
     /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
     /// - Parameters:
@@ -86,18 +96,34 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     func renderPreview(
         url: URL,
         parameters: DevelopParameters,
-        targetMaxPixelSize: CGFloat
+        targetMaxPixelSize: CGFloat,
+        rotation: Int = 0,
+        cropRect: CGRect? = nil
     ) async -> CGImage? {
-        guard let base = await baseImage(url: url, targetMaxPixelSize: targetMaxPixelSize) else { return nil }
+        let decodeTarget = Self.decodeTarget(targetMaxPixelSize, cropRect: cropRect)
+        guard let base = await baseImage(url: url, targetMaxPixelSize: decodeTarget) else { return nil }
         guard !Task.isCancelled else { return nil }
         return await Self.develop(
             base: base,
             parameters: parameters,
             isRAW: isRAW(url: url),
             cache: pipelineCache,
-            rotation: 0,
-            cropRect: nil
+            rotation: rotation,
+            cropRect: cropRect
         )
+    }
+
+    /// トリミング後の表示領域が `target` 相当の解像度になるよう、ベースデコードのサイズを引き上げる。
+    /// 極端に小さいクロップで巨大デコードにならないよう 4 倍を上限にする。
+    private static func decodeTarget(_ target: CGFloat, cropRect: CGRect?) -> CGFloat {
+        guard target > 0, let cropRect,
+              cropRect.width > 0, cropRect.height > 0,
+              cropRect != CGRect(x: 0, y: 0, width: 1, height: 1) else {
+            return target
+        }
+        let longestFraction = max(cropRect.width, cropRect.height)
+        guard longestFraction > 0, longestFraction < 1 else { return target }
+        return min(target / longestFraction, target * 4)
     }
 
     /// フル解像度の現像結果を返す。回転・トリミングも焼き込む。

@@ -25,11 +25,23 @@ struct EditablePhotoView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task(id: photo?.id) {
                     await vm.load(photo: photo, displaySize: geometry.size)
-                    // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）
-                    developViewModel.load(photo: photo, displaySize: geometry.size)
+                    // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）。
+                    // 回転・トリミングもプレビューへ焼き込むため EditInfo を渡す
+                    developViewModel.load(
+                        photo: photo,
+                        displaySize: geometry.size,
+                        rotation: editInfo?.rotation ?? 0,
+                        cropRect: editInfo?.cropRect
+                    )
                 }
                 .onChange(of: geometry.size) { _, newSize in
                     developViewModel.updateDisplaySize(newSize)
+                }
+                .onChange(of: editInfo?.rotation ?? 0) { _, newRotation in
+                    developViewModel.updateEditGeometry(rotation: newRotation, cropRect: editInfo?.cropRect)
+                }
+                .onChange(of: editInfo?.cropRect) { _, newCrop in
+                    developViewModel.updateEditGeometry(rotation: editInfo?.rotation ?? 0, cropRect: newCrop)
                 }
                 // 先読みは表示中写真のロードとは別タスクにする。写真IDをキーに共有すると、
                 // お気に入り絞り込みの切替で前後URLだけが変わった場合に古いURLのまま確定してしまう
@@ -41,16 +53,27 @@ struct EditablePhotoView: View {
 
     @ViewBuilder
     private func content(containerSize: CGSize) -> some View {
-        ZStack {
-            // 現像プレビューがあれば最優先。無ければ従来の 2 段階ロード結果を表示する
-            if let image = developViewModel.previewImage ?? vm.highRes ?? vm.thumbnail {
-                ZStack(alignment: .bottomTrailing) {
-                    // 回転を適用する（EditInfo に保存された値を使う）
-                    rotatedImage(image)
+        // 従来の 2 段階ロード結果。トリミングオーバーレイの基準と、現像プレビュー未生成時の表示に使う。
+        let baseImage = vm.highRes ?? vm.thumbnail
+        // 現像プレビューは回転・トリミング焼き込み済み。トリミングモード中はベース全体を見せるため使わない。
+        let developPreview = isCropMode ? nil : developViewModel.previewImage
 
-                    // 現像レンダリング中、またはサムネイル表示中で高解像度ロード待ちのときスピナー
-                    if developViewModel.isRendering
-                        || (developViewModel.previewImage == nil && vm.highRes == nil && vm.isLoadingHighRes) {
+        ZStack {
+            if let displayImage = developPreview ?? baseImage {
+                ZStack(alignment: .bottomTrailing) {
+                    if developPreview != nil {
+                        // 焼き込み済み。二重回転を避けてそのまま aspect-fit で表示する
+                        Image(nsImage: displayImage)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        // ベース画像は EditInfo の回転を rotationEffect で適用する
+                        rotatedImage(displayImage)
+                    }
+
+                    if spinnerVisible {
                         ProgressView()
                             .controlSize(.small)
                             .padding(8)
@@ -59,13 +82,13 @@ struct EditablePhotoView: View {
 
                 // トリミングモード時はオーバーレイを表示する。
                 // 正規化の基準は回転後に表示されている画像の矩形（レターボックスを除く）。
-                if isCropMode {
+                if isCropMode, let baseImage {
                     CropOverlayView(
                         initialRect: editInfo?.cropRect ?? CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
-                        // rotatedImage は image.size を基準に aspect-fit しているので、
-                        // オーバーレイの基準も同じ image.size を使わないと矩形がずれる。
+                        // rotatedImage は baseImage.size を基準に aspect-fit しているので、
+                        // オーバーレイの基準も同じ値を使わないと矩形がずれる。
                         imageFrame: CropViewModel.displayedImageFrame(
-                            imagePixelSize: image.size,
+                            imagePixelSize: baseImage.size,
                             rotation: editInfo?.rotation ?? 0,
                             in: containerSize
                         ),
@@ -80,6 +103,12 @@ struct EditablePhotoView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    // 現像レンダリング中、またはサムネイル表示中で高解像度ロード待ちのときスピナーを出す
+    private var spinnerVisible: Bool {
+        developViewModel.isRendering
+            || (developViewModel.previewImage == nil && vm.highRes == nil && vm.isLoadingHighRes)
     }
 
     // 90度/270度回転時はfit計算用のコンテナ幅高さを入れ替えてからrotationEffectを適用し、
