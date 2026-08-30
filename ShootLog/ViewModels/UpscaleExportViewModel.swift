@@ -109,8 +109,12 @@ final class UpscaleExportViewModel {
     // 品質はフォーマット非依存の設定として保持する（TIFF/PNGへ切り替えて戻しても選択を失わない）
     var jpegQuality: JPEGQuality = .highest
 
-    // 入力写真のピクセルサイズ。上限判定・所要時間見積りに使う（取得できない場合は概算を出さない）
+    // 入力写真のピクセルサイズ。取得できない場合は概算を出さない
     let inputPixelSize: CGSize?
+
+    // トリミング（EditInfo.cropRect）を適用した実効入力サイズ。上限判定・所要時間見積りはこちらを優先する。
+    // トリミングなしのときは inputPixelSize と同値、または nil。
+    let croppedInputPixelSize: CGSize?
 
     // 「縮小して処理する」を選んだ場合に true。scaleFactorを変更すると選び直しが必要なためリセットする
     var acceptsDownscaledProcessing = false
@@ -123,8 +127,9 @@ final class UpscaleExportViewModel {
     // 所要時間見積りに使う概算処理速度（px/秒、目安値）。同上
     private static let assumedPixelsPerSecond: Double = 2_000_000
 
-    init(inputPixelSize: CGSize?) {
+    init(inputPixelSize: CGSize?, croppedInputPixelSize: CGSize? = nil) {
         self.inputPixelSize = inputPixelSize
+        self.croppedInputPixelSize = croppedInputPixelSize
     }
 
     // AI版で選べる倍率は、同梱モデルのカタログに登録されている倍率に連動する。
@@ -136,11 +141,11 @@ final class UpscaleExportViewModel {
         }
     }
 
-    // 選択中の倍率での概算出力ピクセル数
+    // 選択中の倍率での概算出力ピクセル数。トリミング済みなら切り抜き後の入力で見積もる。
     var estimatedOutputPixelCount: Double? {
-        guard let inputPixelSize else { return nil }
+        guard let size = croppedInputPixelSize ?? inputPixelSize else { return nil }
         let factor = Double(scaleFactor.rawValue * scaleFactor.rawValue)
-        return inputPixelSize.width * inputPixelSize.height * factor
+        return size.width * size.height * factor
     }
 
     // 概算上限を超えるかどうか。サイズ不明時は判定できないため false（呼び出し側でブロックしない）
