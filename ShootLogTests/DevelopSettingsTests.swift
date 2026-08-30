@@ -20,7 +20,7 @@ struct DevelopSettingsTests {
     @Test func initialStateIsNeutral() {
         let settings = DevelopSettings(photoID: UUID())
 
-        #expect(DevelopSettings.currentSchemaVersion == 3)
+        #expect(DevelopSettings.currentSchemaVersion == 4)
         #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
         #expect(settings.usesRAWParameterMapping)
         #expect(settings.usesManualLensCorrection)
@@ -28,13 +28,13 @@ struct DevelopSettingsTests {
         #expect(!settings.parametersData.isEmpty)
     }
 
-    @Test func editingVersion2SettingsMigratesToVersion3WithoutMigratingVersion1() throws {
+    @Test func editingCurrentEligibleSettingsMigratesToVersion4WithoutMigratingVersion1() throws {
         let version2 = DevelopSettings(photoID: UUID())
         version2.schemaVersion = 2
         #expect(version2.usesRAWParameterMapping)
         #expect(version2.usesManualLensCorrection)
         try version2.setParameters(.neutral)
-        #expect(version2.schemaVersion == 3)
+        #expect(version2.schemaVersion == 4)
 
         let version1 = DevelopSettings(photoID: UUID())
         version1.schemaVersion = 1
@@ -42,8 +42,9 @@ struct DevelopSettingsTests {
         #expect(version1.schemaVersion == 1)
 
         let version3 = DevelopSettings(photoID: UUID())
+        version3.schemaVersion = 3
         try version3.setParameters(.neutral)
-        #expect(version3.schemaVersion == 3)
+        #expect(version3.schemaVersion == 4)
     }
 
     // MARK: - パラメータの往復

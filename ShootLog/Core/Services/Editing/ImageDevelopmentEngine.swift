@@ -115,6 +115,46 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         Self.rawExtensions.contains(url.pathExtension.lowercased())
     }
 
+    /// Apple 標準の RAW デコード経路について、UI と保存世代が参照できる最小限の識別情報を返す。
+    /// DCP/LCP の解析・切り替えは扱わず、取得不能時も As Shot の通常デコードに委ねる。
+    func rawDevelopmentProfile(for url: URL) -> RawDevelopmentProfile {
+        guard isRAW(url: url) else {
+            return RawDevelopmentProfile(
+                cameraMake: nil,
+                cameraModel: nil,
+                decodeMethod: .imageIO,
+                supportsAsShotWhiteBalance: false,
+                profileIdentifier: "com.apple.imageio.embedded",
+                processVersion: DevelopSettings.currentSchemaVersion,
+                failureReason: "Not a RAW image"
+            )
+        }
+
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        else {
+            return RawDevelopmentProfile(
+                cameraMake: nil,
+                cameraModel: nil,
+                decodeMethod: .coreImageRAW,
+                supportsAsShotWhiteBalance: false,
+                profileIdentifier: "com.apple.coreimage.cirawfilter",
+                processVersion: DevelopSettings.currentSchemaVersion,
+                failureReason: "ImageIO metadata unavailable"
+            )
+        }
+        let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+        return RawDevelopmentProfile(
+            cameraMake: tiff?[kCGImagePropertyTIFFMake] as? String,
+            cameraModel: tiff?[kCGImagePropertyTIFFModel] as? String,
+            decodeMethod: .coreImageRAW,
+            supportsAsShotWhiteBalance: true,
+            profileIdentifier: "com.apple.coreimage.cirawfilter",
+            processVersion: DevelopSettings.currentSchemaVersion,
+            failureReason: nil
+        )
+    }
+
     // MARK: - レンダリング
 
     func renderPreview(

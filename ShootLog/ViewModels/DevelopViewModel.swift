@@ -27,6 +27,14 @@ final class DevelopViewModel {
     private(set) var histogram: HistogramData?
     /// 選択中写真が RAW か。
     private(set) var isRAW = false
+    /// true の間は現像前（回転・トリミングのみ反映）のベース画像を表示する。
+    var isShowingBefore = false
+    /// ホワイトバランスのスポイト操作を受け付けるか。
+    var isWhiteBalancePicking = false
+    /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
+    private(set) var whiteBalanceStatusMessage: String?
+    /// プレビュー上のクリッピング状態をヒストグラムに表示するか。
+    var showsClippingWarnings = true
 
     /// リセット可能か（何らかの調整が入っている）。
     var canReset: Bool { !parameters.isNeutral }
@@ -51,6 +59,9 @@ final class DevelopViewModel {
     private(set) var canPaste = false
     /// プロセス内の調整クリップボード。他アプリと互換性のない独自形式のため `NSPasteboard` は使わない。
     private static var clipboard: DevelopParameters?
+    /// ホワイトバランスだけを写真間で同期するためのプロセス内クリップボード。
+    private static var whiteBalanceClipboard: WhiteBalanceSettings?
+    private(set) var canPasteWhiteBalance = false
 
     private let engine: any ImageDeveloping
     private let content: ContentViewModel?
@@ -135,6 +146,7 @@ final class DevelopViewModel {
         undoParameters = nil
         canUndo = false
         canPaste = Self.clipboard != nil
+        canPasteWhiteBalance = Self.whiteBalanceClipboard != nil
         previewImage = nil
         histogram = nil
         isRendering = false
@@ -171,6 +183,62 @@ final class DevelopViewModel {
         if !dragging, currentPhoto != nil, shouldRender {
             scheduleRender()
         }
+    }
+
+    func selectWhiteBalanceMode(_ mode: WhiteBalanceSettings.Mode) {
+        parameters.whiteBalance = WhiteBalanceSettings.preset(mode)
+    }
+
+    func setWhiteBalanceAsShot() {
+        parameters.whiteBalance = .neutral
+    }
+
+    func applyAutomaticWhiteBalance() {
+        guard let photo = currentPhoto else { return }
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        Task { [weak self] in
+            guard let self else { return }
+            let source = await self.engine.renderPreview(
+                url: photo.fileURL,
+                parameters: .neutral,
+                targetMaxPixelSize: target,
+                rotation: self.rotation,
+                cropRect: self.cropRect,
+                previewColorSpace: self.previewColorSpace,
+                useRAWParameterMapping: false,
+                usesManualLensCorrection: false
+            )
+            guard let source,
+                  let settings = WhiteBalanceResolver.automaticSettings(from: source) else {
+                self.whiteBalanceStatusMessage = String(localized: "develop.whiteBalance.autoUnavailable")
+                return
+            }
+            self.whiteBalanceStatusMessage = nil
+            self.parameters.whiteBalance = settings
+        }
+    }
+
+    func toggleBeforeAfter() {
+        isShowingBefore.toggle()
+    }
+
+    func beginWhiteBalancePicking() {
+        isWhiteBalancePicking = true
+    }
+
+    func applyWhiteBalanceSample(red: CGFloat, green: CGFloat, blue: CGFloat) {
+        let red = Double(max(red, 0.001))
+        let green = Double(max(green, 0.001))
+        let blue = Double(max(blue, 0.001))
+        var settings = WhiteBalanceSettings(
+            mode: .custom,
+            temperatureKelvin: 6_500 + log(red / blue) * 2_200,
+            tint: log(green / ((red + blue) / 2)) * 90
+        )
+        settings.normalize()
+        parameters.whiteBalance = settings
+        whiteBalanceStatusMessage = nil
+        isWhiteBalancePicking = false
     }
 
     /// 回転・トリミングの変更を受けて再レンダーする。調整も幾何変換も無くなればプレビューを解除する。
@@ -235,7 +303,7 @@ final class DevelopViewModel {
         histogram = nil
         isRendering = false
         content?.resetDevelop()
-        // reset で旧レコードは削除され、次の保存は schemaVersion 3（RAW は露出・WB 委譲も有効）。
+        // reset で旧レコードは削除され、次の保存は schemaVersion 4（RAW は露出・WB 委譲も有効）。
         manualLensCorrectionActive = true
         rawMappingActive = isRAW
         undoParameters = nil
@@ -272,6 +340,18 @@ final class DevelopViewModel {
     func copyAdjustments() {
         Self.clipboard = parameters
         canPaste = true
+    }
+
+    /// 現在のホワイトバランスだけをコピーする。ほかの現像値は含めない。
+    func copyWhiteBalance() {
+        Self.whiteBalanceClipboard = parameters.whiteBalance
+        canPasteWhiteBalance = true
+    }
+
+    /// コピー済みホワイトバランスだけを置き換える。As Shot もそのまま同期できる。
+    func pasteWhiteBalance() {
+        guard let whiteBalance = Self.whiteBalanceClipboard else { return }
+        parameters.whiteBalance = whiteBalance
     }
 
     /// クリップボードの調整値を適用する。直前の状態は 1 段だけ戻せる。

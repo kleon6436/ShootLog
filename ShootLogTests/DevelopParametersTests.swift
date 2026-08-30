@@ -29,6 +29,14 @@ struct DevelopParametersTests {
         #expect(neutral.brightness == 0)
         #expect(neutral.temperature == 0)
         #expect(neutral.tint == 0)
+        #expect(neutral.whiteBalance == .neutral)
+        #expect(neutral.clarity == 0)
+        #expect(neutral.structure == 0)
+        #expect(neutral.dehaze == 0)
+        #expect(neutral.vignette == 0)
+        #expect(neutral.blackAndWhiteEnabled == false)
+        #expect(neutral.bwMix == Array(repeating: 0, count: 6))
+        #expect(neutral.colorBalance == .neutral)
         #expect(neutral.vibrance == 0)
         #expect(neutral.saturation == 0)
         #expect(neutral.sharpness == 0)
@@ -70,6 +78,11 @@ struct DevelopParametersTests {
         parameters.exposure = 1.25
         parameters.contrast = -40
         parameters.temperature = 15
+        parameters.whiteBalance = .preset(.cloudy)
+        parameters.clarity = 20
+        parameters.dehaze = 30
+        parameters.blackAndWhiteEnabled = true
+        parameters.bwMix[0] = 25
         parameters.toneCurveRGB = [
             CurvePoint(x: 0, y: 0),
             CurvePoint(x: 0.5, y: 0.6),
@@ -99,6 +112,18 @@ struct DevelopParametersTests {
     @Test func emptyJSONObjectDecodesToNeutral() throws {
         let decoded = try decode(json: "{}")
         #expect(decoded == .neutral)
+    }
+
+    @Test func legacyWhiteBalanceFieldsRemainCompatible() throws {
+        let decoded = try decode(json: #"{"temperature": 20, "tint": -15}"#)
+        #expect(decoded.temperature == 20)
+        #expect(decoded.tint == -15)
+        #expect(decoded.whiteBalance == .neutral)
+    }
+
+    @Test func malformedBWArrayIsNormalizedToSixBands() throws {
+        let decoded = try decode(json: #"{"bwMix": [10, 20, 30, 40, 50, 60, 70]}"#)
+        #expect(decoded.bwMix == [10, 20, 30, 40, 50, 60])
     }
 
     @Test func partialJSONFillsMissingKeysWithDefaults() throws {
