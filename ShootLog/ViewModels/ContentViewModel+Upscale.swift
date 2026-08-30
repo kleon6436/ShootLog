@@ -12,8 +12,24 @@ extension ContentViewModel {
     func presentUpscaleExport() {
         guard let photo = selectedPhoto else { return }
         let pixelSize = Self.readPixelSize(of: photo.fileURL)
-        upscaleExportViewModel = UpscaleExportViewModel(inputPixelSize: pixelSize)
+        upscaleExportViewModel = UpscaleExportViewModel(
+            inputPixelSize: pixelSize,
+            croppedInputPixelSize: Self.croppedUpscalePixelSize(
+                pixelSize, cropRect: currentEditInfo?.cropRect
+            )
+        )
         isUpscaleExportPresented = true
+    }
+
+    /// トリミング矩形（正規化）を適用した実効ピクセルサイズ。回転は総画素数を変えないため考慮しない。
+    private static func croppedUpscalePixelSize(_ size: CGSize?, cropRect: CGRect?) -> CGSize? {
+        guard let size else { return nil }
+        guard let cropRect,
+              cropRect != CGRect(x: 0, y: 0, width: 1, height: 1),
+              cropRect.width > 0, cropRect.height > 0 else {
+            return size
+        }
+        return CGSize(width: size.width * cropRect.width, height: size.height * cropRect.height)
     }
 
     // シートを閉じる。実行中ジョブ自体はここでは止めない（モード切替と同様、継続対象の操作のため）
@@ -99,6 +115,7 @@ extension ContentViewModel {
                 source: photo.fileURL,
                 destination: destination,
                 rotation: currentEditInfo?.rotation ?? 0,
+                cropRect: currentEditInfo?.cropRect,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),
                 jpegQuality: viewModel.jpegQuality.rawValue,
