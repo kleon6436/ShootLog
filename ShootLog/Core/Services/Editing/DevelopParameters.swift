@@ -94,6 +94,12 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     var luminanceNoiseReduction: Double = 0
     var colorNoiseReduction: Double = 0
 
+    // MARK: レンズ補正（RAW のみ）
+
+    /// `CIRAWFilter` のプロファイルベースのレンズ補正（歪曲・周辺光量・色収差）を有効にするか。
+    /// RAW かつ `DevelopSettings.schemaVersion` >= 2 のときだけ効く。非 RAW では無視。
+    var lensCorrectionEnabled: Bool = false
+
     /// すべて既定値の中立状態。
     static let neutral = DevelopParameters()
 
@@ -139,6 +145,7 @@ extension DevelopParameters {
         case sharpness
         case luminanceNoiseReduction
         case colorNoiseReduction
+        case lensCorrectionEnabled
     }
 
     /// HSL 配列を必ず 8 要素へ揃える。不足は 0 埋め、超過は切り捨てる。
@@ -164,6 +171,10 @@ extension DevelopParameters {
         // 欠損キー・型不一致とも既定値へ倒す（将来のフィールド追加でも旧 blob を読めるように）
         func double(_ key: CodingKeys) -> Double {
             (try? container.decodeIfPresent(Double.self, forKey: key)) ?? 0
+        }
+
+        func bool(_ key: CodingKeys) -> Bool {
+            (try? container.decodeIfPresent(Bool.self, forKey: key)) ?? false
         }
 
         func curve(_ key: CodingKeys) -> [CurvePoint] {
@@ -207,5 +218,6 @@ extension DevelopParameters {
         sharpness = double(.sharpness)
         luminanceNoiseReduction = double(.luminanceNoiseReduction)
         colorNoiseReduction = double(.colorNoiseReduction)
+        lensCorrectionEnabled = bool(.lensCorrectionEnabled)
     }
 }

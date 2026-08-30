@@ -16,6 +16,7 @@ struct DevelopViewModelTests {
         private var lastParams: DevelopParameters?
         private var lastRotationValue = 0
         private var lastCropValue: CGRect?
+        private var lastRAWMappingValue = false
         var rawFileNames: Set<String> = []
         var stub: CGImage?
 
@@ -23,19 +24,22 @@ struct DevelopViewModelTests {
         var lastParameters: DevelopParameters? { lock.withLock { lastParams } }
         var lastRotation: Int { lock.withLock { lastRotationValue } }
         var lastCropRect: CGRect? { lock.withLock { lastCropValue } }
+        var lastRAWMapping: Bool { lock.withLock { lastRAWMappingValue } }
 
         func renderPreview(
             url: URL,
             parameters: DevelopParameters,
             targetMaxPixelSize: CGFloat,
             rotation: Int,
-            cropRect: CGRect?
+            cropRect: CGRect?,
+            useRAWParameterMapping: Bool
         ) async -> CGImage? {
             lock.withLock {
                 previewCalls += 1
                 lastParams = parameters
                 lastRotationValue = rotation
                 lastCropValue = cropRect
+                lastRAWMappingValue = useRAWParameterMapping
             }
             return stub
         }
@@ -45,7 +49,8 @@ struct DevelopViewModelTests {
             parameters: DevelopParameters,
             rotation: Int,
             cropRect: CGRect?,
-            outputColorSpace: CGColorSpace?
+            outputColorSpace: CGColorSpace?,
+            useRAWParameterMapping: Bool
         ) async -> CGImage? { stub }
 
         func isRAW(url: URL) -> Bool { rawFileNames.contains(url.lastPathComponent) }
@@ -375,6 +380,104 @@ struct DevelopViewModelTests {
         vm.pasteAdjustments()
         #expect(vm.parameters.saturation == 33)
         #expect(vm.canUndo)
+    }
+
+    // MARK: - RAW 露出・WB の CIRAWFilter 委譲
+
+    private func makeRAWContentViewModel(
+        schemaVersion: Int?
+    ) throws -> (ContentViewModel, ModelContext, Photo) {
+        let container = try ModelContainer(
+            for: Photo.self, EditInfo.self, DevelopSettings.self, DevelopPreset.self,
+            FolderHistory.self, IntegrationAppSetting.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/shot.nef"))
+        context.insert(photo)
+
+        if let schemaVersion {
+            let settings = DevelopSettings(photoID: photo.id)
+            settings.schemaVersion = schemaVersion
+            var params = DevelopParameters.neutral
+            params.exposure = 0.5
+            settings.parameters = params
+            context.insert(settings)
+            try context.save()
+        }
+
+        let content = ContentViewModel()
+        content.modelContext = context
+        content.selectedPhoto = photo
+        content.loadDevelopSettings(for: photo)
+        return (content, context, photo)
+    }
+
+    @Test func rawWithVersion2RendersWithMapping() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(engine.previewCallCount >= 1)
+        #expect(engine.lastRAWMapping == true)
+        #expect(vm.canDelegateToRAWFilter)
+    }
+
+    @Test func rawWithLegacyVersion1RendersWithoutMapping() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 1)
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(engine.previewCallCount >= 1)
+        #expect(engine.lastRAWMapping == false)
+        #expect(vm.canDelegateToRAWFilter == false)
+    }
+
+    @Test func nonRAWNeverUsesMapping() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.exposure = 1.0
+        vm.parameters = params
+        await settle()
+
+        #expect(engine.lastRAWMapping == false)
+        #expect(vm.canDelegateToRAWFilter == false)
+    }
+
+    @Test func draggingRAWParameterSuppressesMappingUntilRelease() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        vm.setRAWParameterDragging(true)
+        var params = vm.parameters
+        params.exposure = 1.5
+        vm.parameters = params
+        await settle()
+        #expect(engine.lastRAWMapping == false)   // ドラッグ中は近似
+
+        vm.setRAWParameterDragging(false)
+        await settle(220)
+        #expect(engine.lastRAWMapping == true)    // 離したら CIRAWFilter 経路で描き直す
     }
 
     @Test func switchingPhotoDiscardsStalePreview() async throws {

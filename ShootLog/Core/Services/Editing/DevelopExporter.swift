@@ -44,6 +44,7 @@ struct DevelopExporter: Sendable {
         contentType: UTType,
         jpegQuality: Double,
         outputColorSpace: CGColorSpace? = nil,
+        useRAWParameterMapping: Bool = false,
         superResolution: SuperResolutionRequest? = nil,
         currentFolder: URL?,
         folderPhotoURLs: [URL],
@@ -60,7 +61,8 @@ struct DevelopExporter: Sendable {
             parameters: parameters,
             rotation: rotation,
             cropRect: cropRect,
-            outputColorSpace: outputColorSpace
+            outputColorSpace: outputColorSpace,
+            useRAWParameterMapping: useRAWParameterMapping
         ) else {
             // renderFull はキャンセル時も nil を返すため、キャンセル起因かを先に判定する
             try Task.checkCancellation()

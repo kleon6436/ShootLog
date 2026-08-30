@@ -31,6 +31,9 @@ final class DevelopViewModel {
     /// リセット可能か（何らかの調整が入っている）。
     var canReset: Bool { !parameters.isNeutral }
 
+    /// RAW かつ `CIRAWFilter` 委譲が有効か（レンズ補正トグルなど RAW 固有 UI の表示条件）。
+    var canDelegateToRAWFilter: Bool { rawMappingActive }
+
     /// 保存済みプリセット（`ContentViewModel` が所有・写真をまたいで共有）。
     var presets: [DevelopPreset] { content?.developPresets ?? [] }
 
@@ -52,6 +55,11 @@ final class DevelopViewModel {
     private var rotation: Int = 0
     /// `EditInfo` 由来の正規化トリミング矩形（回転後の表示画像基準）。
     private var cropRect: CGRect?
+    /// RAW の露出・WB を `CIRAWFilter` 側で解釈するか（`DevelopSettings.schemaVersion` >= 2 の RAW）。
+    private var rawMappingActive = false
+    /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
+    /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
+    private var isRAWParameterDragging = false
 
     /// プレビューを engine でレンダーすべきか。現像調整または回転・トリミングのいずれかがある。
     private var shouldRender: Bool {
@@ -75,6 +83,8 @@ final class DevelopViewModel {
     private let persistDebounce: Duration
     /// この画素数を超える表示領域の変化があったときだけ再デコードする。
     private static let displaySizeChangeThreshold: CGFloat = 32
+    /// RAW の露出・WB を `CIRAWFilter` で再デコードする描画のデバウンス。標準チェーンより長く取る。
+    private static let rawMappingDebounce: Duration = .milliseconds(180)
 
     init(
         engine: any ImageDeveloping = ImageDevelopmentEngine.shared,
@@ -109,15 +119,34 @@ final class DevelopViewModel {
         previewImage = nil
         histogram = nil
         isRendering = false
+        isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
+        // version 1 の既存 RAW レコードは標準チェーンのまま（色が変わらないように）。
+        // レコードが無い新規は version 2 相当として委譲する。
+        rawMappingActive = isRAW && (content?.currentDevelopSettings?.usesRAWParameterMapping ?? true)
 
         if let photo, shouldRender {
             let params = parameters
             let rot = rotation
             let crop = cropRect
+            let mapping = rawMappingActive
             renderTask = Task { [weak self] in
-                await self?.render(photo: photo, parameters: params, rotation: rot, cropRect: crop)
+                await self?.render(
+                    photo: photo, parameters: params, rotation: rot, cropRect: crop,
+                    useRAWParameterMapping: mapping
+                )
             }
+        }
+    }
+
+    /// 露出・色温度・色かぶりのスライダーのドラッグ状態を伝える。
+    /// ドラッグ中は RAW 再デコードを避けて標準チェーンで近似し、離した時点で `CIRAWFilter` 経路で描き直す。
+    func setRAWParameterDragging(_ dragging: Bool) {
+        guard rawMappingActive, dragging != isRAWParameterDragging else { return }
+        isRAWParameterDragging = dragging
+        // ドラッグ終了時のみ再レンダー（開始時は didSet 側の描画に任せる）。
+        if !dragging, currentPhoto != nil, shouldRender {
+            scheduleRender()
         }
     }
 
@@ -227,10 +256,17 @@ final class DevelopViewModel {
         let params = parameters
         let rot = rotation
         let crop = cropRect
+        // ドラッグ中は RAW 委譲を止めて標準チェーンで近似する。
+        let mapping = rawMappingActive && !isRAWParameterDragging
+        // RAW 再デコードを伴う描画は連打で溜めないよう長めのデバウンスにする。
+        let debounce = mapping ? Self.rawMappingDebounce : renderDebounce
         renderTask = Task { [weak self] in
-            try? await Task.sleep(for: self?.renderDebounce ?? .zero)
+            try? await Task.sleep(for: debounce)
             guard !Task.isCancelled else { return }
-            await self?.render(photo: photo, parameters: params, rotation: rot, cropRect: crop)
+            await self?.render(
+                photo: photo, parameters: params, rotation: rot, cropRect: crop,
+                useRAWParameterMapping: mapping
+            )
         }
     }
 
@@ -238,7 +274,8 @@ final class DevelopViewModel {
         photo: Photo,
         parameters params: DevelopParameters,
         rotation: Int,
-        cropRect: CGRect?
+        cropRect: CGRect?,
+        useRAWParameterMapping: Bool
     ) async {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
         guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) else {
@@ -255,7 +292,8 @@ final class DevelopViewModel {
             parameters: params,
             targetMaxPixelSize: target,
             rotation: rotation,
-            cropRect: cropRect
+            cropRect: cropRect,
+            useRAWParameterMapping: useRAWParameterMapping
         )
         guard !Task.isCancelled, isCurrent(photo: photo, parameters: params, rotation: rotation, cropRect: cropRect) else {
             return

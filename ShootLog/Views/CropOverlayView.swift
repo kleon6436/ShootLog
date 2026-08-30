@@ -22,8 +22,7 @@ struct CropOverlayView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let size = geo.size
+        GeometryReader { _ in
             let pixRect = vm.pixelRect(in: imageFrame)
 
             ZStack {

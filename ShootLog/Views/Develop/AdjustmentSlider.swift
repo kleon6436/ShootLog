@@ -8,6 +8,8 @@ struct AdjustmentSlider: View {
     var range: ClosedRange<Double> = -100...100
     var neutral: Double = 0
     var fractionDigits: Int = 0
+    /// ドラッグ開始で `true`、終了で `false`。RAW の露出・WB の 2 段階描画に使う。
+    var onEditingChanged: (Bool) -> Void = { _ in }
 
     private var isModified: Bool { abs(value - neutral) > 0.0001 }
 
@@ -33,7 +35,7 @@ struct AdjustmentSlider: View {
                 .disabled(!isModified)
                 .help("develop.slider.resetValue.help")
             }
-            Slider(value: $value, in: range)
+            Slider(value: $value, in: range, onEditingChanged: onEditingChanged)
                 .controlSize(.small)
         }
         .accessibilityElement(children: .combine)

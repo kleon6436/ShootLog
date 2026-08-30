@@ -74,9 +74,15 @@ struct DevelopParametersTests {
         ]
         parameters.hslSaturation[3] = 55
         parameters.colorNoiseReduction = 20
+        parameters.lensCorrectionEnabled = true
 
         let decoded = try roundTrip(parameters)
         #expect(decoded == parameters)
+    }
+
+    @Test func missingLensCorrectionKeyDefaultsToFalse() throws {
+        let decoded = try decode(json: #"{"exposure": 1.0}"#)
+        #expect(decoded.lensCorrectionEnabled == false)
     }
 
     // MARK: - 欠損キーの補完

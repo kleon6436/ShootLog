@@ -18,7 +18,8 @@ struct DevelopPanelView: View {
                         label: "develop.exposure",
                         value: $developViewModel.parameters.exposure,
                         range: -3...3,
-                        fractionDigits: 2
+                        fractionDigits: 2,
+                        onEditingChanged: { developViewModel.setRAWParameterDragging($0) }
                     )
                     AdjustmentSlider(label: "develop.contrast", value: $developViewModel.parameters.contrast)
                     AdjustmentSlider(label: "develop.highlights", value: $developViewModel.parameters.highlights)
@@ -29,8 +30,16 @@ struct DevelopPanelView: View {
                 }
 
                 DevelopSection("develop.section.color") {
-                    AdjustmentSlider(label: "develop.temperature", value: $developViewModel.parameters.temperature)
-                    AdjustmentSlider(label: "develop.tint", value: $developViewModel.parameters.tint)
+                    AdjustmentSlider(
+                        label: "develop.temperature",
+                        value: $developViewModel.parameters.temperature,
+                        onEditingChanged: { developViewModel.setRAWParameterDragging($0) }
+                    )
+                    AdjustmentSlider(
+                        label: "develop.tint",
+                        value: $developViewModel.parameters.tint,
+                        onEditingChanged: { developViewModel.setRAWParameterDragging($0) }
+                    )
                     AdjustmentSlider(label: "develop.vibrance", value: $developViewModel.parameters.vibrance)
                     AdjustmentSlider(label: "develop.saturation", value: $developViewModel.parameters.saturation)
                 }
@@ -68,6 +77,16 @@ struct DevelopPanelView: View {
                         value: $developViewModel.parameters.colorNoiseReduction,
                         range: 0...100
                     )
+                }
+
+                if developViewModel.canDelegateToRAWFilter {
+                    DevelopSection("develop.section.lens") {
+                        Toggle(
+                            "develop.lens.correction",
+                            isOn: $developViewModel.parameters.lensCorrectionEnabled
+                        )
+                        .accessibilityLabel("develop.lens.correction")
+                    }
                 }
 
                 HStack {
