@@ -54,19 +54,24 @@ enum DevelopPipeline {
     ///   - isRAW: 入力が RAW 由来か。v1 ではノイズ低減の効き幅の選択にのみ使う
     ///     （RAW 固有パラメータの操作は行わず、すべて移植可能な標準 CIFilter で適用する）。
     ///   - cache: HSL cube の再計算を省くためのメモ。`nil` なら毎回計算する（テスト用の後方互換）。
+    ///   - skipExposureAndWhiteBalance: RAW で露出・WB を `CIRAWFilter` 側へ委譲した場合に `true`。
+    ///     このチェーンでは露出・色温度・色かぶりを適用しない（二重適用の防止）。
     /// - Returns: 調整後の画像。`parameters.isNeutral` の場合は `input` をそのまま返す。
     ///   フィルタ生成に失敗したステップは黙って読み飛ばし、直前の画像を維持する。
     static func apply(
         _ parameters: DevelopParameters,
         to input: CIImage,
         isRAW: Bool,
-        cache: DevelopPipelineCache? = nil
+        cache: DevelopPipelineCache? = nil,
+        skipExposureAndWhiteBalance: Bool = false
     ) -> CIImage {
         guard !parameters.isNeutral else { return input }
 
         var image = input
-        image = applyWhiteBalance(parameters, to: image)
-        image = applyExposure(parameters, to: image)
+        if !skipExposureAndWhiteBalance {
+            image = applyWhiteBalance(parameters, to: image)
+            image = applyExposure(parameters, to: image)
+        }
         image = applyHighlightShadow(parameters, to: image)
         image = applyColorControls(parameters, to: image)
         image = applyVibrance(parameters, to: image)

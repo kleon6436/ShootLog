@@ -20,7 +20,8 @@ struct DevelopSettingsTests {
     @Test func initialStateIsNeutral() {
         let settings = DevelopSettings(photoID: UUID())
 
-        #expect(settings.schemaVersion == 1)
+        #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
+        #expect(settings.usesRAWParameterMapping)
         #expect(settings.parameters == .neutral)
         #expect(!settings.parametersData.isEmpty)
     }

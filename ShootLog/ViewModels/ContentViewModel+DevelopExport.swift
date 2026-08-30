@@ -89,6 +89,9 @@ extension ContentViewModel {
         let parameters = currentDevelopSettings?.parameters ?? .neutral
         let rotation = currentEditInfo?.rotation ?? 0
         let cropRect = currentEditInfo?.cropRect
+        // RAW かつ version 2（またはレコード無し）のときだけ露出・WB を CIRAWFilter へ委譲する。
+        let useRAWMapping = ImageDevelopmentEngine.shared.isRAW(url: photo.fileURL)
+            && (currentDevelopSettings?.usesRAWParameterMapping ?? true)
 
         viewModel.beginProcessing()
 
@@ -116,6 +119,7 @@ extension ContentViewModel {
                 contentType: viewModel.outputFormat.utType,
                 jpegQuality: viewModel.jpegQuality.rawValue,
                 outputColorSpace: viewModel.effectiveColorSpace.cgColorSpace,
+                useRAWParameterMapping: useRAWMapping,
                 superResolution: superResolution,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),

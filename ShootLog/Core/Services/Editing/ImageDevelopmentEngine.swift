@@ -17,12 +17,15 @@ protocol ImageDeveloping: Sendable {
     ///     `cropRect` がある場合、切り抜き後の表示領域がこの解像度になるようベースデコードを拡大方向へ寄せる。
     ///   - rotation: 0 / 90 / 180 / 270（時計回り）。
     ///   - cropRect: 回転適用後の表示画像を基準にした正規化矩形（左上原点・0...1）。`nil` でトリミングなし。
+    ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか
+    ///     （`DevelopSettings.schemaVersion` >= 2）。非 RAW では無視される。
     func renderPreview(
         url: URL,
         parameters: DevelopParameters,
         targetMaxPixelSize: CGFloat,
         rotation: Int,
-        cropRect: CGRect?
+        cropRect: CGRect?,
+        useRAWParameterMapping: Bool
     ) async -> CGImage?
 
     /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
@@ -31,12 +34,14 @@ protocol ImageDeveloping: Sendable {
     ///   - cropRect: **回転適用後に表示されている画像**を基準にした正規化トリミング矩形
     ///     （左上原点・0...1）。`nil` でトリミングなし。`CropViewModel.normalizedRect` と同じ基準。
     ///   - outputColorSpace: 出力の色空間。`nil` で sRGB。作業空間（linearSRGB）は変えず、実体化時にのみ変換する。
+    ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか。
     func renderFull(
         url: URL,
         parameters: DevelopParameters,
         rotation: Int,
         cropRect: CGRect?,
-        outputColorSpace: CGColorSpace?
+        outputColorSpace: CGColorSpace?,
+        useRAWParameterMapping: Bool
     ) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
@@ -76,16 +81,19 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     /// Stage A キャッシュのサイズバケット幅（px）。要求解像度をこの刻みへ切り上げてキーにする。
     private static let bucketStep: CGFloat = 512
-    /// Stage A キャッシュの最大エントリ数。写真を行き来する程度なら 2 枚で足りる。
-    private static let cacheLimit = 2
+    /// Stage A キャッシュの最大エントリ数。RAW の露出・WB 委譲でパラメータ違いのデコードが増えるため
+    /// 直近の値を数件保持できるようにする（写真 2 枚 × パラメータ 3 状態を想定）。
+    private static let cacheLimit = 6
 
     /// ベースデコード結果のキャッシュキー。フル解像度（bucket 0）はキャッシュ対象外。
     /// `modifiedAt` を含めることで、同じパスのファイルが外部で差し替えられても
-    /// 古いデコード結果を返さないようにする。
+    /// 古いデコード結果を返さないようにする。`rawParamsHash` は RAW の露出・WB を
+    /// `CIRAWFilter` 側へ委譲した場合にそのオフセット値を反映する（非委譲時は 0）。
     private struct BaseKey: Hashable {
         let path: String
         let sizeBucket: Int
         let modifiedAt: TimeInterval
+        let rawParamsHash: Int
     }
 
     private var baseImageCache: [BaseKey: CGImage] = [:]
@@ -105,20 +113,26 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         parameters: DevelopParameters,
         targetMaxPixelSize: CGFloat,
         rotation: Int = 0,
-        cropRect: CGRect? = nil
+        cropRect: CGRect? = nil,
+        useRAWParameterMapping: Bool = false
     ) async -> CGImage? {
+        let raw = isRAW(url: url)
+        let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
         let decodeTarget = Self.decodeTarget(targetMaxPixelSize, cropRect: cropRect)
-        guard let base = await baseImage(url: url, targetMaxPixelSize: decodeTarget) else { return nil }
+        guard let base = await baseImage(
+            url: url, targetMaxPixelSize: decodeTarget, rawParameters: rawParameters
+        ) else { return nil }
         guard !Task.isCancelled else { return nil }
         // プレビューは常に sRGB。広色域プレビューは将来対応。
         return await Self.develop(
             base: base,
             parameters: parameters,
-            isRAW: isRAW(url: url),
+            isRAW: raw,
             cache: pipelineCache,
             rotation: rotation,
             cropRect: cropRect,
-            outputColorSpace: Self.defaultOutputColorSpace
+            outputColorSpace: Self.defaultOutputColorSpace,
+            skipExposureAndWhiteBalance: rawParameters != nil
         )
     }
 
@@ -142,18 +156,24 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         parameters: DevelopParameters,
         rotation: Int,
         cropRect: CGRect?,
-        outputColorSpace: CGColorSpace? = nil
+        outputColorSpace: CGColorSpace? = nil,
+        useRAWParameterMapping: Bool = false
     ) async -> CGImage? {
-        guard let base = await Self.decodeBase(url: url, maxPixelSize: 0) else { return nil }
+        let raw = isRAW(url: url)
+        let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
+        guard let base = await Self.decodeBase(
+            url: url, maxPixelSize: 0, rawParameters: rawParameters
+        ) else { return nil }
         guard !Task.isCancelled else { return nil }
         return await Self.develop(
             base: base,
             parameters: parameters,
-            isRAW: isRAW(url: url),
+            isRAW: raw,
             cache: pipelineCache,
             rotation: rotation,
             cropRect: cropRect,
-            outputColorSpace: outputColorSpace ?? Self.defaultOutputColorSpace
+            outputColorSpace: outputColorSpace ?? Self.defaultOutputColorSpace,
+            skipExposureAndWhiteBalance: rawParameters != nil
         )
     }
 
@@ -163,9 +183,19 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     // MARK: - Stage A（ベースデコード + キャッシュ）
 
-    private func baseImage(url: URL, targetMaxPixelSize: CGFloat) async -> CGImage? {
+    private func baseImage(
+        url: URL,
+        targetMaxPixelSize: CGFloat,
+        rawParameters: DevelopParameters?
+    ) async -> CGImage? {
         let bucket = Self.sizeBucket(for: targetMaxPixelSize)
-        let key = BaseKey(path: url.path, sizeBucket: bucket, modifiedAt: Self.modificationTime(of: url))
+        let rawHash = rawParameters.map { RAWDevelopMapping.decodeHash($0) } ?? 0
+        let key = BaseKey(
+            path: url.path,
+            sizeBucket: bucket,
+            modifiedAt: Self.modificationTime(of: url),
+            rawParamsHash: rawHash
+        )
 
         if bucket > 0, let cached = baseImageCache[key] {
             touch(key)
@@ -176,7 +206,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         // 起きても結果は同じで、後勝ちでキャッシュされるだけなので、進行中タスクの共有は行わない。
         guard let decoded = await Self.decodeBase(
             url: url,
-            maxPixelSize: Self.bucketPixelSize(bucket)
+            maxPixelSize: Self.bucketPixelSize(bucket),
+            rawParameters: rawParameters
         ) else {
             return nil
         }
@@ -229,14 +260,20 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     /// 失敗しうる。そのためスコープ内で `createCGImage` まで済ませてから返す。
     /// `Task.detached` はキャンセルを継承しないため `withTaskCancellationHandler` で伝播させる
     /// （`UpscaleExporter.decodeFullResolution` と同じ形）。
-    private static func decodeBase(url: URL, maxPixelSize: CGFloat) async -> CGImage? {
+    private static func decodeBase(
+        url: URL,
+        maxPixelSize: CGFloat,
+        rawParameters: DevelopParameters?
+    ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             // ブックマーク復元 URL に対してセキュリティスコープを要求する（通常 URL では no-op）
             _ = url.startAccessingSecurityScopedResource()
             defer { url.stopAccessingSecurityScopedResource() }
 
             guard !Task.isCancelled else { return nil }
-            return Self.decodeBaseSynchronously(url: url, maxPixelSize: maxPixelSize)
+            return Self.decodeBaseSynchronously(
+                url: url, maxPixelSize: maxPixelSize, rawParameters: rawParameters
+            )
         }
         return await withTaskCancellationHandler {
             await handle.value
@@ -245,14 +282,21 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         }
     }
 
-    private static func decodeBaseSynchronously(url: URL, maxPixelSize: CGFloat) -> CGImage? {
+    private static func decodeBaseSynchronously(
+        url: URL,
+        maxPixelSize: CGFloat,
+        rawParameters: DevelopParameters?
+    ) -> CGImage? {
         let treatAsRAW = rawExtensions.contains(url.pathExtension.lowercased())
 
         var source: CIImage?
         if treatAsRAW {
             guard let filter = CIRAWFilter(imageURL: url) else { return nil }
+            // 露出・WB を委譲する場合のみ CIRAWFilter のパラメータを触る。それ以外は as-shot 既定。
+            if let rawParameters {
+                RAWDevelopMapping.apply(rawParameters, to: filter)
+            }
             // RAW は scaleFactor を先に指定すると縮小デコードになり、後段の縮小より大幅に速い。
-            // RAW 固有の現像パラメータ（exposure 等）は v1 では触らず as-shot 既定のまま使う。
             if maxPixelSize > 0 {
                 let longestNativeSide = max(filter.nativeSize.width, filter.nativeSize.height)
                 if longestNativeSide > 0 {
@@ -292,12 +336,16 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         cache: DevelopPipelineCache,
         rotation: Int,
         cropRect: CGRect?,
-        outputColorSpace: CGColorSpace
+        outputColorSpace: CGColorSpace,
+        skipExposureAndWhiteBalance: Bool
     ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
             let source = CIImage(cgImage: base)
-            var image = DevelopPipeline.apply(parameters, to: source, isRAW: isRAW, cache: cache)
+            var image = DevelopPipeline.apply(
+                parameters, to: source, isRAW: isRAW, cache: cache,
+                skipExposureAndWhiteBalance: skipExposureAndWhiteBalance
+            )
             // 回転 → トリミングの順。cropRect は「回転後に表示されている画像」基準の正規化矩形なので、
             // 先に回転を焼き込んでから同じ割合で切り抜くと、ユーザーが画面で見た構図と一致する。
             image = applyRotation(rotation, to: image)

@@ -7,24 +7,35 @@ import SwiftData
 /// フィールド構成が将来変わっても旧レコードを読めるよう、blob のデコード失敗時は
 /// `.neutral` へフォールバックし、`schemaVersion` で blob 形式の世代を管理する。
 /// 元ファイルは変更しない（`EditInfo` と同じ非破壊方針）。
+///
+/// `schemaVersion`:
+/// - 1: RAW も含めすべて標準 `CIFilter` チェーンで解釈する（v1）。
+/// - 2: RAW のとき露出・色温度・色かぶりを `CIRAWFilter` 側へ委譲して解釈する（v2）。
+///   version 1 の既存レコードは 1 のまま描画し、色が変わらないようにする。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
     var photoID: UUID = UUID()
     /// `JSONEncoder().encode(DevelopParameters)` の結果。
     var parametersData: Data = DevelopSettings.encodedNeutral()
-    /// blob 形式の世代。現在 1。将来 blob レイアウトを変えた際の分岐ガードに使う。
-    var schemaVersion: Int = 1
+    /// blob の解釈世代。新規レコードは 2。
+    var schemaVersion: Int = DevelopSettings.currentSchemaVersion
     /// 調整値を最後に更新した時刻。
     var updatedAt: Date = Date.now
+
+    /// 新規レコードが名乗る世代。
+    static let currentSchemaVersion = 2
 
     /// 中立状態のレコードを生成する。
     init(photoID: UUID) {
         self.photoID = photoID
         self.parametersData = DevelopSettings.encodedNeutral()
-        self.schemaVersion = 1
+        self.schemaVersion = DevelopSettings.currentSchemaVersion
         self.updatedAt = .now
     }
+
+    /// RAW の露出・WB を `CIRAWFilter` 側で解釈する世代か。
+    var usesRAWParameterMapping: Bool { schemaVersion >= 2 }
 
     /// 保持している調整値。
     ///

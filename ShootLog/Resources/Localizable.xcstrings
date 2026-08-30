@@ -2083,6 +2083,23 @@
         }
       }
     },
+    "develop.lens.correction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lens Profile Correction"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "レンズプロファイル補正"
+          }
+        }
+      }
+    },
     "develop.noiseReduction.color" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2402,6 +2419,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "カラー"
+          }
+        }
+      }
+    },
+    "develop.section.lens" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lens Correction"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "レンズ補正"
           }
         }
       }

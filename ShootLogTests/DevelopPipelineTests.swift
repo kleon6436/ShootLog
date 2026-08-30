@@ -73,6 +73,45 @@ struct DevelopPipelineTests {
         return buffer
     }
 
+    // MARK: - RAW 露出・WB の委譲
+
+    @Test func skipExposureAndWhiteBalanceOmitsThoseFilters() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+
+        var params = DevelopParameters.neutral
+        params.exposure = 1.0
+        params.temperature = 40
+
+        let standard = DevelopPipeline.apply(params, to: input, isRAW: true)
+        let skipped = DevelopPipeline.apply(params, to: input, isRAW: true, skipExposureAndWhiteBalance: true)
+
+        let inputMean = mean(try renderRGBA(input, context: context))
+        let standardMean = mean(try renderRGBA(standard, context: context))
+        let skippedMean = mean(try renderRGBA(skipped, context: context))
+
+        // 標準チェーンは露出で明るくなる。skip 版は入力とほぼ同じ（CIRAWFilter 側で処理される想定）。
+        #expect(standardMean > inputMean + 10)
+        #expect(abs(skippedMean - inputMean) < 3)
+    }
+
+    @Test func skipExposureAndWhiteBalanceStillAppliesOtherAdjustments() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+
+        var params = DevelopParameters.neutral
+        params.exposure = 1.0        // 委譲対象（skip される）
+        params.saturation = -100     // 非委譲（適用される）
+
+        let skipped = DevelopPipeline.apply(params, to: input, isRAW: true, skipExposureAndWhiteBalance: true)
+        let pixels = try renderRGBA(skipped, context: context)
+
+        // 彩度 -100 で R/G/B がほぼ等しくなる（グレースケール化）。
+        let redRange = range(pixels, channel: 0)
+        let greenRange = range(pixels, channel: 1)
+        #expect(abs(redRange.max - greenRange.max) < 20)
+    }
+
     private func mean(_ pixels: [UInt8]) -> Double {
         var total = 0.0
         var count = 0
