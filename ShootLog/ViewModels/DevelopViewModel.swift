@@ -31,6 +31,18 @@ final class DevelopViewModel {
     /// リセット可能か（何らかの調整が入っている）。
     var canReset: Bool { !parameters.isNeutral }
 
+    /// 保存済みプリセット（`ContentViewModel` が所有・写真をまたいで共有）。
+    var presets: [DevelopPreset] { content?.developPresets ?? [] }
+
+    /// プリセット適用・ペースト直前の状態。1 段だけ戻せる。
+    private(set) var canUndo = false
+    private var undoParameters: DevelopParameters?
+
+    /// 「調整をペースト」に使えるクリップボードがあるか。
+    private(set) var canPaste = false
+    /// プロセス内の調整クリップボード。他アプリと互換性のない独自形式のため `NSPasteboard` は使わない。
+    private static var clipboard: DevelopParameters?
+
     private let engine: any ImageDeveloping
     private let content: ContentViewModel?
 
@@ -91,6 +103,9 @@ final class DevelopViewModel {
         parameters = content?.currentDevelopSettings?.parameters ?? .neutral
         isApplyingLoadedState = false
 
+        undoParameters = nil
+        canUndo = false
+        canPaste = Self.clipboard != nil
         previewImage = nil
         histogram = nil
         isRendering = false
@@ -145,9 +160,59 @@ final class DevelopViewModel {
         histogram = nil
         isRendering = false
         content?.resetDevelop()
+        undoParameters = nil
+        canUndo = false
         if currentPhoto != nil, shouldRender {
             scheduleRender()
         }
+    }
+
+    // MARK: - プリセット / コピー & ペースト
+
+    /// 現在の調整値をプリセットとして保存する。
+    func saveCurrentAsPreset(name: String) {
+        content?.saveDevelopPreset(name: name, from: parameters)
+    }
+
+    func deletePreset(_ preset: DevelopPreset) {
+        content?.deleteDevelopPreset(preset)
+    }
+
+    func renamePreset(_ preset: DevelopPreset, to name: String) {
+        content?.renameDevelopPreset(preset, to: name)
+    }
+
+    /// プリセットの調整値を適用する。直前の状態は 1 段だけ戻せる。
+    func applyPreset(_ preset: DevelopPreset) {
+        applyReplacingParameters(preset.parameters)
+    }
+
+    /// 現在の調整値をクリップボードへコピーする。
+    func copyAdjustments() {
+        Self.clipboard = parameters
+        canPaste = true
+    }
+
+    /// クリップボードの調整値を適用する。直前の状態は 1 段だけ戻せる。
+    func pasteAdjustments() {
+        guard let clip = Self.clipboard else { return }
+        applyReplacingParameters(clip)
+    }
+
+    /// プリセット適用・ペーストを 1 段だけ取り消す。
+    func undoLastApply() {
+        guard let target = undoParameters else { return }
+        undoParameters = nil
+        canUndo = false
+        parameters = target
+    }
+
+    /// `parameters` を丸ごと差し替える。didSet でプレビュー再描画・永続化が予約される。
+    private func applyReplacingParameters(_ new: DevelopParameters) {
+        guard new != parameters else { return }
+        undoParameters = parameters
+        canUndo = true
+        parameters = new
     }
 
     // MARK: - Private

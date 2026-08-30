@@ -9,6 +9,8 @@ struct DevelopPanelView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.large) {
+                DevelopPresetBar(developViewModel: developViewModel)
+
                 HistogramView(data: developViewModel.histogram)
 
                 DevelopSection("develop.section.basic") {
