@@ -11,10 +11,12 @@ struct DevelopPipelineTests {
 
     // MARK: - ヘルパー
 
-    /// テスト用の CIContext。作業・出力とも sRGB に固定してエンジン側と条件を揃える。
+    /// テスト用の CIContext。作業空間 linearSRGB / 出力 sRGB で `ImageDevelopmentEngine.sharedContext`
+    /// と条件を揃える。知覚ブラケット（`DevelopPipeline` の sRGB 区間）が本番と同じ空間で評価される。
     private func makeContext() throws -> CIContext {
-        let colorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
-        return CIContext(options: [.workingColorSpace: colorSpace, .outputColorSpace: colorSpace])
+        let working = try #require(CGColorSpace(name: CGColorSpace.linearSRGB))
+        let output = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        return CIContext(options: [.workingColorSpace: working, .outputColorSpace: output])
     }
 
     /// R と G が位置で変化し B が一定の、決定論的なカラー画像。
@@ -28,6 +30,40 @@ struct DevelopPipelineTests {
                 pixels[index] = UInt8(8 + x * 6)        // R: 8...194
                 pixels[index + 1] = UInt8(40 + y * 4)   // G: 40...164
                 pixels[index + 2] = 120                 // B: 一定
+                pixels[index + 3] = 255
+            }
+        }
+
+        let colorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
+        let cgImage = try #require(CGImage(
+            width: side,
+            height: side,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: side * 4,
+            space: colorSpace,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
+        return CIImage(cgImage: cgImage)
+    }
+
+    /// 左上三角を `low`、右下三角を `high` の一様グレーで塗った sRGB 画像。
+    /// 中央 128 対称の 2 値を与えて、トーン調整の対称性・方向を測るのに使う。
+    private func makeSplitImage(low: UInt8, high: UInt8) throws -> CIImage {
+        let side = Self.side
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        for y in 0..<side {
+            for x in 0..<side {
+                let index = (y * side + x) * 4
+                let value = (x + y) < side ? low : high
+                pixels[index] = value
+                pixels[index + 1] = value
+                pixels[index + 2] = value
                 pixels[index + 3] = 255
             }
         }
@@ -163,6 +199,87 @@ struct DevelopPipelineTests {
         var parameters = DevelopParameters.neutral
         parameters.exposure = 0.5
         #expect(DevelopPipeline.hasAnyEffect(parameters))
+    }
+
+    // MARK: - 色管理（v3 Phase 1: ガンマ空間ブラケット）
+
+    /// 恒等トーンカーブを足しても、コントラスト単独の結果を（ほぼ）変えない。
+    /// ガンマ空間ブラケットの入口/出口変換が可逆であることの回帰ガード。
+    @Test func identityToneCurveInsidePerceptualBracketIsHarmless() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+
+        var contrastOnly = DevelopParameters.neutral
+        contrastOnly.contrast = 40
+
+        var withIdentityCurve = contrastOnly
+        withIdentityCurve.toneCurveRGB = [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.5, y: 0.5), CurvePoint(x: 1, y: 1)]
+
+        let a = try renderRGBA(DevelopPipeline.apply(contrastOnly, to: input, isRAW: false), context: context)
+        let b = try renderRGBA(DevelopPipeline.apply(withIdentityCurve, to: input, isRAW: false), context: context)
+        #expect(maxAbsoluteDifference(a, b) <= 4)
+    }
+
+    /// コントラスト +50 単独と、同程度の S 字トーンカーブは、中間調を同じ向きへ動かす。
+    /// v3 Phase 1 前はコントラスト（リニア）とトーンカーブ（sRGB）が別空間で評価され、
+    /// 中間調の移動方向が食い違う場合があった。
+    @Test func contrastAndSCurveToneCurveAgreeOnMidtoneDirection() throws {
+        let context = try makeContext()
+        // 中間グレー付近（sRGB 96 と 160）の 2 パッチ。
+        let input = try makeSplitImage(low: 96, high: 160)
+        let baseline = try renderRGBA(input, context: context)
+
+        var contrast = DevelopParameters.neutral
+        contrast.contrast = 50
+
+        var sCurve = DevelopParameters.neutral
+        sCurve.toneCurveRGB = [
+            CurvePoint(x: 0, y: 0),
+            CurvePoint(x: 0.25, y: 0.18),
+            CurvePoint(x: 0.5, y: 0.5),
+            CurvePoint(x: 0.75, y: 0.82),
+            CurvePoint(x: 1, y: 1)
+        ]
+
+        let byContrast = try renderRGBA(DevelopPipeline.apply(contrast, to: input, isRAW: false), context: context)
+        let byCurve = try renderRGBA(DevelopPipeline.apply(sCurve, to: input, isRAW: false), context: context)
+
+        // 低パッチ（左上）と高パッチ（右下）の代表画素を比較する。
+        let lowIndex = 0
+        let highIndex = (Self.side - 1) * Self.side * 4 + (Self.side - 1) * 4
+        for channel in 0..<3 {
+            let baseLow = Int(baseline[lowIndex + channel])
+            let baseHigh = Int(baseline[highIndex + channel])
+            let contrastLowDelta = Int(byContrast[lowIndex + channel]) - baseLow
+            let curveLowDelta = Int(byCurve[lowIndex + channel]) - baseLow
+            let contrastHighDelta = Int(byContrast[highIndex + channel]) - baseHigh
+            let curveHighDelta = Int(byCurve[highIndex + channel]) - baseHigh
+            // 低パッチは両方下げ、高パッチは両方上げる（符号一致）。
+            #expect(contrastLowDelta <= 0 && curveLowDelta <= 0)
+            #expect(contrastHighDelta >= 0 && curveHighDelta >= 0)
+        }
+    }
+
+    /// sRGB で対称な 2 値（64 と 192、中央 128 対称）にコントラストを掛けると、
+    /// ガンマ空間評価により暗部が下がる量と明部が上がる量が概ね釣り合う。
+    @Test func contrastExpandsRoughlySymmetricallyAroundMidGrayInGammaSpace() throws {
+        let context = try makeContext()
+        let input = try makeSplitImage(low: 64, high: 192)
+        let baseline = try renderRGBA(input, context: context)
+
+        var contrast = DevelopParameters.neutral
+        contrast.contrast = 60
+        let boosted = try renderRGBA(DevelopPipeline.apply(contrast, to: input, isRAW: false), context: context)
+
+        let lowIndex = 0
+        let highIndex = (Self.side - 1) * Self.side * 4 + (Self.side - 1) * 4
+        let downShift = Double(Int(baseline[lowIndex]) - Int(boosted[lowIndex]))    // 正で暗くなった
+        let upShift = Double(Int(boosted[highIndex]) - Int(baseline[highIndex]))    // 正で明るくなった
+
+        #expect(downShift > 4)
+        #expect(upShift > 4)
+        // 完全対称は期待しないが、片側だけ極端に動くことはない（比 0.5〜2.0）。
+        #expect(downShift / upShift > 0.5 && downShift / upShift < 2.0)
     }
 
     // MARK: - 基本調整
