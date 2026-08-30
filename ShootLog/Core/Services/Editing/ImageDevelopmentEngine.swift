@@ -17,6 +17,8 @@ protocol ImageDeveloping: Sendable {
     ///     `cropRect` がある場合、切り抜き後の表示領域がこの解像度になるようベースデコードを拡大方向へ寄せる。
     ///   - rotation: 0 / 90 / 180 / 270（時計回り）。
     ///   - cropRect: 回転適用後の表示画像を基準にした正規化矩形（左上原点・0...1）。`nil` でトリミングなし。
+    ///   - previewColorSpace: プレビュー CGImage の色空間。`nil` で sRGB。P3 ディスプレイでの編集時に
+    ///     ディスプレイの色空間を渡すと、P3 書き出しと画面の見えが一致する。作業空間（linearSRGB）は不変。
     ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか
     ///     （`DevelopSettings.schemaVersion` >= 2）。非 RAW では無視される。
     func renderPreview(
@@ -25,6 +27,7 @@ protocol ImageDeveloping: Sendable {
         targetMaxPixelSize: CGFloat,
         rotation: Int,
         cropRect: CGRect?,
+        previewColorSpace: CGColorSpace?,
         useRAWParameterMapping: Bool
     ) async -> CGImage?
 
@@ -114,6 +117,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         targetMaxPixelSize: CGFloat,
         rotation: Int = 0,
         cropRect: CGRect? = nil,
+        previewColorSpace: CGColorSpace? = nil,
         useRAWParameterMapping: Bool = false
     ) async -> CGImage? {
         let raw = isRAW(url: url)
@@ -123,7 +127,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             url: url, targetMaxPixelSize: decodeTarget, rawParameters: rawParameters
         ) else { return nil }
         guard !Task.isCancelled else { return nil }
-        // プレビューは常に sRGB。広色域プレビューは将来対応。
+        // 既定は sRGB。P3 ディスプレイ編集時のみ呼び出し側がディスプレイの色空間を渡す。
+        // 作業空間（linearSRGB）と知覚ブラケットは不変、実体化時にのみ変換する（renderFull と同じ）。
         return await Self.develop(
             base: base,
             parameters: parameters,
@@ -131,7 +136,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             cache: pipelineCache,
             rotation: rotation,
             cropRect: cropRect,
-            outputColorSpace: Self.defaultOutputColorSpace,
+            outputColorSpace: previewColorSpace ?? Self.defaultOutputColorSpace,
             skipExposureAndWhiteBalance: rawParameters != nil
         )
     }

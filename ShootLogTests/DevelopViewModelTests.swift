@@ -26,12 +26,16 @@ struct DevelopViewModelTests {
         var lastCropRect: CGRect? { lock.withLock { lastCropValue } }
         var lastRAWMapping: Bool { lock.withLock { lastRAWMappingValue } }
 
+        private var lastPreviewColorSpaceValue: CGColorSpace?
+        var lastPreviewColorSpace: CGColorSpace? { lock.withLock { lastPreviewColorSpaceValue } }
+
         func renderPreview(
             url: URL,
             parameters: DevelopParameters,
             targetMaxPixelSize: CGFloat,
             rotation: Int,
             cropRect: CGRect?,
+            previewColorSpace: CGColorSpace?,
             useRAWParameterMapping: Bool
         ) async -> CGImage? {
             lock.withLock {
@@ -39,6 +43,7 @@ struct DevelopViewModelTests {
                 lastParams = parameters
                 lastRotationValue = rotation
                 lastCropValue = cropRect
+                lastPreviewColorSpaceValue = previewColorSpace
                 lastRAWMappingValue = useRAWParameterMapping
             }
             return stub
@@ -440,6 +445,31 @@ struct DevelopViewModelTests {
         #expect(vm.parameters.exposure == 0.8)
         #expect(vm.parameters.contrast == 10)
         #expect(vm.parameters.saturation == 0)
+    }
+
+    @Test func setPreviewColorSpaceReRendersWithThatSpaceOnChange() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.exposure = 0.5
+        vm.parameters = params
+        await settle()
+        let callsBeforeColorSpace = engine.previewCallCount
+
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+        vm.setPreviewColorSpace(p3)
+        await settle()
+        #expect(engine.previewCallCount > callsBeforeColorSpace)
+        #expect(engine.lastPreviewColorSpace.map { CFEqual($0, p3) } == true)
+
+        // 同じ色空間の再設定は再レンダーを起こさない。
+        let callsAfterFirst = engine.previewCallCount
+        vm.setPreviewColorSpace(p3)
+        await settle()
+        #expect(engine.previewCallCount == callsAfterFirst)
     }
 
     @Test func copyThenPasteMovesAdjustments() async throws {

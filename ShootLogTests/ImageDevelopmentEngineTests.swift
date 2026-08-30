@@ -428,7 +428,7 @@ struct ImageDevelopmentEngineTests {
         #expect((output.colorSpace?.name as String?) == (CGColorSpace.displayP3 as String))
     }
 
-    @Test func renderPreviewStaysSRGBRegardlessOfExportSetting() async throws {
+    @Test func renderPreviewDefaultsToSRGB() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
         let engine = ImageDevelopmentEngine()
@@ -439,6 +439,61 @@ struct ImageDevelopmentEngineTests {
             await engine.renderPreview(url: url, parameters: params, targetMaxPixelSize: 256)
         )
         #expect((preview.colorSpace?.name as String?) == (CGColorSpace.sRGB as String))
+    }
+
+    @Test func renderPreviewHonorsRequestedDisplayColorSpace() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+
+        var params = DevelopParameters.neutral
+        params.saturation = 100   // 色域外へ振ってエンコード差が出るようにする
+
+        let sRGBPreview = try #require(
+            await engine.renderPreview(
+                url: url, parameters: params, targetMaxPixelSize: 256,
+                previewColorSpace: nil
+            )
+        )
+        let p3Preview = try #require(
+            await engine.renderPreview(
+                url: url, parameters: params, targetMaxPixelSize: 256,
+                previewColorSpace: p3
+            )
+        )
+
+        #expect((sRGBPreview.colorSpace?.name as String?) == (CGColorSpace.sRGB as String))
+        #expect((p3Preview.colorSpace?.name as String?) == (CGColorSpace.displayP3 as String))
+
+        // 同じ色でも P3 と sRGB では原色が違うため、ネイティブ空間でのエンコード値が変わる。
+        let sRGBFallback = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        func nativeMean(of image: CGImage) -> (r: Double, g: Double, b: Double) {
+            let width = image.width
+            let height = image.height
+            let space = image.colorSpace ?? sRGBFallback
+            var buffer = [UInt8](repeating: 0, count: width * height * 4)
+            _ = buffer.withUnsafeMutableBytes { raw in
+                CGContext(
+                    data: raw.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                    bytesPerRow: width * 4, space: space,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                )?.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            }
+            var totals = (0.0, 0.0, 0.0)
+            let count = Double(width * height)
+            for index in stride(from: 0, to: buffer.count, by: 4) {
+                totals.0 += Double(buffer[index])
+                totals.1 += Double(buffer[index + 1])
+                totals.2 += Double(buffer[index + 2])
+            }
+            return (totals.0 / count, totals.1 / count, totals.2 / count)
+        }
+
+        let sRGBMean = nativeMean(of: sRGBPreview)
+        let p3Mean = nativeMean(of: p3Preview)
+        let delta = abs(sRGBMean.r - p3Mean.r) + abs(sRGBMean.g - p3Mean.g) + abs(sRGBMean.b - p3Mean.b)
+        #expect(delta > 3)
     }
 
     // MARK: - 失敗系
