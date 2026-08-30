@@ -413,6 +413,35 @@ struct DevelopViewModelTests {
         #expect(vm.canUndo == false)
     }
 
+    @Test func relativePresetApplyAddsToCurrentAndIsUndoable() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var start = DevelopParameters.neutral
+        start.exposure = 0.8
+        start.contrast = 10
+        vm.parameters = start
+        await settle()
+
+        var presetParams = DevelopParameters.neutral
+        presetParams.contrast = 20
+        presetParams.saturation = 15
+        vm.applyPreset(DevelopPreset(name: "style", parameters: presetParams, sortIndex: 0), relative: true)
+
+        // 露出は保たれ、コントラストは加算、彩度はプリセット分。
+        #expect(vm.parameters.exposure == 0.8)
+        #expect(vm.parameters.contrast == 30)
+        #expect(vm.parameters.saturation == 15)
+        #expect(vm.canUndo)
+
+        vm.undoLastApply()
+        #expect(vm.parameters.exposure == 0.8)
+        #expect(vm.parameters.contrast == 10)
+        #expect(vm.parameters.saturation == 0)
+    }
+
     @Test func copyThenPasteMovesAdjustments() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()

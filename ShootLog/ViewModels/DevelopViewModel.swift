@@ -225,8 +225,11 @@ final class DevelopViewModel {
     }
 
     /// プリセットの調整値を適用する。直前の状態は 1 段だけ戻せる。
-    func applyPreset(_ preset: DevelopPreset) {
-        applyReplacingParameters(preset.parameters)
+    /// - Parameter relative: `true` なら現在の調整値へプリセットを差分として重ねる（露出違いの
+    ///   複数カットへ同じスタイルを崩さず足せる）。`false`（既定）なら丸ごと置き換える。
+    func applyPreset(_ preset: DevelopPreset, relative: Bool = false) {
+        let target = relative ? parameters.applying(delta: preset.parameters) : preset.parameters
+        applyReplacingParameters(target)
     }
 
     /// 現在の調整値をクリップボードへコピーする。
