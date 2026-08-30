@@ -23,6 +23,9 @@ struct EditablePhotoView: View {
         GeometryReader { geometry in
             content(containerSize: geometry.size)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    DisplayColorSpaceReader { developViewModel.setPreviewColorSpace($0) }
+                )
                 .task(id: photo?.id) {
                     await vm.load(photo: photo, displaySize: geometry.size)
                     // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）。

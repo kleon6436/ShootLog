@@ -60,6 +60,9 @@ final class DevelopViewModel {
     /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
     /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
     private var isRAWParameterDragging = false
+    /// プレビュー CGImage の色空間。`nil` で sRGB。P3 ディスプレイ編集時にビューアが載っている
+    /// ディスプレイの色空間を `setPreviewColorSpace` で渡すと、P3 書き出しと画面の見えが一致する。
+    private var previewColorSpace: CGColorSpace?
 
     /// プレビューを engine でレンダーすべきか。現像調整または回転・トリミングのいずれかがある。
     private var shouldRender: Bool {
@@ -173,6 +176,25 @@ final class DevelopViewModel {
             previewImage = nil
             histogram = nil
             isRendering = false
+        }
+    }
+
+    /// ビューアが載っているディスプレイの色空間を伝える。P3 ディスプレイなら P3 を渡すと
+    /// プレビューが P3 書き出しの見えと一致する。`nil` で sRGB。変化があれば再描画する。
+    func setPreviewColorSpace(_ colorSpace: CGColorSpace?) {
+        guard !Self.sameColorSpace(colorSpace, previewColorSpace) else { return }
+        previewColorSpace = colorSpace
+        if currentPhoto != nil, shouldRender {
+            scheduleRender()
+        }
+    }
+
+    /// `CGColorSpace` は `Equatable` ではないため `CFEqual` で比較する。
+    private static func sameColorSpace(_ lhs: CGColorSpace?, _ rhs: CGColorSpace?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): return true
+        case let (left?, right?): return CFEqual(left, right)
+        default: return false
         }
     }
 
@@ -315,6 +337,7 @@ final class DevelopViewModel {
             targetMaxPixelSize: target,
             rotation: rotation,
             cropRect: cropRect,
+            previewColorSpace: previewColorSpace,
             useRAWParameterMapping: useRAWParameterMapping
         )
         // supersede されていたら後始末は最新世代に任せる。

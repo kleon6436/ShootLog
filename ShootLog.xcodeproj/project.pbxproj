@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02A89EFB03A1095A687D0F08 /* DisplayColorSpaceReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC31AD9B8E7DB17C4EC0D00 /* DisplayColorSpaceReader.swift */; };
 		030BBE3AC22E9E1A21F14441 /* ContentViewModel+Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A9B30565C8ED777B63D5A7D /* ContentViewModel+Folder.swift */; };
 		031916913080F36A0ED7E4FC /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = DC422688CDA11BB4470BF6E4 /* Localizable.xcstrings */; };
 		0571AED06500722F0FD02823 /* DevelopParameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28535A210CC744917E63E581 /* DevelopParameters.swift */; };
@@ -258,6 +259,7 @@
 		DE5F98F0201F18F0FFDCA729 /* CustomAppAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAppAdapter.swift; sourceTree = "<group>"; };
 		E2D360343E3C8AEEA3BDD7B6 /* ShootLog.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = ShootLog.icon; sourceTree = "<group>"; };
 		E9015CE5351C41FF1BCF929F /* CropViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropViewModelTests.swift; sourceTree = "<group>"; };
+		EBC31AD9B8E7DB17C4EC0D00 /* DisplayColorSpaceReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayColorSpaceReader.swift; sourceTree = "<group>"; };
 		EC8AF43F85D5945C8B6AD938 /* EditInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditInfo.swift; sourceTree = "<group>"; };
 		EF13A531C7944060A4EB1AAC /* PhotoViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoViewerView.swift; sourceTree = "<group>"; };
 		EFE2FB0C28A6AD8CF11DFFB3 /* OutputPixelBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputPixelBuffer.swift; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 				8955D8207536E6BD56618C02 /* CropOverlayView.swift */,
 				A7093F9E9C1BDD3D78630ECD /* DesignSystem.swift */,
 				701DA32475A9D93DC0A9EEBB /* DevelopExportSheet.swift */,
+				EBC31AD9B8E7DB17C4EC0D00 /* DisplayColorSpaceReader.swift */,
 				84404E85187227393FC4CA60 /* EditablePhotoView.swift */,
 				C981DCCCDD5EE800CE3EE736 /* EditorToolbarView.swift */,
 				D54B7A657E5C95915EC1419C /* EmptyStateView.swift */,
@@ -651,6 +654,7 @@
 				CACF38A9BF6ADB3A8CA40083 /* DevelopPresetBar.swift in Sources */,
 				5CFED0E1590A019EF29C9856 /* DevelopSettings.swift in Sources */,
 				6DF61E9BAA03C01B5159B3BC /* DevelopViewModel.swift in Sources */,
+				02A89EFB03A1095A687D0F08 /* DisplayColorSpaceReader.swift in Sources */,
 				7654EF65E95271DED5FBD4AC /* EXIFPanelView.swift in Sources */,
 				581857E70CFC09EB7B0B3983 /* EXIFPanelViewModel.swift in Sources */,
 				080DFC954BCE85A3E0C5131C /* EXIFService.swift in Sources */,
