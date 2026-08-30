@@ -235,6 +235,41 @@ struct ImageDevelopmentEngineTests {
         #expect(try rgbaBytes(of: first) == rgbaBytes(of: second))
     }
 
+    @Test func previewBakesRotationAndCrop() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 400, height: 200, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        // 90度回転 → 見かけ 200x400。左半分(x:0, w:0.5)を切り抜き。
+        let preview = try #require(
+            await engine.renderPreview(
+                url: url, parameters: .neutral, targetMaxPixelSize: 512,
+                rotation: 90, cropRect: CGRect(x: 0, y: 0, width: 0.5, height: 1)
+            )
+        )
+        // 回転後 200x400 の左半分 → アスペクト比 1:4
+        let aspect = Double(preview.width) / Double(preview.height)
+        #expect(abs(aspect - 0.25) < 0.05)
+    }
+
+    @Test func previewCropUpscalesBaseDecodeForResolution() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 2000, height: 2000, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        // 20% クロップ。ベースデコードが target まで引き上げられ、切り抜き後も解像度が保たれる。
+        let crop = CGRect(x: 0.4, y: 0.4, width: 0.2, height: 0.2)
+        let preview = try #require(
+            await engine.renderPreview(
+                url: url, parameters: .neutral, targetMaxPixelSize: 512,
+                rotation: 0, cropRect: crop
+            )
+        )
+        // クロップ前提を無視すると長辺 ≒ 512 * 0.2 ≒ 102px まで落ちる。
+        // decodeTarget が効いていれば 200px 以上を保てる（上限 4 倍なので厳密一致は求めない）。
+        #expect(max(preview.width, preview.height) >= 200)
+    }
+
     // MARK: - フル解像度
 
     @Test func renderFullKeepsSourceDimensions() async throws {

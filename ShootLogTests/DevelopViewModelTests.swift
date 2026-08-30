@@ -14,20 +14,28 @@ struct DevelopViewModelTests {
         private let lock = NSLock()
         private var previewCalls = 0
         private var lastParams: DevelopParameters?
+        private var lastRotationValue = 0
+        private var lastCropValue: CGRect?
         var rawFileNames: Set<String> = []
         var stub: CGImage?
 
         var previewCallCount: Int { lock.withLock { previewCalls } }
         var lastParameters: DevelopParameters? { lock.withLock { lastParams } }
+        var lastRotation: Int { lock.withLock { lastRotationValue } }
+        var lastCropRect: CGRect? { lock.withLock { lastCropValue } }
 
         func renderPreview(
             url: URL,
             parameters: DevelopParameters,
-            targetMaxPixelSize: CGFloat
+            targetMaxPixelSize: CGFloat,
+            rotation: Int,
+            cropRect: CGRect?
         ) async -> CGImage? {
             lock.withLock {
                 previewCalls += 1
                 lastParams = parameters
+                lastRotationValue = rotation
+                lastCropValue = cropRect
             }
             return stub
         }
@@ -210,6 +218,96 @@ struct DevelopViewModelTests {
 
         vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/shot.jpg")), displaySize: .zero)
         #expect(vm.isRAW == false)
+    }
+
+    // MARK: - 回転・トリミングのライブプレビュー
+
+    @Test func neutralParametersButRotationStillRenders() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(
+            photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
+            displaySize: CGSize(width: 800, height: 600),
+            rotation: 90,
+            cropRect: nil
+        )
+        await settle()
+
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastRotation == 90)
+        #expect(vm.previewImage != nil)
+    }
+
+    @Test func neutralParametersAndNoGeometryDoesNotRender() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+
+        // 全体矩形は実質トリミングなし。回転も無し → レンダーしない。
+        vm.load(
+            photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
+            displaySize: CGSize(width: 800, height: 600),
+            rotation: 0,
+            cropRect: CGRect(x: 0, y: 0, width: 1, height: 1)
+        )
+        await settle()
+
+        #expect(engine.previewCallCount == 0)
+        #expect(vm.previewImage == nil)
+    }
+
+    @Test func updateEditGeometryTriggersRenderWithCrop() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(engine.previewCallCount == 0)
+
+        let crop = CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.5)
+        vm.updateEditGeometry(rotation: 0, cropRect: crop)
+        await settle()
+
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastCropRect == crop)
+        #expect(vm.previewImage != nil)
+    }
+
+    @Test func clearingGeometryWhileNeutralClearsPreview() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(
+            photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
+            displaySize: CGSize(width: 800, height: 600),
+            rotation: 90
+        )
+        await settle()
+        #expect(vm.previewImage != nil)
+
+        vm.updateEditGeometry(rotation: 0, cropRect: nil)
+        await settle()
+
+        #expect(vm.previewImage == nil)
+        #expect(vm.histogram == nil)
+    }
+
+    @Test func staleRotationResultIsDiscarded() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(
+            photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
+            displaySize: CGSize(width: 800, height: 600),
+            rotation: 90
+        )
+        // デバウンス満了前に回転を変える。古い回転の結果で上書きされないこと。
+        vm.updateEditGeometry(rotation: 180, cropRect: nil)
+        await settle()
+
+        #expect(engine.lastRotation == 180)
     }
 
     @Test func switchingPhotoDiscardsStalePreview() async throws {
