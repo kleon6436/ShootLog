@@ -41,6 +41,41 @@ extension ContentViewModel {
         saveOrReportError(context)
     }
 
+    // 写真 ID を指定して現像調整値を保存する。写真切り替え時に、切り替え前の写真の
+    // デバウンス保存を取りこぼさないための経路。currentDevelopSettings キャッシュには触らない
+    // （対象写真は通常もう選択中ではないため）
+    func persistDevelopParameters(_ parameters: DevelopParameters, forPhotoID photoID: UUID) {
+        guard let context = modelContext else { return }
+        let existing = ((try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? [])
+            .first { $0.photoID == photoID }
+
+        if parameters.isNeutral {
+            if let existing { context.delete(existing) }
+            saveOrReportError(context)
+            if currentDevelopSettings?.photoID == photoID { currentDevelopSettings = nil }
+            return
+        }
+
+        if let existing {
+            do {
+                try existing.setParameters(parameters)
+            } catch {
+                self.error = ShootLogError.photoDataSaveFailed
+                return
+            }
+        } else {
+            let settings = DevelopSettings(photoID: photoID)
+            do {
+                try settings.setParameters(parameters)
+            } catch {
+                self.error = ShootLogError.photoDataSaveFailed
+                return
+            }
+            context.insert(settings)
+        }
+        saveOrReportError(context)
+    }
+
     // 現像調整を全リセットする。resetEdits()（回転・トリミング）とは独立
     func resetDevelop() {
         guard let context = modelContext, let settings = currentDevelopSettings else { return }

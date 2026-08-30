@@ -194,6 +194,11 @@ enum DevelopPipeline {
 
     // MARK: - 4. コントラスト / 明るさ / 彩度
 
+    /// 既知の制限: `ImageDevelopmentEngine` の CIContext は作業空間が linearSRGB のため、
+    /// `CIColorControls`（コントラスト）と `applyLevels` の `CIToneCurve` はリニア光で評価される。
+    /// コントラストの 0.5 ピボットや白黒レベルの span 定数はこの前提でチューニング済みだが、
+    /// `applyToneCurves` は `CIColorCurves.colorSpace = sRGB` を明示しており、ガンマ空間で
+    /// 評価される。この不整合の解消（ガンマ空間ブラケットへの統一）は v3 の色管理見直しで扱う。
     private static func applyColorControls(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
         guard parameters.contrast != 0 || parameters.brightness != 0 || parameters.saturation != 0 else {
             return image

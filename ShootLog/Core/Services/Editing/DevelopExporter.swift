@@ -211,7 +211,11 @@ struct DevelopExporter: Sendable {
 
         if let imageSource = CGImageSourceCreateWithURL(sourceURL as CFURL, nil),
            let sourceProps = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any] {
-            if let exif = sourceProps[kCGImagePropertyExifDictionary] {
+            if var exif = sourceProps[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+                // トリミング・超解像で寸法が変わるため、EXIF の寸法系は残さない
+                // （実ラスタと食い違うメタデータを避ける）。
+                exif.removeValue(forKey: kCGImagePropertyExifPixelXDimension)
+                exif.removeValue(forKey: kCGImagePropertyExifPixelYDimension)
                 properties[kCGImagePropertyExifDictionary] = exif
             }
             if let sourceTIFF = sourceProps[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
