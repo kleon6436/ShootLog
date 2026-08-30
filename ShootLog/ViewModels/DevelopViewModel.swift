@@ -97,6 +97,7 @@ final class DevelopViewModel {
     private var isApplyingLoadedState = false
 
     private var renderTask: Task<Void, Never>?
+    private var histogramTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
     /// レンダー要求の世代。await 明けにこれと一致しない結果は破棄し、`isRendering` の後始末も
     /// 最新世代のみが行う（キャンセル・supersede でスピナーが残らないようにする）。
@@ -133,6 +134,7 @@ final class DevelopViewModel {
         // 切り替え前の写真のデバウンス保存を取りこぼさないよう、先にフラッシュする。
         flushPendingPersist()
         renderTask?.cancel()
+        histogramTask?.cancel()
         _ = nextRenderGeneration()
         if displaySize.width > 0, displaySize.height > 0 { self.displaySize = displaySize }
         currentPhoto = photo
@@ -157,19 +159,23 @@ final class DevelopViewModel {
         rawMappingActive = isRAW && (content?.currentDevelopSettings?.usesRAWParameterMapping ?? true)
         manualLensCorrectionActive = content?.currentDevelopSettings?.usesManualLensCorrection ?? true
 
-        if let photo, shouldRender {
-            let params = parameters
-            let rot = rotation
-            let crop = cropRect
-            let mapping = rawMappingActive
-            let manualLensCorrection = shouldApplyManualLensCorrection(params)
-            let generation = renderGeneration
-            renderTask = Task { [weak self] in
-                await self?.render(
-                    photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                    useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
-                    generation: generation
-                )
+        if let photo {
+            if shouldRender {
+                let params = parameters
+                let rot = rotation
+                let crop = cropRect
+                let mapping = rawMappingActive
+                let manualLensCorrection = shouldApplyManualLensCorrection(params)
+                let generation = renderGeneration
+                renderTask = Task { [weak self] in
+                    await self?.render(
+                        photo: photo, parameters: params, rotation: rot, cropRect: crop,
+                        useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
+                        generation: generation
+                    )
+                }
+            } else {
+                scheduleHistogramOnly(generation: renderGeneration)
             }
         }
     }
@@ -251,9 +257,10 @@ final class DevelopViewModel {
             scheduleRender()
         } else {
             renderTask?.cancel()
+            histogramTask?.cancel()
             _ = nextRenderGeneration()
             previewImage = nil
-            histogram = nil
+            scheduleHistogramOnly(generation: renderGeneration)
             isRendering = false
         }
     }
@@ -285,6 +292,8 @@ final class DevelopViewModel {
         displaySize = size
         if changed, currentPhoto != nil, shouldRender {
             scheduleRender()
+        } else if changed, currentPhoto != nil {
+            scheduleHistogramOnly(generation: renderGeneration)
         }
     }
 
@@ -292,6 +301,7 @@ final class DevelopViewModel {
     /// 回転・トリミングが残っていれば、それだけを焼き込んだプレビューを出し直す。
     func reset() {
         renderTask?.cancel()
+        histogramTask?.cancel()
         // resetDevelop がレコードを消すので、保留中の保存はフラッシュせず破棄する。
         persistTask?.cancel()
         pendingPersist = nil
@@ -310,6 +320,8 @@ final class DevelopViewModel {
         canUndo = false
         if currentPhoto != nil, shouldRender {
             scheduleRender()
+        } else if currentPhoto != nil {
+            scheduleHistogramOnly(generation: renderGeneration)
         }
     }
 
@@ -380,6 +392,7 @@ final class DevelopViewModel {
 
     private func scheduleRender() {
         renderTask?.cancel()
+        histogramTask?.cancel()
         guard let photo = currentPhoto else {
             _ = nextRenderGeneration()
             previewImage = nil
@@ -407,6 +420,35 @@ final class DevelopViewModel {
         }
     }
 
+    /// 現像レンダーを伴わない写真でも、選択時にヒストグラムを表示するため
+    /// ベース画像（.neutral）から集計する。previewImage は変更しない。
+    private func scheduleHistogramOnly(generation: Int) {
+        guard let photo = currentPhoto else { return }
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        let rot = rotation
+        let crop = cropRect
+        let colorSpace = previewColorSpace
+        histogramTask?.cancel()
+        histogramTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.renderDebounce ?? .zero)
+            guard let self, !Task.isCancelled, generation == self.renderGeneration else { return }
+            let base = await self.engine.renderPreview(
+                url: photo.fileURL,
+                parameters: .neutral,
+                targetMaxPixelSize: target,
+                rotation: rot,
+                cropRect: crop,
+                previewColorSpace: colorSpace,
+                useRAWParameterMapping: false,
+                usesManualLensCorrection: false
+            )
+            guard generation == self.renderGeneration, let base else { return }
+            let computed = await HistogramData.make(from: base)
+            guard generation == self.renderGeneration else { return }
+            self.histogram = computed
+        }
+    }
+
     private func render(
         photo: Photo,
         parameters params: DevelopParameters,
@@ -420,7 +462,7 @@ final class DevelopViewModel {
         guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) else {
             if generation == renderGeneration {
                 previewImage = nil
-                histogram = nil
+                scheduleHistogramOnly(generation: generation)
                 isRendering = false
             }
             return
