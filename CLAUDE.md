@@ -232,6 +232,8 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 - Sigma fp LのPictureMode検出は暫定実装。
 - サムネイル/一覧表示は引き続きImageIOの対応範囲でプレビューする（現像は「編集」タブ選択時のみ）。
 - 現像編集: カラー別HSLはCore Imageに単一フィルタが無いためCPU生成の3D LUT（`CIColorCube`）による近似。書き出しはsRGB / Display P3を選択可（`develop`の作業空間linearSRGBと出力段のsRGB LUTは維持し、実体化時にのみP3へ変換）。プレビューは常にsRGB（広色域プレビューは将来対応）。RAWの露出・色温度・色かぶりは`CIRAWFilter`のas-shot既定からのオフセットとして委譲（`RAWDevelopMapping`、`DevelopSettings.schemaVersion` 2）。version 1の既存RAWレコードは標準チェーンのまま。ノイズ低減・シャープ・コントラスト等は縮小デコードとフル解像度で効きが一致しないため標準`CIFilter`チェーンを維持。RAWの露出・WBスライダーはドラッグ中は標準チェーンで近似し、離した時点で`CIRAWFilter`再デコードで描き直す。RAWのレンズ補正は`CIRAWFilter.isLensCorrectionEnabled`のトグルのみ（非RAW・手動補正は未対応）。回転・トリミングはプレビューにも焼き込むが、トリミング編集中のオーバーレイはベース画像上で操作する。RAW実ファイルでのデコード経路は実機サンプル不足のため継続検証中。詳細は `Docs/ShootLog_設計書.md` 6章。
+- 現像パイプラインの色管理に不整合: `CIColorControls`（コントラスト）と白黒レベルの `CIToneCurve` はリニア作業空間で評価されるのに対し、トーンカーブの `CIColorCurves` は sRGB を明示している。span 定数は現状の挙動でチューニング済み。ガンマ空間への統一は v3 の色管理見直しで扱う。
+- 単体の超解像書き出し（`UpscaleExporter`）は `EditInfo.cropRect` を適用しない（現像書き出しのみ焼き込む）。
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
 

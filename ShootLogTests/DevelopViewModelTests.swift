@@ -214,6 +214,59 @@ struct DevelopViewModelTests {
         #expect(rows.first?.photoID == photo.id)
     }
 
+    @Test func switchingPhotoFlushesPendingPersist() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photoA) = try makeContentViewModel()
+        let photoB = Photo(fileURL: URL(fileURLWithPath: "/tmp/b.jpg"))
+        context.insert(photoB)
+        try context.save()
+
+        // 保存デバウンスは長め、描画は短めにして「保存前に写真を切り替える」状況を作る。
+        let vm = DevelopViewModel(
+            engine: engine, content: content,
+            renderDebounce: .milliseconds(5), persistDebounce: .milliseconds(500)
+        )
+        vm.load(photo: photoA, displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.exposure = 1.75
+        vm.parameters = params
+        await settle(40)   // 保存デバウンス(500ms)満了前
+
+        content.selectedPhoto = photoB
+        content.loadDevelopSettings(for: photoB)
+        vm.load(photo: photoB, displaySize: CGSize(width: 800, height: 600))
+        await settle(40)
+
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        let rowA = rows.first { $0.photoID == photoA.id }
+        #expect(rowA?.parameters.exposure == 1.75)
+    }
+
+    @Test func failedRenderClearsStalePreview() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.contrast = 30
+        vm.parameters = params
+        await settle()
+        #expect(vm.previewImage != nil)
+
+        // 次のレンダーは失敗（stub = nil）。古いプレビューを残さない。
+        engine.stub = nil
+        params.contrast = 60
+        vm.parameters = params
+        await settle()
+
+        #expect(vm.previewImage == nil)
+        #expect(vm.histogram == nil)
+        #expect(vm.isRendering == false)
+    }
+
     @Test func isRAWReflectsEngine() async throws {
         let engine = SpyEngine()
         engine.rawFileNames = ["shot.nef"]

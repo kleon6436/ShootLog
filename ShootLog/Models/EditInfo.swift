@@ -1,9 +1,10 @@
 import Foundation
 import SwiftData
 
-/// 非破壊編集情報。元ファイルは変更しない。rotationは表示時（rotationEffect）と
-/// 超解像・現像書き出し時に適用される。cropRectは現像書き出し（DevelopExporter）で
-/// 焼き込まれ、トリミングモードのオーバーレイ初期矩形にも使う。ライブプレビューは未対応。
+/// 非破壊編集情報。元ファイルは変更しない。
+/// - `rotation`: 表示時（rotationEffect）・現像書き出し・超解像書き出しのいずれでも適用される。
+/// - `cropRect`: 現像書き出し（`DevelopExporter`）と現像プレビューで焼き込まれ、トリミングモードの
+///   オーバーレイ初期矩形にも使う。単体の超解像書き出し（`UpscaleExporter`）には**適用されない**。
 @Model
 final class EditInfo {
     var photoID: UUID

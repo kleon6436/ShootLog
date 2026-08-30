@@ -76,6 +76,12 @@ final class DevelopViewModel {
 
     private var renderTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
+    /// レンダー要求の世代。await 明けにこれと一致しない結果は破棄し、`isRendering` の後始末も
+    /// 最新世代のみが行う（キャンセル・supersede でスピナーが残らないようにする）。
+    private var renderGeneration = 0
+    /// デバウンス待ちの保存内容（対象写真 ID と調整値）。写真切り替え時に取りこぼさないよう
+    /// `load` の冒頭でこの内容を即時フラッシュする。
+    private var pendingPersist: (photoID: UUID, parameters: DevelopParameters)?
 
     /// 連続操作をまとめる待ち時間。描画は体感優先で短く、保存は書き込み削減のため長めに取る。
     /// テストから短縮できるようにインスタンス値で持つ。
@@ -102,8 +108,10 @@ final class DevelopViewModel {
 
     /// 写真切り替え時に呼ぶ。保存済み調整値をロードし、調整または回転・トリミングがあれば即プレビューする。
     func load(photo: Photo?, displaySize: CGSize, rotation: Int = 0, cropRect: CGRect? = nil) {
+        // 切り替え前の写真のデバウンス保存を取りこぼさないよう、先にフラッシュする。
+        flushPendingPersist()
         renderTask?.cancel()
-        persistTask?.cancel()
+        _ = nextRenderGeneration()
         if displaySize.width > 0, displaySize.height > 0 { self.displaySize = displaySize }
         currentPhoto = photo
         self.rotation = rotation
@@ -130,10 +138,11 @@ final class DevelopViewModel {
             let rot = rotation
             let crop = cropRect
             let mapping = rawMappingActive
+            let generation = renderGeneration
             renderTask = Task { [weak self] in
                 await self?.render(
                     photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                    useRAWParameterMapping: mapping
+                    useRAWParameterMapping: mapping, generation: generation
                 )
             }
         }
@@ -160,6 +169,7 @@ final class DevelopViewModel {
             scheduleRender()
         } else {
             renderTask?.cancel()
+            _ = nextRenderGeneration()
             previewImage = nil
             histogram = nil
             isRendering = false
@@ -181,7 +191,10 @@ final class DevelopViewModel {
     /// 回転・トリミングが残っていれば、それだけを焼き込んだプレビューを出し直す。
     func reset() {
         renderTask?.cancel()
+        // resetDevelop がレコードを消すので、保留中の保存はフラッシュせず破棄する。
         persistTask?.cancel()
+        pendingPersist = nil
+        _ = nextRenderGeneration()
         isApplyingLoadedState = true
         parameters = .neutral
         isApplyingLoadedState = false
@@ -249,8 +262,10 @@ final class DevelopViewModel {
     private func scheduleRender() {
         renderTask?.cancel()
         guard let photo = currentPhoto else {
+            _ = nextRenderGeneration()
             previewImage = nil
             histogram = nil
+            isRendering = false
             return
         }
         let params = parameters
@@ -260,12 +275,13 @@ final class DevelopViewModel {
         let mapping = rawMappingActive && !isRAWParameterDragging
         // RAW 再デコードを伴う描画は連打で溜めないよう長めのデバウンスにする。
         let debounce = mapping ? Self.rawMappingDebounce : renderDebounce
+        let generation = nextRenderGeneration()
         renderTask = Task { [weak self] in
             try? await Task.sleep(for: debounce)
             guard !Task.isCancelled else { return }
             await self?.render(
                 photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                useRAWParameterMapping: mapping
+                useRAWParameterMapping: mapping, generation: generation
             )
         }
     }
@@ -275,13 +291,16 @@ final class DevelopViewModel {
         parameters params: DevelopParameters,
         rotation: Int,
         cropRect: CGRect?,
-        useRAWParameterMapping: Bool
+        useRAWParameterMapping: Bool,
+        generation: Int
     ) async {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
         guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) else {
-            previewImage = nil
-            histogram = nil
-            isRendering = false
+            if generation == renderGeneration {
+                previewImage = nil
+                histogram = nil
+                isRendering = false
+            }
             return
         }
 
@@ -295,39 +314,50 @@ final class DevelopViewModel {
             cropRect: cropRect,
             useRAWParameterMapping: useRAWParameterMapping
         )
-        guard !Task.isCancelled, isCurrent(photo: photo, parameters: params, rotation: rotation, cropRect: cropRect) else {
-            return
-        }
+        // supersede されていたら後始末は最新世代に任せる。
+        guard generation == renderGeneration else { return }
 
         isRendering = false
-        guard let rendered else { return }
+        guard let rendered else {
+            // 一時的なレンダー失敗。誤ったパラメータのプレビューを残さず、ベース画像へ戻す。
+            previewImage = nil
+            histogram = nil
+            return
+        }
         previewImage = NSImage(cgImage: rendered, size: .zero)
 
         let computed = await HistogramData.make(from: rendered)
-        guard isCurrent(photo: photo, parameters: params, rotation: rotation, cropRect: cropRect) else { return }
+        guard generation == renderGeneration else { return }
         histogram = computed
     }
 
-    /// レンダー結果が今も最新の要求に対応しているか（写真・パラメータ・回転・トリミングとも一致）。
-    private func isCurrent(
-        photo: Photo,
-        parameters params: DevelopParameters,
-        rotation: Int,
-        cropRect: CGRect?
-    ) -> Bool {
-        currentPhoto?.id == photo.id
-            && parameters == params
-            && self.rotation == rotation
-            && self.cropRect == cropRect
+    /// 新しいレンダー要求の世代番号を発行する。
+    private func nextRenderGeneration() -> Int {
+        renderGeneration &+= 1
+        return renderGeneration
     }
 
     private func schedulePersist() {
         persistTask?.cancel()
+        guard let photoID = currentPhoto?.id else {
+            pendingPersist = nil
+            return
+        }
         let params = parameters
+        pendingPersist = (photoID, params)
         persistTask = Task { [weak self] in
             try? await Task.sleep(for: self?.persistDebounce ?? .zero)
             guard !Task.isCancelled else { return }
             self?.content?.updateDevelopParameters(params)
+            self?.pendingPersist = nil
         }
+    }
+
+    /// デバウンス待ちの保存を即時に書き込む。写真切り替えで取りこぼさないため `load` の冒頭で呼ぶ。
+    private func flushPendingPersist() {
+        persistTask?.cancel()
+        guard let pending = pendingPersist else { return }
+        pendingPersist = nil
+        content?.persistDevelopParameters(pending.parameters, forPhotoID: pending.photoID)
     }
 }
