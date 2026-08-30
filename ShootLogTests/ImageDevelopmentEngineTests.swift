@@ -53,12 +53,38 @@ struct ImageDevelopmentEngineTests {
     private func writePNG(width: Int, height: Int, in sandbox: URL) throws -> URL {
         let image = try makeColorImage(width: width, height: height)
         let url = sandbox.appendingPathComponent("\(UUID().uuidString).png")
+        try writePNG(image, to: url)
+        return url
+    }
+
+    private func writePNG(_ image: CGImage, to url: URL) throws {
         let destination = try #require(CGImageDestinationCreateWithURL(
             url as CFURL, UTType.png.identifier as CFString, 1, nil
         ))
         CGImageDestinationAddImage(destination, image, nil)
         #expect(CGImageDestinationFinalize(destination))
-        return url
+    }
+
+    /// 全ピクセルが同じグレー値の画像。
+    private func makeSolidImage(gray: UInt8, size: Int) throws -> CGImage {
+        let pixels = [UInt8](repeating: gray, count: size * size * 4).enumerated().map { index, value in
+            index % 4 == 3 ? 255 : value
+        }
+        let colorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
+        return try #require(CGImage(
+            width: size,
+            height: size,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: size * 4,
+            space: colorSpace,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
     }
 
     /// CGImage を sRGB の RGBA8 バイト列へ展開する。
@@ -279,6 +305,32 @@ struct ImageDevelopmentEngineTests {
         )
         #expect(cropped.width == 100)
         #expect(cropped.height == 100)
+    }
+
+    // MARK: - Stage A キャッシュ
+
+    /// 同じパスのファイルが差し替えられたら、Stage A キャッシュの古いデコード結果を返さない。
+    @Test func baseCacheInvalidatesWhenSourceFileChanges() async throws {
+        let sandbox = try makeSandbox()
+        let url = sandbox.appendingPathComponent("subject.png")
+        let engine = ImageDevelopmentEngine()
+
+        try writePNG(try makeSolidImage(gray: 40, size: 64), to: url)
+        let dark = try #require(
+            await engine.renderPreview(url: url, parameters: .neutral, targetMaxPixelSize: 256)
+        )
+        let darkLuma = try meanLuma(of: dark)
+
+        // 明るい画像で上書きし、mtime を確実に進める（sleep に頼らず属性で固定）。
+        try writePNG(try makeSolidImage(gray: 220, size: 64), to: url)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: 5)], ofItemAtPath: url.path
+        )
+        let light = try #require(
+            await engine.renderPreview(url: url, parameters: .neutral, targetMaxPixelSize: 256)
+        )
+
+        #expect(try meanLuma(of: light) > darkLuma + 80)
     }
 
     // MARK: - 失敗系
