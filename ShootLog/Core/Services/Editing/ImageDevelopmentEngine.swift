@@ -62,12 +62,17 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     private static let cacheLimit = 2
 
     /// ベースデコード結果のキャッシュキー。フル解像度（bucket 0）はキャッシュ対象外。
+    /// `modifiedAt` を含めることで、同じパスのファイルが外部で差し替えられても
+    /// 古いデコード結果を返さないようにする。
     private struct BaseKey: Hashable {
         let path: String
         let sizeBucket: Int
+        let modifiedAt: TimeInterval
     }
 
     private var baseImageCache: [BaseKey: CGImage] = [:]
+    /// `baseImageCache` のアクセス順（先頭が最古）。上限超過時の LRU 退避に使う。
+    private var baseCacheOrder: [BaseKey] = []
 
     // MARK: - RAW 判定
 
@@ -118,9 +123,12 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     private func baseImage(url: URL, targetMaxPixelSize: CGFloat) async -> CGImage? {
         let bucket = Self.sizeBucket(for: targetMaxPixelSize)
-        let key = BaseKey(path: url.path, sizeBucket: bucket)
+        let key = BaseKey(path: url.path, sizeBucket: bucket, modifiedAt: Self.modificationTime(of: url))
 
-        if bucket > 0, let cached = baseImageCache[key] { return cached }
+        if bucket > 0, let cached = baseImageCache[key] {
+            touch(key)
+            return cached
+        }
 
         // デコード中は actor が中断するため、同一キーの要求が重なると二重デコードになりうる。
         // 起きても結果は同じで、後勝ちでキャッシュされるだけなので、進行中タスクの共有は行わない。
@@ -136,12 +144,30 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     }
 
     private func store(_ image: CGImage, for key: BaseKey) {
-        if baseImageCache[key] == nil,
-           baseImageCache.count >= Self.cacheLimit,
-           let victim = baseImageCache.keys.first {
-            baseImageCache.removeValue(forKey: victim)
+        if baseImageCache[key] == nil {
+            while baseImageCache.count >= Self.cacheLimit, let victim = baseCacheOrder.first {
+                baseCacheOrder.removeFirst()
+                baseImageCache.removeValue(forKey: victim)
+            }
         }
         baseImageCache[key] = image
+        touch(key)
+    }
+
+    /// キャッシュヒット / 追加したキーをアクセス順の末尾（最新）へ動かす。
+    private func touch(_ key: BaseKey) {
+        if let index = baseCacheOrder.firstIndex(of: key) {
+            baseCacheOrder.remove(at: index)
+        }
+        baseCacheOrder.append(key)
+    }
+
+    /// 原本の最終更新時刻（参照日時基準の秒）。取得できなければ 0。
+    /// キャッシュキーに含め、ファイル差し替え後に stale なデコード結果を返さないようにする。
+    /// `URL.resourceValues` は URL 側に値をキャッシュしうるため、毎回 stat し直す `FileManager` を使う。
+    private static func modificationTime(of url: URL) -> TimeInterval {
+        let date = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+        return date?.timeIntervalSinceReferenceDate ?? 0
     }
 
     /// 要求解像度を `bucketStep` 刻みへ切り上げたバケット番号。0 はフル解像度を表す。

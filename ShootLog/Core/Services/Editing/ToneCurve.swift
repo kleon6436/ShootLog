@@ -121,21 +121,29 @@ enum ToneCurve {
             }
         }
 
+        // 単調性クランプ。各制御点の縮小係数を全区間ぶん先に求めてから一括適用する。
+        // in-place 更新（教科書式）だと、ある区間で縮めた接線を隣の区間の α/β 評価が
+        // 読んでしまい結果が処理順に依存する。係数を分離すればその副作用が無くなり、
+        // かつ `scale[i] <= τ` により各区間で α'² + β'² <= 9 が保たれ単調性も守られる。
+        var scale = [Double](repeating: 1, count: n)
         for i in 0..<(n - 1) {
             let secant = secants[i]
             if abs(secant) < .ulpOfOne {
-                tangents[i] = 0
-                tangents[i + 1] = 0
+                // 平坦区間の両端は接線 0（オーバーシュート防止）
+                scale[i] = 0
+                scale[i + 1] = 0
                 continue
             }
             let alpha = tangents[i] / secant
             let beta = tangents[i + 1] / secant
             let sumSquares = alpha * alpha + beta * beta
-            if sumSquares > 9 {
-                let tau = 3 / sumSquares.squareRoot()
-                tangents[i] = tau * alpha * secant
-                tangents[i + 1] = tau * beta * secant
-            }
+            guard sumSquares > 9 else { continue }
+            let tau = 3 / sumSquares.squareRoot()
+            scale[i] = min(scale[i], tau)
+            scale[i + 1] = min(scale[i + 1], tau)
+        }
+        for i in 0..<n {
+            tangents[i] *= scale[i]
         }
 
         return tangents
