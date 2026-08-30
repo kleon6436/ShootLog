@@ -2083,6 +2083,23 @@
         }
       }
     },
+    "develop.lens.chromaticAberration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chromatic Aberration"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色収差"
+          }
+        }
+      }
+    },
     "develop.lens.correction" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2096,6 +2113,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "レンズプロファイル補正"
+          }
+        }
+      }
+    },
+    "develop.lens.distortion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distortion"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "歪曲"
+          }
+        }
+      }
+    },
+    "develop.lens.handledByRAWFilter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile correction is handled by the RAW filter"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロファイル補正は RAW フィルタ側で処理されます"
+          }
+        }
+      }
+    },
+    "develop.lens.vignette" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vignetting"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周辺光量"
           }
         }
       }

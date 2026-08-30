@@ -79,13 +79,34 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                if developViewModel.canDelegateToRAWFilter {
+                if developViewModel.canDelegateToRAWFilter || developViewModel.canEditManualLensCorrection {
                     DevelopSection("develop.section.lens") {
-                        Toggle(
-                            "develop.lens.correction",
-                            isOn: $developViewModel.parameters.lensCorrectionEnabled
-                        )
-                        .accessibilityLabel("develop.lens.correction")
+                        if developViewModel.canDelegateToRAWFilter {
+                            Toggle(
+                                "develop.lens.correction",
+                                isOn: $developViewModel.parameters.lensCorrectionEnabled
+                            )
+                            .accessibilityLabel("develop.lens.correction")
+                        }
+
+                        if developViewModel.canEditManualLensCorrection {
+                            AdjustmentSlider(
+                                label: "develop.lens.distortion",
+                                value: $developViewModel.parameters.lensDistortion
+                            )
+                            AdjustmentSlider(
+                                label: "develop.lens.vignette",
+                                value: $developViewModel.parameters.lensVignette
+                            )
+                            AdjustmentSlider(
+                                label: "develop.lens.chromaticAberration",
+                                value: $developViewModel.parameters.lensChromaticAberration
+                            )
+                        } else if developViewModel.canDelegateToRAWFilter {
+                            Text("develop.lens.handledByRAWFilter")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
