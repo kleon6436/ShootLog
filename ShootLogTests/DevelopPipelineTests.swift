@@ -179,6 +179,22 @@ struct DevelopPipelineTests {
         return worst
     }
 
+    private func meanChannel(
+        _ pixels: [UInt8],
+        channel: Int,
+        where includes: (Int, Int) -> Bool
+    ) -> Double {
+        var total = 0.0
+        var count = 0
+        for y in 0..<Self.side {
+            for x in 0..<Self.side where includes(x, y) {
+                total += Double(pixels[(y * Self.side + x) * 4 + channel])
+                count += 1
+            }
+        }
+        return count > 0 ? total / Double(count) : 0
+    }
+
     // MARK: - 恒等性
 
     @Test func neutralParametersProduceIdenticalPixels() throws {
@@ -191,6 +207,163 @@ struct DevelopPipelineTests {
         let before = try renderRGBA(input, context: context)
         let after = try renderRGBA(output, context: context)
         #expect(maxAbsoluteDifference(before, after) <= 2)
+    }
+
+    @Test func nonRAWCustomWhiteBalanceAtAsShotBaselineIsIdentity() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+        var parameters = DevelopParameters.neutral
+        parameters.whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: 5200, tint: 0)
+        let asShot = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 0, isEstimated: true)
+
+        let before = try renderRGBA(input, context: context)
+        let after = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false, asShotWhiteBalance: asShot),
+            context: context
+        )
+
+        #expect(maxAbsoluteDifference(before, after) <= 3)
+    }
+
+    @Test func nonRAWCustomWhiteBalanceWarmsWhenAboveAsShot() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+        var parameters = DevelopParameters.neutral
+        parameters.whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: 7200, tint: 0)
+        let asShot = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 0, isEstimated: true)
+
+        let baseline = try renderRGBA(input, context: context)
+        let warmed = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false, asShotWhiteBalance: asShot),
+            context: context
+        )
+
+        #expect(meanChannel(warmed, channel: 0, where: { _, _ in true }) > meanChannel(warmed, channel: 2, where: { _, _ in true }))
+        #expect(maxAbsoluteDifference(baseline, warmed) > 3)
+    }
+
+    @Test func colorGradingNeutralIsIdentity() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+        var parameters = DevelopParameters.neutral
+        parameters.contrast = 20
+
+        let legacy = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false), context: context
+        )
+        let graded = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters,
+                to: input,
+                isRAW: false,
+                usesToneMaskedColorGrading: true
+            ),
+            context: context
+        )
+
+        #expect(maxAbsoluteDifference(legacy, graded) <= 2)
+    }
+
+    // MARK: - トーン域マスク・カラーグレーディング
+
+    @Test func shadowTintOnlyAffectsDarks() throws {
+        let context = try makeContext()
+        let input = try makeSplitImage(low: 30, high: 220)
+        var parameters = DevelopParameters.neutral
+        parameters.colorBalance.shadows = ColorBalanceComponent(hue: 240, saturation: 80)
+
+        let baseline = try renderRGBA(input, context: context)
+        let graded = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters,
+                to: input,
+                isRAW: false,
+                usesToneMaskedColorGrading: true
+            ),
+            context: context
+        )
+        let isShadow: (Int, Int) -> Bool = { $0 + $1 < Self.side }
+        let isHighlight: (Int, Int) -> Bool = { !isShadow($0, $1) }
+
+        #expect(meanChannel(graded, channel: 2, where: isShadow) > meanChannel(baseline, channel: 2, where: isShadow) + 4)
+        for channel in 0..<3 {
+            #expect(abs(meanChannel(graded, channel: channel, where: isHighlight) - meanChannel(baseline, channel: channel, where: isHighlight)) <= 3)
+        }
+    }
+
+    @Test func highlightTintOnlyAffectsBrights() throws {
+        let context = try makeContext()
+        let input = try makeSplitImage(low: 30, high: 220)
+        var parameters = DevelopParameters.neutral
+        parameters.colorBalance.highlights = ColorBalanceComponent(hue: 30, saturation: 80)
+
+        let baseline = try renderRGBA(input, context: context)
+        let graded = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters,
+                to: input,
+                isRAW: false,
+                usesToneMaskedColorGrading: true
+            ),
+            context: context
+        )
+        let isShadow: (Int, Int) -> Bool = { $0 + $1 < Self.side }
+        let isHighlight: (Int, Int) -> Bool = { !isShadow($0, $1) }
+
+        #expect(meanChannel(graded, channel: 0, where: isHighlight) > meanChannel(baseline, channel: 0, where: isHighlight) + 4)
+        for channel in 0..<3 {
+            #expect(abs(meanChannel(graded, channel: channel, where: isShadow) - meanChannel(baseline, channel: channel, where: isShadow)) <= 3)
+        }
+    }
+
+    @Test func masterTintIsUniform() throws {
+        let context = try makeContext()
+        let input = try makeSplitImage(low: 30, high: 220)
+        var parameters = DevelopParameters.neutral
+        parameters.colorBalance.master = ColorBalanceComponent(hue: 200, saturation: 60)
+
+        let baseline = try renderRGBA(input, context: context)
+        let graded = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters,
+                to: input,
+                isRAW: false,
+                usesToneMaskedColorGrading: true
+            ),
+            context: context
+        )
+        let isShadow: (Int, Int) -> Bool = { $0 + $1 < Self.side }
+        let isHighlight: (Int, Int) -> Bool = { !isShadow($0, $1) }
+        let shadowDelta = meanChannel(graded, channel: 2, where: isShadow) - meanChannel(baseline, channel: 2, where: isShadow)
+        let highlightDelta = meanChannel(graded, channel: 2, where: isHighlight) - meanChannel(baseline, channel: 2, where: isHighlight)
+
+        #expect(abs(shadowDelta - highlightDelta) < 6)
+    }
+
+    @Test func legacyPathUnchanged() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+        var parameters = DevelopParameters.neutral
+        parameters.colorBalance.master = ColorBalanceComponent(hue: 40, saturation: 40)
+
+        let firstLegacy = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false), context: context
+        )
+        let secondLegacy = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false), context: context
+        )
+        let graded = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters,
+                to: input,
+                isRAW: false,
+                usesToneMaskedColorGrading: true
+            ),
+            context: context
+        )
+
+        #expect(firstLegacy == secondLegacy)
+        #expect(firstLegacy != graded)
     }
 
     @Test func hasAnyEffectTracksNeutrality() {

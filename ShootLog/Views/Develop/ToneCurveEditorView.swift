@@ -56,14 +56,6 @@ struct ToneCurveEditorView: View {
             CurveCanvas(points: activePoints, tint: channel.tint)
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: 240)
-
-            Button("develop.toneCurve.reset") {
-                activePoints.wrappedValue = CurvePoint.identity
-            }
-            .buttonStyle(.plain)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .disabled(ToneCurve.isIdentity(activePoints.wrappedValue))
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("develop.section.toneCurve")

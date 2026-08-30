@@ -40,6 +40,14 @@ struct WhiteBalanceSettings: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+/// 撮影時ホワイトバランスの実測値（RAW）または推定値（非 RAW）。
+struct WhiteBalanceSample: Equatable, Sendable {
+    var temperatureKelvin: Double
+    var tint: Double
+    /// 非 RAW のグレーワールド推定など、実測でない場合は `true`。
+    var isEstimated: Bool
+}
+
 struct ColorBalanceComponent: Codable, Equatable, Hashable, Sendable {
     var hue: Double = 0
     var saturation: Double = 0
@@ -47,6 +55,19 @@ struct ColorBalanceComponent: Codable, Equatable, Hashable, Sendable {
 
     static let neutral = ColorBalanceComponent()
     var isNeutral: Bool { hue == 0 && saturation == 0 && lightness == 0 }
+
+    /// 2つの成分を加算し、実用レンジへクランプする（プリセットの相対適用で使う）。
+    /// hue は -180...180、saturation は 0...100、lightness は -100...100 でクランプする。
+    func adding(_ other: ColorBalanceComponent) -> ColorBalanceComponent {
+        func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
+            value.isNaN ? 0 : min(max(value, lower), upper)
+        }
+        return ColorBalanceComponent(
+            hue: clamp(hue + other.hue, -180, 180),
+            saturation: clamp(saturation + other.saturation, 0, 100),
+            lightness: clamp(lightness + other.lightness, -100, 100)
+        )
+    }
 }
 
 struct ColorBalanceSettings: Codable, Equatable, Hashable, Sendable {
@@ -58,6 +79,16 @@ struct ColorBalanceSettings: Codable, Equatable, Hashable, Sendable {
     static let neutral = ColorBalanceSettings()
     var isNeutral: Bool {
         master.isNeutral && shadows.isNeutral && midtones.isNeutral && highlights.isNeutral
+    }
+
+    /// 各トーンレンジの成分を加算し、実用レンジへクランプする。
+    func adding(_ other: ColorBalanceSettings) -> ColorBalanceSettings {
+        ColorBalanceSettings(
+            master: master.adding(other.master),
+            shadows: shadows.adding(other.shadows),
+            midtones: midtones.adding(other.midtones),
+            highlights: highlights.adding(other.highlights)
+        )
     }
 }
 

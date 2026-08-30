@@ -28,7 +28,7 @@ struct DevelopPanelView: View {
                 .keyboardShortcut("b", modifiers: [.command, .option])
                 .accessibilityLabel("develop.beforeAfter")
 
-                DevelopSectionCard("develop.section.basic") {
+                DevelopSectionCard("develop.section.basic", reset: sectionReset(.basic)) {
                     AdjustmentSlider(
                         label: "develop.exposure",
                         value: $developViewModel.parameters.exposure,
@@ -46,12 +46,12 @@ struct DevelopPanelView: View {
 
                 WhiteBalanceSection(developViewModel: developViewModel)
 
-                DevelopSectionCard("develop.section.color") {
+                DevelopSectionCard("develop.section.color", reset: sectionReset(.color)) {
                     AdjustmentSlider(label: "develop.vibrance", value: $developViewModel.parameters.vibrance)
                     AdjustmentSlider(label: "develop.saturation", value: $developViewModel.parameters.saturation)
                 }
 
-                DevelopSectionCard("develop.section.toneCurve") {
+                DevelopSectionCard("develop.section.toneCurve", reset: sectionReset(.toneCurve)) {
                     ToneCurveEditorView(
                         rgb: $developViewModel.parameters.toneCurveRGB,
                         red: $developViewModel.parameters.toneCurveRed,
@@ -60,7 +60,7 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                DevelopSectionCard("develop.section.hsl") {
+                DevelopSectionCard("develop.section.hsl", reset: sectionReset(.hsl)) {
                     HSLBandEditorView(
                         hue: $developViewModel.parameters.hslHue,
                         saturation: $developViewModel.parameters.hslSaturation,
@@ -68,7 +68,7 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                DevelopSectionCard("develop.section.detail") {
+                DevelopSectionCard("develop.section.detail", reset: sectionReset(.detail)) {
                     AdjustmentSlider(label: "develop.clarity", value: $developViewModel.parameters.clarity)
                     AdjustmentSlider(label: "develop.structure", value: $developViewModel.parameters.structure)
                     AdjustmentSlider(label: "develop.dehaze", value: $developViewModel.parameters.dehaze)
@@ -90,9 +90,12 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                ColorBalanceEditorView(settings: $developViewModel.parameters.colorBalance)
+                ColorGradingEditorView(
+                    settings: $developViewModel.parameters.colorBalance,
+                    reset: sectionReset(.colorGrading)
+                )
 
-                DevelopSectionCard("develop.section.blackAndWhite") {
+                DevelopSectionCard("develop.section.blackAndWhite", reset: sectionReset(.blackAndWhite)) {
                     Toggle("develop.blackAndWhite.enabled", isOn: $developViewModel.parameters.blackAndWhiteEnabled)
                     let bandKeys = [
                         "develop.hsl.band.red", "develop.hsl.band.orange", "develop.hsl.band.yellow",
@@ -113,7 +116,7 @@ struct DevelopPanelView: View {
                 }
 
                 if developViewModel.canDelegateToRAWFilter || developViewModel.canEditManualLensCorrection {
-                    DevelopSectionCard("develop.section.lens") {
+                    DevelopSectionCard("develop.section.lens", reset: sectionReset(.lens)) {
                         if developViewModel.canDelegateToRAWFilter {
                             Toggle(
                                 "develop.lens.correction",
@@ -160,5 +163,12 @@ struct DevelopPanelView: View {
             .padding(Spacing.large)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sectionReset(_ section: DevelopSection) -> (isEnabled: Bool, action: () -> Void) {
+        (
+            isEnabled: developViewModel.parameters.isModified(in: section),
+            action: { developViewModel.resetSection(section) }
+        )
     }
 }

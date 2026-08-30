@@ -94,6 +94,7 @@ extension ContentViewModel {
             && (currentDevelopSettings?.usesRAWParameterMapping ?? true)
         let usesManualLens = (currentDevelopSettings?.usesManualLensCorrection ?? true)
             && !(useRAWMapping && parameters.lensCorrectionEnabled)
+        let usesToneMasked = (currentDevelopSettings?.usesToneMaskedColorGrading ?? true)
 
         viewModel.beginProcessing()
 
@@ -112,6 +113,9 @@ extension ContentViewModel {
         }
 
         do {
+            let asShot = usesToneMasked
+                ? await ImageDevelopmentEngine.shared.asShotNeutral(for: photo.fileURL)
+                : nil
             try await exporter.export(
                 source: photo.fileURL,
                 destination: destination,
@@ -123,6 +127,8 @@ extension ContentViewModel {
                 outputColorSpace: viewModel.effectiveColorSpace.cgColorSpace,
                 useRAWParameterMapping: useRAWMapping,
                 usesManualLensCorrection: usesManualLens,
+                usesToneMaskedColorGrading: usesToneMasked,
+                asShotWhiteBalance: asShot,
                 superResolution: superResolution,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),
