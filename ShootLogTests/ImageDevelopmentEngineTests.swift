@@ -307,6 +307,38 @@ struct ImageDevelopmentEngineTests {
         #expect(cropped.height == 100)
     }
 
+    /// トリミング矩形は「回転適用後の画像」を基準に解釈される。
+    /// 回転のみ適用した結果の左上 1/4 と、回転 + 同じ矩形でトリミングした結果が一致することで、
+    /// crop が回転後・左上原点の座標系で効いていることを確認する（座標系の回帰ガード）。
+    @Test func renderFullCropIsRelativeToRotatedImage() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 200, height: 100, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        let rotatedFull = try #require(
+            await engine.renderFull(url: url, parameters: .neutral, rotation: 90, cropRect: nil)
+        )
+        let halfWidth = rotatedFull.width / 2
+        let halfHeight = rotatedFull.height / 2
+
+        let crop = CGRect(x: 0, y: 0, width: 0.5, height: 0.5)
+        let cropped = try #require(
+            await engine.renderFull(url: url, parameters: .neutral, rotation: 90, cropRect: crop)
+        )
+        #expect(cropped.width == halfWidth)
+        #expect(cropped.height == halfHeight)
+
+        // CGImage は左上原点。回転結果の左上 1/4 を取り出して平均色を比較する。
+        let expectedRegion = try #require(rotatedFull.cropping(to: CGRect(
+            x: 0, y: 0, width: CGFloat(halfWidth), height: CGFloat(halfHeight)
+        )))
+        let expected = try meanChannels(of: expectedRegion)
+        let actual = try meanChannels(of: cropped)
+        #expect(abs(actual.red - expected.red) < 5)
+        #expect(abs(actual.green - expected.green) < 5)
+        #expect(abs(actual.blue - expected.blue) < 5)
+    }
+
     // MARK: - Stage A キャッシュ
 
     /// 同じパスのファイルが差し替えられたら、Stage A キャッシュの古いデコード結果を返さない。

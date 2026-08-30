@@ -93,10 +93,11 @@ struct DevelopExporterTests {
             currentFolder: nil, folderPhotoURLs: []
         )
 
-        // 200x100 を横半分にトリミング(100x100) → 90度回転 → 100x100
+        // cropRect は「回転適用後に表示されている画像」基準。
+        // 200x100 を 90度回転 → 100x200 → 左半分(x:0, w:0.5)を切り抜き → 50x200
         let (width, height) = try dimensions(of: destination)
-        #expect(width == 100)
-        #expect(height == 100)
+        #expect(width == 50)
+        #expect(height == 200)
     }
 
     // MARK: - 原本保護
