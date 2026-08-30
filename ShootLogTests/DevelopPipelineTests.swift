@@ -201,6 +201,72 @@ struct DevelopPipelineTests {
         #expect(DevelopPipeline.hasAnyEffect(parameters))
     }
 
+    // MARK: - 手動レンズ補正
+
+    @Test func manualLensDistortionAppliesOnlyWhenEnabled() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 60
+
+        let withoutCorrection = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false), context: context
+        )
+        let withCorrection = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters, to: input, isRAW: false, applyManualLensCorrection: true
+            ),
+            context: context
+        )
+
+        #expect(maxAbsoluteDifference(withoutCorrection, withCorrection) > 0)
+    }
+
+    @Test func zeroManualLensCorrectionIsIdentity() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+
+        let withoutCorrection = try renderRGBA(
+            DevelopPipeline.apply(.neutral, to: input, isRAW: false), context: context
+        )
+        let withCorrection = try renderRGBA(
+            DevelopPipeline.apply(
+                .neutral, to: input, isRAW: false, applyManualLensCorrection: true
+            ),
+            context: context
+        )
+
+        #expect(maxAbsoluteDifference(withoutCorrection, withCorrection) <= 2)
+    }
+
+    @Test func rawProfileLensCorrectionSkipsManualLensCorrection() throws {
+        let context = try makeContext()
+        let input = try makeTestImage()
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 60
+
+        let manuallyCorrected = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters, to: input, isRAW: true, skipExposureAndWhiteBalance: true,
+                applyManualLensCorrection: true
+            ),
+            context: context
+        )
+
+        parameters.lensCorrectionEnabled = true
+        let profileCorrected = try renderRGBA(
+            DevelopPipeline.apply(
+                parameters, to: input, isRAW: true, skipExposureAndWhiteBalance: true,
+                applyManualLensCorrection: true
+            ),
+            context: context
+        )
+        let baseline = try renderRGBA(input, context: context)
+
+        #expect(maxAbsoluteDifference(manuallyCorrected, baseline) > 0)
+        #expect(maxAbsoluteDifference(profileCorrected, baseline) <= 2)
+    }
+
     // MARK: - 色管理（v3 Phase 1: ガンマ空間ブラケット）
 
     /// 恒等トーンカーブを足しても、コントラスト単独の結果を（ほぼ）変えない。

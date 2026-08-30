@@ -21,6 +21,8 @@ protocol ImageDeveloping: Sendable {
     ///     ディスプレイの色空間を渡すと、P3 書き出しと画面の見えが一致する。作業空間（linearSRGB）は不変。
     ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか
     ///     （`DevelopSettings.schemaVersion` >= 2）。非 RAW では無視される。
+    ///   - usesManualLensCorrection: `DevelopSettings.usesManualLensCorrection`。schemaVersion 3 以降で
+    ///     手動レンズ補正を適用する。
     func renderPreview(
         url: URL,
         parameters: DevelopParameters,
@@ -28,7 +30,8 @@ protocol ImageDeveloping: Sendable {
         rotation: Int,
         cropRect: CGRect?,
         previewColorSpace: CGColorSpace?,
-        useRAWParameterMapping: Bool
+        useRAWParameterMapping: Bool,
+        usesManualLensCorrection: Bool
     ) async -> CGImage?
 
     /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
@@ -38,13 +41,16 @@ protocol ImageDeveloping: Sendable {
     ///     （左上原点・0...1）。`nil` でトリミングなし。`CropViewModel.normalizedRect` と同じ基準。
     ///   - outputColorSpace: 出力の色空間。`nil` で sRGB。作業空間（linearSRGB）は変えず、実体化時にのみ変換する。
     ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか。
+    ///   - usesManualLensCorrection: `DevelopSettings.usesManualLensCorrection`。schemaVersion 3 以降で
+    ///     手動レンズ補正を適用する。
     func renderFull(
         url: URL,
         parameters: DevelopParameters,
         rotation: Int,
         cropRect: CGRect?,
         outputColorSpace: CGColorSpace?,
-        useRAWParameterMapping: Bool
+        useRAWParameterMapping: Bool,
+        usesManualLensCorrection: Bool
     ) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
@@ -118,7 +124,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         rotation: Int = 0,
         cropRect: CGRect? = nil,
         previewColorSpace: CGColorSpace? = nil,
-        useRAWParameterMapping: Bool = false
+        useRAWParameterMapping: Bool = false,
+        usesManualLensCorrection: Bool = false
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
@@ -137,7 +144,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             rotation: rotation,
             cropRect: cropRect,
             outputColorSpace: previewColorSpace ?? Self.defaultOutputColorSpace,
-            skipExposureAndWhiteBalance: rawParameters != nil
+            skipExposureAndWhiteBalance: rawParameters != nil,
+            applyManualLensCorrection: usesManualLensCorrection
         )
     }
 
@@ -162,7 +170,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         rotation: Int,
         cropRect: CGRect?,
         outputColorSpace: CGColorSpace? = nil,
-        useRAWParameterMapping: Bool = false
+        useRAWParameterMapping: Bool = false,
+        usesManualLensCorrection: Bool = false
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
@@ -178,7 +187,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             rotation: rotation,
             cropRect: cropRect,
             outputColorSpace: outputColorSpace ?? Self.defaultOutputColorSpace,
-            skipExposureAndWhiteBalance: rawParameters != nil
+            skipExposureAndWhiteBalance: rawParameters != nil,
+            applyManualLensCorrection: usesManualLensCorrection
         )
     }
 
@@ -342,14 +352,16 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         rotation: Int,
         cropRect: CGRect?,
         outputColorSpace: CGColorSpace,
-        skipExposureAndWhiteBalance: Bool
+        skipExposureAndWhiteBalance: Bool,
+        applyManualLensCorrection: Bool
     ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
             let source = CIImage(cgImage: base)
             var image = DevelopPipeline.apply(
                 parameters, to: source, isRAW: isRAW, cache: cache,
-                skipExposureAndWhiteBalance: skipExposureAndWhiteBalance
+                skipExposureAndWhiteBalance: skipExposureAndWhiteBalance,
+                applyManualLensCorrection: applyManualLensCorrection
             )
             // 回転 → トリミングの順。cropRect は「回転後に表示されている画像」基準の正規化矩形なので、
             // 先に回転を焼き込んでから同じ割合で切り抜くと、ユーザーが画面で見た構図と一致する。

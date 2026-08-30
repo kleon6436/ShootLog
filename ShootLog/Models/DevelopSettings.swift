@@ -12,19 +12,20 @@ import SwiftData
 /// - 1: RAW も含めすべて標準 `CIFilter` チェーンで解釈する（v1）。
 /// - 2: RAW のとき露出・色温度・色かぶりを `CIRAWFilter` 側へ委譲して解釈する（v2）。
 ///   version 1 の既存レコードは 1 のまま描画し、色が変わらないようにする。
+/// - 3: 手動レンズ補正（歪曲・周辺光量・色収差）を version 3 以降でのみ解釈する（v3 Phase 5）。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
     var photoID: UUID = UUID()
     /// `JSONEncoder().encode(DevelopParameters)` の結果。
     var parametersData: Data = DevelopSettings.encodedNeutral()
-    /// blob の解釈世代。新規レコードは 2。
+    /// blob の解釈世代。新規レコードは 3。
     var schemaVersion: Int = DevelopSettings.currentSchemaVersion
     /// 調整値を最後に更新した時刻。
     var updatedAt: Date = Date.now
 
     /// 新規レコードが名乗る世代。
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     /// 中立状態のレコードを生成する。
     init(photoID: UUID) {
@@ -36,6 +37,9 @@ final class DevelopSettings {
 
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈する世代か。
     var usesRAWParameterMapping: Bool { schemaVersion >= 2 }
+
+    /// 手動レンズ補正（`DevelopParameters.lensDistortion` 等）を解釈する世代か。
+    var usesManualLensCorrection: Bool { schemaVersion >= 3 }
 
     /// 保持している調整値。
     ///

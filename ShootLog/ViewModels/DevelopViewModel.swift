@@ -34,6 +34,12 @@ final class DevelopViewModel {
     /// RAW かつ `CIRAWFilter` 委譲が有効か（レンズ補正トグルなど RAW 固有 UI の表示条件）。
     var canDelegateToRAWFilter: Bool { rawMappingActive }
 
+    /// 手動レンズ補正スライダーを編集できるか（schemaVersion 3 以降。RAW の CIRAWFilter 委譲中で
+    /// レンズ補正トグル ON のときは CIRAWFilter 側が担うので不可）。
+    var canEditManualLensCorrection: Bool {
+        manualLensCorrectionActive && !(canDelegateToRAWFilter && parameters.lensCorrectionEnabled)
+    }
+
     /// 保存済みプリセット（`ContentViewModel` が所有・写真をまたいで共有）。
     var presets: [DevelopPreset] { content?.developPresets ?? [] }
 
@@ -57,6 +63,8 @@ final class DevelopViewModel {
     private var cropRect: CGRect?
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈するか（`DevelopSettings.schemaVersion` >= 2 の RAW）。
     private var rawMappingActive = false
+    /// 手動レンズ補正を解釈するか（`DevelopSettings.schemaVersion` >= 3）。
+    private var manualLensCorrectionActive = false
     /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
     /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
     private var isRAWParameterDragging = false
@@ -135,17 +143,20 @@ final class DevelopViewModel {
         // version 1 の既存 RAW レコードは標準チェーンのまま（色が変わらないように）。
         // レコードが無い新規は version 2 相当として委譲する。
         rawMappingActive = isRAW && (content?.currentDevelopSettings?.usesRAWParameterMapping ?? true)
+        manualLensCorrectionActive = content?.currentDevelopSettings?.usesManualLensCorrection ?? true
 
         if let photo, shouldRender {
             let params = parameters
             let rot = rotation
             let crop = cropRect
             let mapping = rawMappingActive
+            let manualLensCorrection = manualLensCorrectionActive
             let generation = renderGeneration
             renderTask = Task { [weak self] in
                 await self?.render(
                     photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                    useRAWParameterMapping: mapping, generation: generation
+                    useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
+                    generation: generation
                 )
             }
         }
@@ -224,6 +235,8 @@ final class DevelopViewModel {
         histogram = nil
         isRendering = false
         content?.resetDevelop()
+        // resetDevelop で旧 schema のレコードは削除され、次の保存は新規（schema 3）として作られる。
+        manualLensCorrectionActive = true
         undoParameters = nil
         canUndo = false
         if currentPhoto != nil, shouldRender {
@@ -298,6 +311,7 @@ final class DevelopViewModel {
         let crop = cropRect
         // ドラッグ中は RAW 委譲を止めて標準チェーンで近似する。
         let mapping = rawMappingActive && !isRAWParameterDragging
+        let manualLensCorrection = manualLensCorrectionActive
         // RAW 再デコードを伴う描画は連打で溜めないよう長めのデバウンスにする。
         let debounce = mapping ? Self.rawMappingDebounce : renderDebounce
         let generation = nextRenderGeneration()
@@ -306,7 +320,8 @@ final class DevelopViewModel {
             guard !Task.isCancelled else { return }
             await self?.render(
                 photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                useRAWParameterMapping: mapping, generation: generation
+                useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
+                generation: generation
             )
         }
     }
@@ -317,6 +332,7 @@ final class DevelopViewModel {
         rotation: Int,
         cropRect: CGRect?,
         useRAWParameterMapping: Bool,
+        usesManualLensCorrection: Bool,
         generation: Int
     ) async {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
@@ -338,7 +354,8 @@ final class DevelopViewModel {
             rotation: rotation,
             cropRect: cropRect,
             previewColorSpace: previewColorSpace,
-            useRAWParameterMapping: useRAWParameterMapping
+            useRAWParameterMapping: useRAWParameterMapping,
+            usesManualLensCorrection: usesManualLensCorrection
         )
         // supersede されていたら後始末は最新世代に任せる。
         guard generation == renderGeneration else { return }
