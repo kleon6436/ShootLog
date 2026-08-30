@@ -21,8 +21,8 @@ protocol ImageDeveloping: Sendable {
     ///     ディスプレイの色空間を渡すと、P3 書き出しと画面の見えが一致する。作業空間（linearSRGB）は不変。
     ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか
     ///     （`DevelopSettings.schemaVersion` >= 2）。非 RAW では無視される。
-    ///   - usesManualLensCorrection: `DevelopSettings.usesManualLensCorrection`。schemaVersion 3 以降で
-    ///     手動レンズ補正を適用する。
+    ///   - usesManualLensCorrection: schemaVersion の世代判定と RAW プロファイル補正との二重適用回避を
+    ///     呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
     func renderPreview(
         url: URL,
         parameters: DevelopParameters,
@@ -41,8 +41,8 @@ protocol ImageDeveloping: Sendable {
     ///     （左上原点・0...1）。`nil` でトリミングなし。`CropViewModel.normalizedRect` と同じ基準。
     ///   - outputColorSpace: 出力の色空間。`nil` で sRGB。作業空間（linearSRGB）は変えず、実体化時にのみ変換する。
     ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか。
-    ///   - usesManualLensCorrection: `DevelopSettings.usesManualLensCorrection`。schemaVersion 3 以降で
-    ///     手動レンズ補正を適用する。
+    ///   - usesManualLensCorrection: schemaVersion の世代判定と RAW プロファイル補正との二重適用回避を
+    ///     呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
     func renderFull(
         url: URL,
         parameters: DevelopParameters,

@@ -102,7 +102,8 @@ struct DevelopPanelView: View {
                                 label: "develop.lens.chromaticAberration",
                                 value: $developViewModel.parameters.lensChromaticAberration
                             )
-                        } else if developViewModel.canDelegateToRAWFilter {
+                        } else if developViewModel.canDelegateToRAWFilter
+                            && developViewModel.parameters.lensCorrectionEnabled {
                             Text("develop.lens.handledByRAWFilter")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)

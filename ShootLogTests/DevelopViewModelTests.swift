@@ -521,7 +521,7 @@ struct DevelopViewModelTests {
             settings.schemaVersion = schemaVersion
             var params = DevelopParameters.neutral
             params.exposure = 0.5
-            settings.parameters = params
+            settings.parametersData = try DevelopSettings.encode(params)
             context.insert(settings)
             try context.save()
         }
@@ -622,7 +622,7 @@ struct DevelopViewModelTests {
         #expect(engine.lastParameters?.lensDistortion == 20)
     }
 
-    @Test func version2SettingsDisableManualLensCorrectionEditing() async throws {
+    @Test func version2SettingsCanEditManualLensCorrection() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
         let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
@@ -631,7 +631,7 @@ struct DevelopViewModelTests {
         vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
         await settle()
 
-        #expect(vm.canEditManualLensCorrection == false)
+        #expect(vm.canEditManualLensCorrection)
     }
 
     @Test func resetVersion2SettingsEnablesManualLensCorrectionForNewEdits() async throws {
@@ -643,7 +643,7 @@ struct DevelopViewModelTests {
 
         vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
         await settle()
-        #expect(vm.canEditManualLensCorrection == false)
+        #expect(vm.canEditManualLensCorrection)
 
         vm.reset()
         #expect(vm.canEditManualLensCorrection)
@@ -654,6 +654,44 @@ struct DevelopViewModelTests {
         await settle(220)
 
         #expect(engine.lastUsesManualLensCorrection)
+    }
+
+    @Test func rawProfileLensCorrectionDisablesManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 3)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle(220)
+
+        var params = vm.parameters
+        params.lensDistortion = 20
+        params.lensCorrectionEnabled = true
+        vm.parameters = params
+        await settle(220)
+        #expect(engine.lastUsesManualLensCorrection == false)
+
+        params.lensCorrectionEnabled = false
+        vm.parameters = params
+        await settle(220)
+        #expect(engine.lastUsesManualLensCorrection)
+    }
+
+    @Test func resetVersion1RAWSettingsEnablesRAWParameterMapping() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 1)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(vm.canDelegateToRAWFilter == false)
+
+        vm.reset()
+        #expect(vm.canDelegateToRAWFilter)
     }
 
     @Test func draggingRAWParameterSuppressesMappingUntilRelease() async throws {

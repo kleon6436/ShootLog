@@ -100,7 +100,8 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     /// RAW かつ `DevelopSettings.schemaVersion` >= 2 のときだけ効く。非 RAW では無視。
     var lensCorrectionEnabled: Bool = false
     /// 手動の歪曲補正量（-100...100）。非 RAW / プロファイル無し RAW 向け。
-    /// `DevelopSettings.schemaVersion` >= 3 でのみ適用。`LensCorrectionFilter.corrected` の distortion に対応。
+    /// `DevelopSettings.schemaVersion` >= 2 で適用。version 2 は編集時に 3 へ自動更新される。
+    /// `LensCorrectionFilter.corrected` の distortion に対応。
     var lensDistortion: Double = 0
     /// 手動の周辺光量補正量（-100...100）。同上。`corrected` の vignette に対応。
     var lensVignette: Double = 0

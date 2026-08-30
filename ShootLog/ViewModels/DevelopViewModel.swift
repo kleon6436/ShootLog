@@ -34,7 +34,7 @@ final class DevelopViewModel {
     /// RAW かつ `CIRAWFilter` 委譲が有効か（レンズ補正トグルなど RAW 固有 UI の表示条件）。
     var canDelegateToRAWFilter: Bool { rawMappingActive }
 
-    /// 手動レンズ補正スライダーを編集できるか（schemaVersion 3 以降。RAW の CIRAWFilter 委譲中で
+    /// 手動レンズ補正スライダーを編集できるか（schemaVersion 2 以降。RAW の CIRAWFilter 委譲中で
     /// レンズ補正トグル ON のときは CIRAWFilter 側が担うので不可）。
     var canEditManualLensCorrection: Bool {
         manualLensCorrectionActive && !(canDelegateToRAWFilter && parameters.lensCorrectionEnabled)
@@ -63,7 +63,7 @@ final class DevelopViewModel {
     private var cropRect: CGRect?
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈するか（`DevelopSettings.schemaVersion` >= 2 の RAW）。
     private var rawMappingActive = false
-    /// 手動レンズ補正を解釈するか（`DevelopSettings.schemaVersion` >= 3）。
+    /// 手動レンズ補正を解釈するか（`DevelopSettings.schemaVersion` >= 2）。
     private var manualLensCorrectionActive = false
     /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
     /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
@@ -150,7 +150,7 @@ final class DevelopViewModel {
             let rot = rotation
             let crop = cropRect
             let mapping = rawMappingActive
-            let manualLensCorrection = manualLensCorrectionActive
+            let manualLensCorrection = shouldApplyManualLensCorrection(params)
             let generation = renderGeneration
             renderTask = Task { [weak self] in
                 await self?.render(
@@ -235,8 +235,9 @@ final class DevelopViewModel {
         histogram = nil
         isRendering = false
         content?.resetDevelop()
-        // resetDevelop で旧 schema のレコードは削除され、次の保存は新規（schema 3）として作られる。
+        // reset で旧レコードは削除され、次の保存は schemaVersion 3（RAW は露出・WB 委譲も有効）。
         manualLensCorrectionActive = true
+        rawMappingActive = isRAW
         undoParameters = nil
         canUndo = false
         if currentPhoto != nil, shouldRender {
@@ -311,7 +312,7 @@ final class DevelopViewModel {
         let crop = cropRect
         // ドラッグ中は RAW 委譲を止めて標準チェーンで近似する。
         let mapping = rawMappingActive && !isRAWParameterDragging
-        let manualLensCorrection = manualLensCorrectionActive
+        let manualLensCorrection = shouldApplyManualLensCorrection(params)
         // RAW 再デコードを伴う描画は連打で溜めないよう長めのデバウンスにする。
         let debounce = mapping ? Self.rawMappingDebounce : renderDebounce
         let generation = nextRenderGeneration()
@@ -372,6 +373,12 @@ final class DevelopViewModel {
         let computed = await HistogramData.make(from: rendered)
         guard generation == renderGeneration else { return }
         histogram = computed
+    }
+
+    /// パイプラインへ渡す手動レンズ補正の適用可否。schemaVersion ゲート + RAW のプロファイル補正が
+    /// 有効なら手動はスキップ（二重補正防止。ドラッグ状態には依存しない）。
+    private func shouldApplyManualLensCorrection(_ params: DevelopParameters) -> Bool {
+        manualLensCorrectionActive && !(rawMappingActive && params.lensCorrectionEnabled)
     }
 
     /// 新しいレンダー要求の世代番号を発行する。

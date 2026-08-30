@@ -12,7 +12,8 @@ import SwiftData
 /// - 1: RAW も含めすべて標準 `CIFilter` チェーンで解釈する（v1）。
 /// - 2: RAW のとき露出・色温度・色かぶりを `CIRAWFilter` 側へ委譲して解釈する（v2）。
 ///   version 1 の既存レコードは 1 のまま描画し、色が変わらないようにする。
-/// - 3: 手動レンズ補正（歪曲・周辺光量・色収差）を version 3 以降でのみ解釈する（v3 Phase 5）。
+/// - 3: 手動レンズ補正（歪曲・周辺光量・色収差）を解釈する（v3 Phase 5）。version 2 のレコードは
+///   編集時に 3 へ自動更新される（手動レンズ値は既定 0 で見た目を変えない）。version 1 は据え置き。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
@@ -38,8 +39,9 @@ final class DevelopSettings {
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈する世代か。
     var usesRAWParameterMapping: Bool { schemaVersion >= 2 }
 
-    /// 手動レンズ補正（`DevelopParameters.lensDistortion` 等）を解釈する世代か。
-    var usesManualLensCorrection: Bool { schemaVersion >= 3 }
+    /// 手動レンズ補正（`DevelopParameters.lensDistortion` 等）を編集・適用できる世代か。
+    /// version 2 は編集時に version 3 へ自動更新されるため許可する。version 1 は据え置き。
+    var usesManualLensCorrection: Bool { schemaVersion >= 2 }
 
     /// 保持している調整値。
     ///
@@ -61,6 +63,9 @@ final class DevelopSettings {
         let encoded = try DevelopSettings.encode(newValue)
         parametersData = encoded
         updatedAt = .now
+        // version 2 のレコードは編集時に version 3 へ引き上げる。手動レンズ補正の値は既定 0 で
+        // 既存の見た目を変えない。version 1 は据え置き（v1→v3 は露出・WB 委譲が入るため）。
+        if schemaVersion == 2 { schemaVersion = 3 }
     }
 
     /// `DevelopParameters` を JSON エンコードする。NaN / Inf を含む場合など `JSONEncoder` は throw する。

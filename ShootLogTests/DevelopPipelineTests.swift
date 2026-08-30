@@ -239,32 +239,29 @@ struct DevelopPipelineTests {
         #expect(maxAbsoluteDifference(withoutCorrection, withCorrection) <= 2)
     }
 
-    @Test func rawProfileLensCorrectionSkipsManualLensCorrection() throws {
+    @Test func manualLensCorrectionFollowsCallerProvidedApplicability() throws {
         let context = try makeContext()
         let input = try makeTestImage()
         var parameters = DevelopParameters.neutral
         parameters.lensDistortion = 60
 
-        let manuallyCorrected = try renderRGBA(
+        let skipped = try renderRGBA(
             DevelopPipeline.apply(
-                parameters, to: input, isRAW: true, skipExposureAndWhiteBalance: true,
-                applyManualLensCorrection: true
+                parameters, to: input, isRAW: true, applyManualLensCorrection: false
             ),
             context: context
         )
-
-        parameters.lensCorrectionEnabled = true
-        let profileCorrected = try renderRGBA(
+        let applied = try renderRGBA(
             DevelopPipeline.apply(
-                parameters, to: input, isRAW: true, skipExposureAndWhiteBalance: true,
+                parameters, to: input, isRAW: true,
                 applyManualLensCorrection: true
             ),
             context: context
         )
         let baseline = try renderRGBA(input, context: context)
 
-        #expect(maxAbsoluteDifference(manuallyCorrected, baseline) > 0)
-        #expect(maxAbsoluteDifference(profileCorrected, baseline) <= 2)
+        #expect(maxAbsoluteDifference(skipped, baseline) <= 2)
+        #expect(maxAbsoluteDifference(applied, baseline) > 0)
     }
 
     // MARK: - 色管理（v3 Phase 1: ガンマ空間ブラケット）
