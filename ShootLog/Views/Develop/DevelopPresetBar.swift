@@ -55,7 +55,14 @@ struct DevelopPresetBar: View {
                 Text("develop.preset.empty")
             } else {
                 ForEach(developViewModel.presets) { preset in
-                    Button(preset.name) { developViewModel.applyPreset(preset) }
+                    Menu(preset.name) {
+                        Button("develop.preset.apply") {
+                            developViewModel.applyPreset(preset, relative: false)
+                        }
+                        Button("develop.preset.applyRelative") {
+                            developViewModel.applyPreset(preset, relative: true)
+                        }
+                    }
                 }
             }
             Divider()

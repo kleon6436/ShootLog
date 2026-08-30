@@ -118,6 +118,105 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     }
 }
 
+// MARK: - 相対適用（プリセットの差分重ね）
+
+extension DevelopParameters {
+
+    /// この調整値の上に `delta` を差分として重ねた結果を返す（プリセットの相対適用）。
+    ///
+    /// - 加算系（露出・コントラスト・HSL 各帯域・シャープ・ノイズ低減 等）は加算し、
+    ///   各パラメータの実用レンジ（露出 ±3 EV、その他 ±100）へクランプする。
+    /// - トーンカーブは関数合成: `self` のカーブを適用してから `delta` のカーブを適用した合成カーブ。
+    /// - `lensCorrectionEnabled` は OR（`delta` で有効化はできるが無効化はしない）。
+    /// - `delta` が中立なら `self` をそのまま返す。加算系のみ可換（トーンカーブ合成は順序に依存）。
+    func applying(delta: DevelopParameters) -> DevelopParameters {
+        guard !delta.isNeutral else { return self }
+
+        var result = self
+        result.exposure = Self.clampExposure(exposure + delta.exposure)
+        result.contrast = Self.clampUnit(contrast + delta.contrast)
+        result.highlights = Self.clampUnit(highlights + delta.highlights)
+        result.shadows = Self.clampUnit(shadows + delta.shadows)
+        result.whites = Self.clampUnit(whites + delta.whites)
+        result.blacks = Self.clampUnit(blacks + delta.blacks)
+        result.brightness = Self.clampUnit(brightness + delta.brightness)
+
+        result.temperature = Self.clampUnit(temperature + delta.temperature)
+        result.tint = Self.clampUnit(tint + delta.tint)
+        result.vibrance = Self.clampUnit(vibrance + delta.vibrance)
+        result.saturation = Self.clampUnit(saturation + delta.saturation)
+
+        result.toneCurveRGB = Self.compose(base: toneCurveRGB, then: delta.toneCurveRGB)
+        result.toneCurveRed = Self.compose(base: toneCurveRed, then: delta.toneCurveRed)
+        result.toneCurveGreen = Self.compose(base: toneCurveGreen, then: delta.toneCurveGreen)
+        result.toneCurveBlue = Self.compose(base: toneCurveBlue, then: delta.toneCurveBlue)
+
+        result.hslHue = Self.addBands(hslHue, delta.hslHue)
+        result.hslSaturation = Self.addBands(hslSaturation, delta.hslSaturation)
+        result.hslLuminance = Self.addBands(hslLuminance, delta.hslLuminance)
+
+        result.sharpness = Self.clampUnit(sharpness + delta.sharpness)
+        result.luminanceNoiseReduction = Self.clampUnit(luminanceNoiseReduction + delta.luminanceNoiseReduction)
+        result.colorNoiseReduction = Self.clampUnit(colorNoiseReduction + delta.colorNoiseReduction)
+
+        result.lensCorrectionEnabled = lensCorrectionEnabled || delta.lensCorrectionEnabled
+        return result
+    }
+
+    /// 合成カーブのサンプル数。8bit 入出力に対しては 17 点の等間隔サンプルで十分。
+    private static let composeSampleCount = 17
+
+    private static func clampUnit(_ value: Double) -> Double {
+        if value.isNaN { return 0 }
+        return min(max(value, -100), 100)
+    }
+
+    private static func clampExposure(_ value: Double) -> Double {
+        if value.isNaN { return 0 }
+        return min(max(value, -3), 3)
+    }
+
+    /// 8 帯域配列を要素ごとに加算し、各要素を ±100 へクランプする。長さ不一致は 0 埋めで揃える。
+    private static func addBands(_ base: [Double], _ delta: [Double]) -> [Double] {
+        let count = HSLBand.allCases.count
+        return (0..<count).map { index in
+            let b = base.indices.contains(index) ? base[index] : 0
+            let d = delta.indices.contains(index) ? delta[index] : 0
+            return clampUnit(b + d)
+        }
+    }
+
+    /// `base` を適用してから `then` を適用した合成カーブの制御点列を返す。
+    /// どちらかが恒等ならもう一方をそのまま返す。
+    private static func compose(base: [CurvePoint], then next: [CurvePoint]) -> [CurvePoint] {
+        if ToneCurve.isIdentity(next) { return base }
+        if ToneCurve.isIdentity(base) { return next }
+
+        let n = composeSampleCount
+        let baseSamples = ToneCurve.sampled(base, count: n)   // base(x) の等間隔サンプル
+        let nextSamples = ToneCurve.sampled(next, count: n)   // next(x) の等間隔サンプル
+        let denominator = Double(n - 1)
+
+        return (0..<n).map { index in
+            let x = Double(index) / denominator
+            let intermediate = baseSamples.indices.contains(index) ? baseSamples[index] : x
+            let y = sampleLinear(nextSamples, at: intermediate)   // next(base(x))
+            return CurvePoint(x: x, y: min(max(y, 0), 1))
+        }
+    }
+
+    /// 等間隔サンプル列を 0...1 の位置で線形補間する。
+    private static func sampleLinear(_ samples: [Double], at position: Double) -> Double {
+        guard samples.count >= 2 else { return position }
+        let clamped = min(max(position, 0), 1)
+        let scaled = clamped * Double(samples.count - 1)
+        let lower = Int(scaled.rounded(.down))
+        let upper = min(lower + 1, samples.count - 1)
+        let fraction = scaled - Double(lower)
+        return samples[lower] * (1 - fraction) + samples[upper] * fraction
+    }
+}
+
 // MARK: - Codable
 
 extension DevelopParameters {

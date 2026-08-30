@@ -168,4 +168,87 @@ struct DevelopParametersTests {
         #expect(adjustment.saturation == 0)
         #expect(adjustment.luminance == 0)
     }
+
+    // MARK: - 相対適用（applying(delta:)）
+
+    @Test func applyingNeutralDeltaReturnsSelf() {
+        var base = DevelopParameters.neutral
+        base.exposure = 1.2
+        base.toneCurveRGB = [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.5, y: 0.6), CurvePoint(x: 1, y: 1)]
+
+        #expect(base.applying(delta: .neutral) == base)
+    }
+
+    @Test func applyingAddsScalarsAndClampsToRange() {
+        var base = DevelopParameters.neutral
+        base.exposure = 2.0
+        base.contrast = 80
+        base.saturation = -30
+
+        var delta = DevelopParameters.neutral
+        delta.exposure = 2.0      // 4.0 → 3.0 でクランプ
+        delta.contrast = 40       // 120 → 100 でクランプ
+        delta.saturation = 10     // -20
+
+        let result = base.applying(delta: delta)
+        #expect(result.exposure == 3.0)
+        #expect(result.contrast == 100)
+        #expect(result.saturation == -20)
+    }
+
+    @Test func applyingAddsHSLBandsElementwise() {
+        var base = DevelopParameters.neutral
+        base.hslSaturation[3] = 40
+
+        var delta = DevelopParameters.neutral
+        delta.hslSaturation[3] = 80    // 120 → 100
+        delta.hslSaturation[0] = -10
+
+        let result = base.applying(delta: delta)
+        #expect(result.hslSaturation[3] == 100)
+        #expect(result.hslSaturation[0] == -10)
+    }
+
+    @Test func applyingComposesToneCurvesIdentityCases() {
+        var base = DevelopParameters.neutral
+        let curve = [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.5, y: 0.7), CurvePoint(x: 1, y: 1)]
+        base.toneCurveRGB = curve
+
+        // delta のカーブが恒等なら base のカーブがそのまま残る。
+        #expect(base.applying(delta: .neutral).toneCurveRGB == curve)
+
+        // base が恒等なら delta のカーブがそのまま入る。
+        var delta = DevelopParameters.neutral
+        delta.toneCurveRGB = curve
+        #expect(DevelopParameters.neutral.applying(delta: delta).toneCurveRGB == curve)
+    }
+
+    @Test func applyingComposesToneCurvesMonotonically() {
+        var base = DevelopParameters.neutral
+        base.toneCurveRGB = [CurvePoint(x: 0, y: 0.1), CurvePoint(x: 1, y: 1)]   // 全体を持ち上げ
+
+        var delta = DevelopParameters.neutral
+        delta.toneCurveRGB = [CurvePoint(x: 0, y: 0), CurvePoint(x: 1, y: 0.9)]  // 全体を下げ
+
+        let composed = base.applying(delta: delta).toneCurveRGB
+        // 合成カーブは単調増加で 0...1 に収まる。
+        let ys = ToneCurve.sampled(composed, count: 32)
+        for (a, b) in zip(ys, ys.dropFirst()) {
+            #expect(b >= a - 1e-9)
+        }
+        #expect(ys.allSatisfy { $0 >= 0 && $0 <= 1 })
+    }
+
+    @Test func applyingLensCorrectionIsLogicalOR() {
+        var base = DevelopParameters.neutral
+        base.lensCorrectionEnabled = true
+        var deltaOff = DevelopParameters.neutral
+        deltaOff.contrast = 5   // delta を非中立にする
+        // delta 側が false でも base の true は保たれる。
+        #expect(base.applying(delta: deltaOff).lensCorrectionEnabled == true)
+
+        var deltaOn = DevelopParameters.neutral
+        deltaOn.lensCorrectionEnabled = true
+        #expect(DevelopParameters.neutral.applying(delta: deltaOn).lensCorrectionEnabled == true)
+    }
 }
