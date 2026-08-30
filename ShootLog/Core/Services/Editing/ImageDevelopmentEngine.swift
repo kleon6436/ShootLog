@@ -30,7 +30,14 @@ protocol ImageDeveloping: Sendable {
     ///   - rotation: 0 / 90 / 180 / 270（時計回り）。
     ///   - cropRect: **回転適用後に表示されている画像**を基準にした正規化トリミング矩形
     ///     （左上原点・0...1）。`nil` でトリミングなし。`CropViewModel.normalizedRect` と同じ基準。
-    func renderFull(url: URL, parameters: DevelopParameters, rotation: Int, cropRect: CGRect?) async -> CGImage?
+    ///   - outputColorSpace: 出力の色空間。`nil` で sRGB。作業空間（linearSRGB）は変えず、実体化時にのみ変換する。
+    func renderFull(
+        url: URL,
+        parameters: DevelopParameters,
+        rotation: Int,
+        cropRect: CGRect?,
+        outputColorSpace: CGColorSpace?
+    ) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
     func isRAW(url: URL) -> Bool
@@ -103,13 +110,15 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         let decodeTarget = Self.decodeTarget(targetMaxPixelSize, cropRect: cropRect)
         guard let base = await baseImage(url: url, targetMaxPixelSize: decodeTarget) else { return nil }
         guard !Task.isCancelled else { return nil }
+        // プレビューは常に sRGB。広色域プレビューは将来対応。
         return await Self.develop(
             base: base,
             parameters: parameters,
             isRAW: isRAW(url: url),
             cache: pipelineCache,
             rotation: rotation,
-            cropRect: cropRect
+            cropRect: cropRect,
+            outputColorSpace: Self.defaultOutputColorSpace
         )
     }
 
@@ -132,7 +141,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         url: URL,
         parameters: DevelopParameters,
         rotation: Int,
-        cropRect: CGRect?
+        cropRect: CGRect?,
+        outputColorSpace: CGColorSpace? = nil
     ) async -> CGImage? {
         guard let base = await Self.decodeBase(url: url, maxPixelSize: 0) else { return nil }
         guard !Task.isCancelled else { return nil }
@@ -142,9 +152,14 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             isRAW: isRAW(url: url),
             cache: pipelineCache,
             rotation: rotation,
-            cropRect: cropRect
+            cropRect: cropRect,
+            outputColorSpace: outputColorSpace ?? Self.defaultOutputColorSpace
         )
     }
+
+    /// 明示指定が無いときの出力色空間。
+    private static let defaultOutputColorSpace: CGColorSpace =
+        CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
 
     // MARK: - Stage A（ベースデコード + キャッシュ）
 
@@ -276,7 +291,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         isRAW: Bool,
         cache: DevelopPipelineCache,
         rotation: Int,
-        cropRect: CGRect?
+        cropRect: CGRect?,
+        outputColorSpace: CGColorSpace
     ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
@@ -290,7 +306,10 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
             let rect = image.extent.integral
             guard !rect.isEmpty, !rect.isInfinite else { return nil }
-            return sharedContext.createCGImage(image, from: rect)
+            // 作業空間（linearSRGB）から指定の出力空間へ変換して実体化する。
+            return sharedContext.createCGImage(
+                image, from: rect, format: .RGBA8, colorSpace: outputColorSpace
+            )
         }
         return await withTaskCancellationHandler {
             await handle.value

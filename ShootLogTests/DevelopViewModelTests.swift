@@ -44,7 +44,8 @@ struct DevelopViewModelTests {
             url: URL,
             parameters: DevelopParameters,
             rotation: Int,
-            cropRect: CGRect?
+            cropRect: CGRect?,
+            outputColorSpace: CGColorSpace?
         ) async -> CGImage? { stub }
 
         func isRAW(url: URL) -> Bool { rawFileNames.contains(url.lastPathComponent) }
