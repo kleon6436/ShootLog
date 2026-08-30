@@ -58,6 +58,7 @@ enum DevelopPipeline {
     ///     このチェーンでは露出・色温度・色かぶりを適用しない（二重適用の防止）。
     ///   - applyManualLensCorrection: schemaVersion ゲートと、RAW のプロファイル補正が有効なら手動を
     ///     スキップする判断を呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
+    ///   - usesToneMaskedColorGrading: `true` の場合、カラー補正にトーン域マスク方式の Metal カーネルを使う。
     /// - Returns: 調整後の画像。`parameters.isNeutral` の場合は `input` をそのまま返す。
     ///   フィルタ生成に失敗したステップは黙って読み飛ばし、直前の画像を維持する。
     ///
@@ -78,7 +79,9 @@ enum DevelopPipeline {
         isRAW: Bool,
         cache: DevelopPipelineCache? = nil,
         skipExposureAndWhiteBalance: Bool = false,
-        applyManualLensCorrection: Bool = false
+        applyManualLensCorrection: Bool = false,
+        usesToneMaskedColorGrading: Bool = false,
+        asShotWhiteBalance: WhiteBalanceSample? = nil
     ) -> CIImage {
         guard !parameters.isNeutral else { return input }
 
@@ -96,7 +99,9 @@ enum DevelopPipeline {
 
         // --- リニア光ブラケット（物理的な光の操作）---
         if !skipExposureAndWhiteBalance {
-            image = applyWhiteBalance(parameters, to: image)
+            image = applyWhiteBalance(
+                parameters, to: image, isRAW: isRAW, asShot: asShotWhiteBalance
+            )
             image = applyExposure(parameters, to: image)
         }
         image = applyHighlightShadow(parameters, to: image)
@@ -110,7 +115,9 @@ enum DevelopPipeline {
             image = applyVibrance(parameters, to: image)
             image = applyLevels(parameters, to: image)
             image = applyToneCurves(parameters, to: image)
-            image = applyColorBalance(parameters, to: image)
+            image = usesToneMaskedColorGrading
+                ? applyColorGrading(parameters, to: image)
+                : applyColorBalanceLegacy(parameters, to: image)
             image = applyHSL(parameters, to: image, cache: cache)
             image = applyBlackAndWhite(parameters, to: image)
             image = applyVignette(parameters, to: image)
@@ -231,14 +238,28 @@ enum DevelopPipeline {
     /// 色順応させるため、**ソース側（`neutral`）を動かす**とスライダーの直感と一致する。
     /// 例えば `neutral` のケルビンを上げる = 「元画像は今より青い光源で撮られた」と宣言することになり、
     /// 結果は赤方向（暖色）へ寄る。色かぶりも同様に、正の値でマゼンタ方向へ寄る。
-    private static func applyWhiteBalance(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+    private static func applyWhiteBalance(
+        _ parameters: DevelopParameters,
+        to image: CIImage,
+        isRAW: Bool,
+        asShot: WhiteBalanceSample?
+    ) -> CIImage {
         if parameters.whiteBalance.hasEffect {
             let filter = CIFilter.temperatureAndTint()
             filter.inputImage = image
-            filter.neutral = CIVector(
-                x: parameters.whiteBalance.temperatureKelvin,
-                y: parameters.whiteBalance.tint
-            )
+            if isRAW {
+                filter.neutral = CIVector(
+                    x: parameters.whiteBalance.temperatureKelvin,
+                    y: parameters.whiteBalance.tint
+                )
+            } else {
+                let baseK = asShot?.temperatureKelvin ?? referenceTemperature
+                let baseTint = asShot?.tint ?? 0
+                filter.neutral = CIVector(
+                    x: referenceTemperature + (parameters.whiteBalance.temperatureKelvin - baseK),
+                    y: parameters.whiteBalance.tint - baseTint
+                )
+            }
             filter.targetNeutral = CIVector(x: referenceTemperature, y: 0)
             return filter.outputImage ?? image
         }
@@ -490,7 +511,7 @@ enum DevelopPipeline {
 
     /// Core Image標準フィルターだけで実装できる安全な初期版。各トーン範囲の値は平均して効かせ、
     /// 将来の局所調整レイヤーでは同じ設定値をLUTベースのトーン分離へ差し替えられるようにする。
-    private static func applyColorBalance(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+    private static func applyColorBalanceLegacy(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
         guard !parameters.colorBalance.isNeutral else { return image }
         let components = [
             parameters.colorBalance.master,
@@ -513,6 +534,11 @@ enum DevelopPipeline {
         controls.saturation = Float(max(0, 1 + saturation / 100))
         controls.brightness = Float(lightness / 100 * 0.15)
         return controls.outputImage ?? result
+    }
+
+    private static func applyColorGrading(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard !parameters.colorBalance.isNeutral else { return image }
+        return ColorGradingFilter.graded(image, settings: parameters.colorBalance)
     }
 
     private static func applyBlackAndWhite(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {

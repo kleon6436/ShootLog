@@ -100,14 +100,6 @@ struct EditablePhotoView: View {
                     )
                 }
 
-                if developViewModel.isWhiteBalancePicking && !isCropMode {
-                    WhiteBalancePickerOverlay(
-                        image: displayImage,
-                        containerSize: containerSize,
-                        onSample: developViewModel.applyWhiteBalanceSample
-                    )
-                }
-
                 if developViewModel.showsClippingWarnings, !isCropMode {
                     ExposureWarningOverlay(data: developViewModel.histogram)
                         .allowsHitTesting(false)
@@ -173,48 +165,5 @@ private struct ExposureWarningOverlay: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .accessibilityHidden(true)
-    }
-}
-
-private struct WhiteBalancePickerOverlay: View {
-    let image: NSImage
-    let containerSize: CGSize
-    let onSample: (CGFloat, CGFloat, CGFloat) -> Void
-
-    var body: some View {
-        Color.clear
-            .contentShape(Rectangle())
-            .overlay(alignment: .top) {
-                Label("develop.whiteBalance.pickerActive", systemImage: "eyedropper")
-                    .font(.caption)
-                    .padding(6)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding()
-            }
-            .gesture(DragGesture(minimumDistance: 0).onEnded { value in
-                guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
-                let scale = min(containerSize.width / image.size.width, containerSize.height / image.size.height)
-                let frame = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                let origin = CGPoint(x: (containerSize.width - frame.width) / 2, y: (containerSize.height - frame.height) / 2)
-                let x = min(max((value.location.x - origin.x) / max(frame.width, 1), 0), 1)
-                let y = min(max((value.location.y - origin.y) / max(frame.height, 1), 0), 1)
-                guard let sample = sample(cgImage, x: x, y: y) else { return }
-                onSample(sample.0, sample.1, sample.2)
-            })
-            .accessibilityLabel("develop.whiteBalance.picker")
-    }
-
-    private func sample(_ image: CGImage, x: CGFloat, y: CGFloat) -> (CGFloat, CGFloat, CGFloat)? {
-        let pixelX = min(max(Int(x * CGFloat(image.width)), 0), image.width - 1)
-        let pixelY = min(max(Int((1 - y) * CGFloat(image.height)), 0), image.height - 1)
-        var pixels = [UInt8](repeating: 0, count: 4)
-        guard let context = CGContext(
-            data: &pixels, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-        context.translateBy(x: -CGFloat(pixelX), y: -CGFloat(pixelY))
-        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        return (CGFloat(pixels[0]) / 255, CGFloat(pixels[1]) / 255, CGFloat(pixels[2]) / 255)
     }
 }

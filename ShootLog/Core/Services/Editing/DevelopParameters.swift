@@ -47,6 +47,19 @@ enum HSLBand: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// 現像パネルのセクション区分。各セクションを中立へ戻すリセットの単位。
+enum DevelopSection: String, CaseIterable, Sendable {
+    case basic
+    case whiteBalance
+    case color
+    case toneCurve
+    case hsl
+    case detail
+    case colorGrading
+    case blackAndWhite
+    case lens
+}
+
 /// RAW 現像 / 非破壊編集の全調整値をまとめた値型。
 ///
 /// ピクセルは保持せず、この値を表示・書き出し時にパイプラインへ渡して適用する。
@@ -148,6 +161,87 @@ struct DevelopParameters: Codable, Equatable, Sendable {
 
 extension DevelopParameters {
 
+    /// 指定セクションに何らかの調整が入っているか（リセットボタンの活性判定）。
+    func isModified(in section: DevelopSection) -> Bool {
+        let neutral = Self.neutral
+        return switch section {
+        case .basic:
+            exposure != neutral.exposure || contrast != neutral.contrast || highlights != neutral.highlights
+                || shadows != neutral.shadows || whites != neutral.whites || blacks != neutral.blacks
+                || brightness != neutral.brightness
+        case .whiteBalance:
+            temperature != neutral.temperature || tint != neutral.tint || whiteBalance != neutral.whiteBalance
+        case .color:
+            vibrance != neutral.vibrance || saturation != neutral.saturation
+        case .toneCurve:
+            !ToneCurve.isIdentity(toneCurveRGB) || !ToneCurve.isIdentity(toneCurveRed)
+                || !ToneCurve.isIdentity(toneCurveGreen) || !ToneCurve.isIdentity(toneCurveBlue)
+        case .hsl:
+            hslHue != neutral.hslHue || hslSaturation != neutral.hslSaturation
+                || hslLuminance != neutral.hslLuminance
+        case .detail:
+            clarity != neutral.clarity || structure != neutral.structure || dehaze != neutral.dehaze
+                || vignette != neutral.vignette || sharpness != neutral.sharpness
+                || luminanceNoiseReduction != neutral.luminanceNoiseReduction
+                || colorNoiseReduction != neutral.colorNoiseReduction
+        case .colorGrading:
+            colorBalance != neutral.colorBalance
+        case .blackAndWhite:
+            blackAndWhiteEnabled != neutral.blackAndWhiteEnabled || bwMix != neutral.bwMix
+        case .lens:
+            lensCorrectionEnabled != neutral.lensCorrectionEnabled || lensDistortion != neutral.lensDistortion
+                || lensVignette != neutral.lensVignette || lensChromaticAberration != neutral.lensChromaticAberration
+        }
+    }
+
+    /// 指定セクションの値だけを中立へ戻す。他セクションには触れない。
+    mutating func reset(_ section: DevelopSection) {
+        switch section {
+        case .basic:
+            exposure = 0
+            contrast = 0
+            highlights = 0
+            shadows = 0
+            whites = 0
+            blacks = 0
+            brightness = 0
+        case .whiteBalance:
+            temperature = 0
+            tint = 0
+            whiteBalance = .neutral
+        case .color:
+            vibrance = 0
+            saturation = 0
+        case .toneCurve:
+            toneCurveRGB = CurvePoint.identity
+            toneCurveRed = CurvePoint.identity
+            toneCurveGreen = CurvePoint.identity
+            toneCurveBlue = CurvePoint.identity
+        case .hsl:
+            hslHue = Array(repeating: 0, count: HSLBand.allCases.count)
+            hslSaturation = Array(repeating: 0, count: HSLBand.allCases.count)
+            hslLuminance = Array(repeating: 0, count: HSLBand.allCases.count)
+        case .detail:
+            clarity = 0
+            structure = 0
+            dehaze = 0
+            vignette = 0
+            sharpness = 0
+            luminanceNoiseReduction = 0
+            colorNoiseReduction = 0
+        case .colorGrading:
+            colorBalance = .neutral
+        case .blackAndWhite:
+            blackAndWhiteEnabled = false
+            bwMix = Array(repeating: 0, count: 6)
+        case .lens:
+            lensCorrectionEnabled = false
+            lensDistortion = 0
+            lensVignette = 0
+            lensChromaticAberration = 0
+        }
+    }
+
     /// この調整値の上に `delta` を差分として重ねた結果を返す（プリセットの相対適用）。
     ///
     /// - 加算系（露出・コントラスト・HSL 各帯域・シャープ・ノイズ低減 等）は加算し、
@@ -179,7 +273,7 @@ extension DevelopParameters {
         result.vignette = Self.clampUnit(vignette + delta.vignette)
         result.blackAndWhiteEnabled = blackAndWhiteEnabled || delta.blackAndWhiteEnabled
         result.bwMix = Self.addValues(bwMix, delta.bwMix, count: 6)
-        result.colorBalance = delta.colorBalance.isNeutral ? colorBalance : delta.colorBalance
+        result.colorBalance = delta.colorBalance.isNeutral ? colorBalance : colorBalance.adding(delta.colorBalance)
 
         result.toneCurveRGB = Self.compose(base: toneCurveRGB, then: delta.toneCurveRGB)
         result.toneCurveRed = Self.compose(base: toneCurveRed, then: delta.toneCurveRed)

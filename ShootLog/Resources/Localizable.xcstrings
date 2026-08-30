@@ -1488,8 +1488,8 @@
         }
       }
     },
-    "develop.colorBalance.highlights" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.highlights" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1505,8 +1505,8 @@
         }
       }
     },
-    "develop.colorBalance.hue" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.hue" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1522,8 +1522,8 @@
         }
       }
     },
-    "develop.colorBalance.lightness" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.lightness" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1539,8 +1539,8 @@
         }
       }
     },
-    "develop.colorBalance.master" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.master" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1551,13 +1551,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全体"
+            "value" : "マスター"
           }
         }
       }
     },
-    "develop.colorBalance.midtones" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.midtones" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1573,8 +1573,25 @@
         }
       }
     },
-    "develop.colorBalance.saturation" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.resetWheel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Wheel"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このホイールをリセット"
+          }
+        }
+      }
+    },
+    "develop.colorGrading.saturation" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1590,8 +1607,8 @@
         }
       }
     },
-    "develop.colorBalance.shadows" : {
-      "extractionState" : "stale",
+    "develop.colorGrading.shadows" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2780,13 +2797,13 @@
         }
       }
     },
-    "develop.section.colorBalance" : {
-      "extractionState" : "stale",
+    "develop.section.colorGrading" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Color Balance"
+            "value" : "Color Grading"
           }
         },
         "ja" : {
@@ -2844,6 +2861,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "レンズ補正"
+          }
+        }
+      }
+    },
+    "develop.section.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset section"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セクションをリセット"
+          }
+        }
+      }
+    },
+    "develop.section.reset.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset this section's adjustments"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このセクションの調整を中立に戻す"
           }
         }
       }
@@ -3086,23 +3137,6 @@
         }
       }
     },
-    "develop.toneCurve.reset" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset curve"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "カーブをリセット"
-          }
-        }
-      }
-    },
     "develop.undo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3154,36 +3188,19 @@
         }
       }
     },
-    "develop.whiteBalance.asShot" : {
-      "extractionState" : "stale",
+    "develop.whiteBalance.asShotValue" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As Shot"
+            "value" : "As Shot %1$lld K"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "撮影時"
-          }
-        }
-      }
-    },
-    "develop.whiteBalance.auto" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auto"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自動"
+            "value" : "撮影時 %1$lld K"
           }
         }
       }
@@ -3205,35 +3222,19 @@
         }
       }
     },
-    "develop.whiteBalance.copy" : {
-      "extractionState" : "stale",
+    "develop.whiteBalance.estimated" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy white balance"
+            "value" : "Estimated"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ホワイトバランスをコピー"
-          }
-        }
-      }
-    },
-    "develop.whiteBalance.kelvin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temperature"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "色温度"
+            "value" : "推定"
           }
         }
       }
@@ -3254,9 +3255,6 @@
           }
         }
       }
-    },
-    "develop.whiteBalance.mode.%@" : {
-
     },
     "develop.whiteBalance.mode.asShot" : {
       "extractionState" : "stale",
@@ -3411,53 +3409,19 @@
         }
       }
     },
-    "develop.whiteBalance.paste" : {
-      "extractionState" : "stale",
+    "develop.whiteBalance.temperature" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paste white balance"
+            "value" : "Temperature"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ホワイトバランスをペースト"
-          }
-        }
-      }
-    },
-    "develop.whiteBalance.picker" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "White balance picker"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ホワイトバランススポイト"
-          }
-        }
-      }
-    },
-    "develop.whiteBalance.pickerActive" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Click a neutral gray or white area"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ニュートラルなグレーまたは白をクリック"
+            "value" : "色温度"
           }
         }
       }
@@ -4217,6 +4181,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プレビュー"
+          }
+        }
+      }
+    },
+    "H %@°  S %@%%" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "H %1$@°  S %2$@%%"
           }
         }
       }

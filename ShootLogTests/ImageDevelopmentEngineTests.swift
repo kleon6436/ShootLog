@@ -65,6 +65,18 @@ struct ImageDevelopmentEngineTests {
         #expect(CGImageDestinationFinalize(destination))
     }
 
+    @discardableResult
+    private func writeJPEG(width: Int, height: Int, in sandbox: URL) throws -> URL {
+        let image = try makeColorImage(width: width, height: height)
+        let url = sandbox.appendingPathComponent("\(UUID().uuidString).jpg")
+        let destination = try #require(CGImageDestinationCreateWithURL(
+            url as CFURL, UTType.jpeg.identifier as CFString, 1, nil
+        ))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+        return url
+    }
+
     /// 全ピクセルが同じグレー値の画像。
     private func makeSolidImage(gray: UInt8, size: Int) throws -> CGImage {
         let pixels = [UInt8](repeating: gray, count: size * size * 4).enumerated().map { index, value in
@@ -146,6 +158,45 @@ struct ImageDevelopmentEngineTests {
         for ext in ["jpg", "JPEG", "png", "heic", "tiff"] {
             #expect(engine.isRAW(url: base.appendingPathExtension(ext)) == false)
         }
+    }
+
+    // MARK: - 撮影時ホワイトバランス
+
+    @Test func asShotNeutralForNonRAWReturnsEstimatedSample() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        let sample = try #require(await engine.asShotNeutral(for: url))
+        #expect(sample.isEstimated)
+        #expect(sample.temperatureKelvin.isFinite)
+        #expect((1_000...50_000).contains(sample.temperatureKelvin))
+    }
+
+    @Test func asShotNeutralForJPEGReturnsEstimatedSample() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writeJPEG(width: 128, height: 96, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        let sample = try #require(await engine.asShotNeutral(for: url))
+        #expect(sample.isEstimated)
+    }
+
+    @Test func asShotNeutralForMissingFileReturnsNil() async throws {
+        let sandbox = try makeSandbox()
+        let missing = sandbox.appendingPathComponent("does-not-exist.png")
+        let engine = ImageDevelopmentEngine()
+
+        #expect(await engine.asShotNeutral(for: missing) == nil)
+    }
+
+    /// RAW 経路は実 RAW フィクスチャ不足のため手動検証する。
+    @Test func asShotNeutralForMissingRAWReturnsNil() async throws {
+        let sandbox = try makeSandbox()
+        let missing = sandbox.appendingPathComponent("does-not-exist.dng")
+        let engine = ImageDevelopmentEngine()
+
+        #expect(await engine.asShotNeutral(for: missing) == nil)
     }
 
     // MARK: - プレビュー

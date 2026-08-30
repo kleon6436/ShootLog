@@ -15,6 +15,102 @@ struct DevelopParametersTests {
         return try JSONDecoder().decode(DevelopParameters.self, from: data)
     }
 
+    private func fullyModifiedParameters() -> DevelopParameters {
+        var parameters = DevelopParameters.neutral
+        parameters.exposure = 1
+        parameters.contrast = 2
+        parameters.highlights = 3
+        parameters.shadows = 4
+        parameters.whites = 5
+        parameters.blacks = 6
+        parameters.brightness = 7
+        parameters.temperature = 8
+        parameters.tint = 9
+        parameters.whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: 5_000, tint: 10)
+        parameters.vibrance = 11
+        parameters.saturation = 12
+        parameters.toneCurveRGB = [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.5, y: 0.6), CurvePoint(x: 1, y: 1)]
+        parameters.toneCurveRed = [CurvePoint(x: 0, y: 0.1), CurvePoint(x: 1, y: 1)]
+        parameters.toneCurveGreen = [CurvePoint(x: 0, y: 0), CurvePoint(x: 1, y: 0.9)]
+        parameters.toneCurveBlue = [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.4, y: 0.3), CurvePoint(x: 1, y: 1)]
+        parameters.hslHue = Array(repeating: 13, count: HSLBand.allCases.count)
+        parameters.hslSaturation = Array(repeating: 14, count: HSLBand.allCases.count)
+        parameters.hslLuminance = Array(repeating: 15, count: HSLBand.allCases.count)
+        parameters.clarity = 16
+        parameters.structure = 17
+        parameters.dehaze = 18
+        parameters.vignette = 19
+        parameters.sharpness = 20
+        parameters.luminanceNoiseReduction = 21
+        parameters.colorNoiseReduction = 22
+        parameters.colorBalance.master = ColorBalanceComponent(hue: 23, saturation: 24, lightness: 25)
+        parameters.blackAndWhiteEnabled = true
+        parameters.bwMix = Array(repeating: 26, count: 6)
+        parameters.lensCorrectionEnabled = true
+        parameters.lensDistortion = 27
+        parameters.lensVignette = 28
+        parameters.lensChromaticAberration = 29
+        return parameters
+    }
+
+    private func assertUnchangedSections(
+        _ parameters: DevelopParameters,
+        match before: DevelopParameters,
+        excluding excludedSection: DevelopSection
+    ) {
+        if excludedSection != .basic {
+            #expect(parameters.exposure == before.exposure)
+            #expect(parameters.contrast == before.contrast)
+            #expect(parameters.highlights == before.highlights)
+            #expect(parameters.shadows == before.shadows)
+            #expect(parameters.whites == before.whites)
+            #expect(parameters.blacks == before.blacks)
+            #expect(parameters.brightness == before.brightness)
+        }
+        if excludedSection != .whiteBalance {
+            #expect(parameters.temperature == before.temperature)
+            #expect(parameters.tint == before.tint)
+            #expect(parameters.whiteBalance == before.whiteBalance)
+        }
+        if excludedSection != .color {
+            #expect(parameters.vibrance == before.vibrance)
+            #expect(parameters.saturation == before.saturation)
+        }
+        if excludedSection != .toneCurve {
+            #expect(parameters.toneCurveRGB == before.toneCurveRGB)
+            #expect(parameters.toneCurveRed == before.toneCurveRed)
+            #expect(parameters.toneCurveGreen == before.toneCurveGreen)
+            #expect(parameters.toneCurveBlue == before.toneCurveBlue)
+        }
+        if excludedSection != .hsl {
+            #expect(parameters.hslHue == before.hslHue)
+            #expect(parameters.hslSaturation == before.hslSaturation)
+            #expect(parameters.hslLuminance == before.hslLuminance)
+        }
+        if excludedSection != .detail {
+            #expect(parameters.clarity == before.clarity)
+            #expect(parameters.structure == before.structure)
+            #expect(parameters.dehaze == before.dehaze)
+            #expect(parameters.vignette == before.vignette)
+            #expect(parameters.sharpness == before.sharpness)
+            #expect(parameters.luminanceNoiseReduction == before.luminanceNoiseReduction)
+            #expect(parameters.colorNoiseReduction == before.colorNoiseReduction)
+        }
+        if excludedSection != .colorGrading {
+            #expect(parameters.colorBalance == before.colorBalance)
+        }
+        if excludedSection != .blackAndWhite {
+            #expect(parameters.blackAndWhiteEnabled == before.blackAndWhiteEnabled)
+            #expect(parameters.bwMix == before.bwMix)
+        }
+        if excludedSection != .lens {
+            #expect(parameters.lensCorrectionEnabled == before.lensCorrectionEnabled)
+            #expect(parameters.lensDistortion == before.lensDistortion)
+            #expect(parameters.lensVignette == before.lensVignette)
+            #expect(parameters.lensChromaticAberration == before.lensChromaticAberration)
+        }
+    }
+
     // MARK: - neutral
 
     @Test func neutralHasAllDefaultValues() {
@@ -63,6 +159,40 @@ struct DevelopParametersTests {
         var parameters = DevelopParameters.neutral
         parameters.exposure = 0.5
         #expect(!parameters.isNeutral)
+    }
+
+    // MARK: - セクションリセット
+
+    @Test func resetEachSectionRestoresOnlyThatSection() {
+        for section in DevelopSection.allCases {
+            var parameters = fullyModifiedParameters()
+            let before = parameters
+
+            parameters.reset(section)
+
+            #expect(!parameters.isModified(in: section))
+            assertUnchangedSections(parameters, match: before, excluding: section)
+        }
+    }
+
+    @Test func isModifiedReportsEachSection() {
+        let neutral = DevelopParameters.neutral
+        let parameters = fullyModifiedParameters()
+
+        for section in DevelopSection.allCases {
+            #expect(!neutral.isModified(in: section))
+            #expect(parameters.isModified(in: section))
+        }
+    }
+
+    @Test func resettingAllSectionsReturnsToNeutral() {
+        var parameters = fullyModifiedParameters()
+
+        for section in DevelopSection.allCases {
+            parameters.reset(section)
+        }
+
+        #expect(parameters.isNeutral)
     }
 
     // MARK: - Codable round trip
@@ -243,6 +373,22 @@ struct DevelopParametersTests {
         #expect(result.hslSaturation[0] == -10)
     }
 
+    @Test func applyingAddsColorBalanceComponentsAndPreservesBaseForNeutralDelta() {
+        var base = DevelopParameters.neutral
+        base.colorBalance.shadows.hue = 30
+        base.colorBalance.shadows.saturation = 20
+
+        var delta = DevelopParameters.neutral
+        delta.colorBalance.shadows.hue = 160
+        delta.colorBalance.shadows.saturation = -50
+        #expect(base.applying(delta: delta).colorBalance.shadows.hue == 180)
+        #expect(base.applying(delta: delta).colorBalance.shadows.saturation == 0)
+
+        var neutralColorBalanceDelta = DevelopParameters.neutral
+        neutralColorBalanceDelta.contrast = 10
+        #expect(base.applying(delta: neutralColorBalanceDelta).colorBalance == base.colorBalance)
+    }
+
     @Test func applyingComposesToneCurvesIdentityCases() {
         var base = DevelopParameters.neutral
         let curve = [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.5, y: 0.7), CurvePoint(x: 1, y: 1)]
@@ -316,5 +462,13 @@ struct DevelopParametersTests {
         parameters = .neutral
         parameters.lensChromaticAberration = 1
         #expect(parameters.hasManualLensCorrection)
+    }
+
+    // MARK: - WhiteBalanceSample
+
+    @Test func whiteBalanceSampleIsEquatable() {
+        let sample = WhiteBalanceSample(temperatureKelvin: 5_600, tint: -5, isEstimated: false)
+        #expect(sample == WhiteBalanceSample(temperatureKelvin: 5_600, tint: -5, isEstimated: false))
+        #expect(sample != WhiteBalanceSample(temperatureKelvin: 5_600, tint: -5, isEstimated: true))
     }
 }

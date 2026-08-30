@@ -23,6 +23,8 @@ protocol ImageDeveloping: Sendable {
     ///     （`DevelopSettings.schemaVersion` >= 2）。非 RAW では無視される。
     ///   - usesManualLensCorrection: schemaVersion の世代判定と RAW プロファイル補正との二重適用回避を
     ///     呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
+    ///   - usesToneMaskedColorGrading: カラーグレーディングへトーン域マスク方式を使うか。
+    ///   - asShotWhiteBalance: 非 RAW の Custom / Auto 補正の基準に使う撮影時ホワイトバランス。
     func renderPreview(
         url: URL,
         parameters: DevelopParameters,
@@ -31,7 +33,9 @@ protocol ImageDeveloping: Sendable {
         cropRect: CGRect?,
         previewColorSpace: CGColorSpace?,
         useRAWParameterMapping: Bool,
-        usesManualLensCorrection: Bool
+        usesManualLensCorrection: Bool,
+        usesToneMaskedColorGrading: Bool,
+        asShotWhiteBalance: WhiteBalanceSample?
     ) async -> CGImage?
 
     /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
@@ -43,6 +47,8 @@ protocol ImageDeveloping: Sendable {
     ///   - useRAWParameterMapping: RAW のとき露出・WB を `CIRAWFilter` 側へ委譲するか。
     ///   - usesManualLensCorrection: schemaVersion の世代判定と RAW プロファイル補正との二重適用回避を
     ///     呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
+    ///   - usesToneMaskedColorGrading: カラーグレーディングへトーン域マスク方式を使うか。
+    ///   - asShotWhiteBalance: 非 RAW の Custom / Auto 補正の基準に使う撮影時ホワイトバランス。
     func renderFull(
         url: URL,
         parameters: DevelopParameters,
@@ -50,11 +56,20 @@ protocol ImageDeveloping: Sendable {
         cropRect: CGRect?,
         outputColorSpace: CGColorSpace?,
         useRAWParameterMapping: Bool,
-        usesManualLensCorrection: Bool
+        usesManualLensCorrection: Bool,
+        usesToneMaskedColorGrading: Bool,
+        asShotWhiteBalance: WhiteBalanceSample?
     ) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
     func isRAW(url: URL) -> Bool
+
+    /// 撮影時ホワイトバランス（RAW は `CIRAWFilter` の as-shot 実測、非 RAW は推定）。取得不能なら `nil`。
+    func asShotNeutral(for url: URL) async -> WhiteBalanceSample?
+}
+
+extension ImageDeveloping {
+    func asShotNeutral(for url: URL) async -> WhiteBalanceSample? { nil }
 }
 
 /// `DevelopParameters` を実ファイルへ適用して CGImage を生成するエンジン。
@@ -115,6 +130,49 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         Self.rawExtensions.contains(url.pathExtension.lowercased())
     }
 
+    /// 撮影時ホワイトバランスを返す。RAW はデコーダーの as-shot 値を、非 RAW はメタデータまたは画像から推定する。
+    func asShotNeutral(for url: URL) async -> WhiteBalanceSample? {
+        let isRAWImage = isRAW(url: url)
+        let handle = Task.detached(priority: .userInitiated) { () -> WhiteBalanceSample? in
+            _ = url.startAccessingSecurityScopedResource()
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            guard !Task.isCancelled, FileManager.default.fileExists(atPath: url.path) else { return nil }
+            if isRAWImage {
+                guard let filter = CIRAWFilter(imageURL: url) else { return nil }
+                return WhiteBalanceSample(
+                    temperatureKelvin: Double(filter.neutralTemperature),
+                    tint: Double(filter.neutralTint),
+                    isEstimated: false
+                )
+            }
+
+            if let temperature = Self.colorTemperatureMetadata(for: url) {
+                return WhiteBalanceSample(
+                    temperatureKelvin: temperature,
+                    tint: 0,
+                    isEstimated: true
+                )
+            }
+
+            guard let image = Self.decodeBaseSynchronously(
+                url: url, maxPixelSize: 256, rawParameters: nil
+            ), let settings = WhiteBalanceResolver.automaticSettings(from: image) else {
+                return nil
+            }
+            return WhiteBalanceSample(
+                temperatureKelvin: settings.temperatureKelvin,
+                tint: settings.tint,
+                isEstimated: true
+            )
+        }
+        return await withTaskCancellationHandler {
+            await handle.value
+        } onCancel: {
+            handle.cancel()
+        }
+    }
+
     /// Apple 標準の RAW デコード経路について、UI と保存世代が参照できる最小限の識別情報を返す。
     /// DCP/LCP の解析・切り替えは扱わず、取得不能時も As Shot の通常デコードに委ねる。
     func rawDevelopmentProfile(for url: URL) -> RawDevelopmentProfile {
@@ -165,7 +223,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         cropRect: CGRect? = nil,
         previewColorSpace: CGColorSpace? = nil,
         useRAWParameterMapping: Bool = false,
-        usesManualLensCorrection: Bool = false
+        usesManualLensCorrection: Bool = false,
+        usesToneMaskedColorGrading: Bool = false,
+        asShotWhiteBalance: WhiteBalanceSample? = nil
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
@@ -185,7 +245,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             cropRect: cropRect,
             outputColorSpace: previewColorSpace ?? Self.defaultOutputColorSpace,
             skipExposureAndWhiteBalance: rawParameters != nil,
-            applyManualLensCorrection: usesManualLensCorrection
+            applyManualLensCorrection: usesManualLensCorrection,
+            usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+            asShotWhiteBalance: asShotWhiteBalance
         )
     }
 
@@ -211,7 +273,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         cropRect: CGRect?,
         outputColorSpace: CGColorSpace? = nil,
         useRAWParameterMapping: Bool = false,
-        usesManualLensCorrection: Bool = false
+        usesManualLensCorrection: Bool = false,
+        usesToneMaskedColorGrading: Bool = false,
+        asShotWhiteBalance: WhiteBalanceSample? = nil
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
@@ -228,7 +292,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             cropRect: cropRect,
             outputColorSpace: outputColorSpace ?? Self.defaultOutputColorSpace,
             skipExposureAndWhiteBalance: rawParameters != nil,
-            applyManualLensCorrection: usesManualLensCorrection
+            applyManualLensCorrection: usesManualLensCorrection,
+            usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+            asShotWhiteBalance: asShotWhiteBalance
         )
     }
 
@@ -296,6 +362,51 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     private static func modificationTime(of url: URL) -> TimeInterval {
         let date = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
         return date?.timeIntervalSinceReferenceDate ?? 0
+    }
+
+    /// 非 RAW に保存されることがある色温度メタデータをベストエフォートで読む。
+    private static func colorTemperatureMetadata(for url: URL) -> Double? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        else {
+            return nil
+        }
+
+        if let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any],
+           let temperature = validColorTemperature(exif["ColorTemperature" as CFString]) {
+            return temperature
+        }
+
+        for dictionaryKey in [kCGImagePropertyExifAuxDictionary, kCGImagePropertyMakerAppleDictionary] {
+            if let temperature = colorTemperature(in: properties[dictionaryKey]) {
+                return temperature
+            }
+        }
+        return nil
+    }
+
+    /// MakerNote のキーはカメラごとに異なるため、色温度を示す名前の有限な数値だけを採用する。
+    private static func colorTemperature(in value: Any?) -> Double? {
+        guard let dictionary = value as? [CFString: Any] else { return nil }
+        for key in dictionary.keys.sorted(by: { ($0 as String) < ($1 as String) }) {
+            guard let nestedValue = dictionary[key] else { continue }
+            let keyName = key as String
+            if keyName.localizedCaseInsensitiveContains("colorTemperature"),
+               let temperature = validColorTemperature(nestedValue) {
+                return temperature
+            }
+            if let temperature = colorTemperature(in: nestedValue) {
+                return temperature
+            }
+        }
+        return nil
+    }
+
+    private static func validColorTemperature(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber else { return nil }
+        let temperature = number.doubleValue
+        guard temperature.isFinite, (1_000...50_000).contains(temperature) else { return nil }
+        return temperature
     }
 
     /// 要求解像度を `bucketStep` 刻みへ切り上げたバケット番号。0 はフル解像度を表す。
@@ -393,7 +504,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         cropRect: CGRect?,
         outputColorSpace: CGColorSpace,
         skipExposureAndWhiteBalance: Bool,
-        applyManualLensCorrection: Bool
+        applyManualLensCorrection: Bool,
+        usesToneMaskedColorGrading: Bool,
+        asShotWhiteBalance: WhiteBalanceSample?
     ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
@@ -401,7 +514,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             var image = DevelopPipeline.apply(
                 parameters, to: source, isRAW: isRAW, cache: cache,
                 skipExposureAndWhiteBalance: skipExposureAndWhiteBalance,
-                applyManualLensCorrection: applyManualLensCorrection
+                applyManualLensCorrection: applyManualLensCorrection,
+                usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+                asShotWhiteBalance: asShotWhiteBalance
             )
             // 回転 → トリミングの順。cropRect は「回転後に表示されている画像」基準の正規化矩形なので、
             // 先に回転を焼き込んでから同じ割合で切り抜くと、ユーザーが画面で見た構図と一致する。
