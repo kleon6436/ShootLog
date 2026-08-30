@@ -100,6 +100,8 @@ enum DevelopPipeline {
             image = applyExposure(parameters, to: image)
         }
         image = applyHighlightShadow(parameters, to: image)
+        image = applyLocalContrast(parameters, to: image)
+        image = applyDehaze(parameters, to: image)
 
         // --- ガンマ（sRGB）ブラケット（知覚的なトーン操作）---
         if hasPerceptualEffect(parameters) {
@@ -108,7 +110,10 @@ enum DevelopPipeline {
             image = applyVibrance(parameters, to: image)
             image = applyLevels(parameters, to: image)
             image = applyToneCurves(parameters, to: image)
+            image = applyColorBalance(parameters, to: image)
             image = applyHSL(parameters, to: image, cache: cache)
+            image = applyBlackAndWhite(parameters, to: image)
+            image = applyVignette(parameters, to: image)
             image = gammaToLinear(image)
         }
 
@@ -132,6 +137,12 @@ enum DevelopPipeline {
             || parameters.brightness != 0
             || parameters.saturation != 0
             || parameters.vibrance != 0
+            || parameters.clarity != 0
+            || parameters.structure != 0
+            || parameters.dehaze != 0
+            || parameters.vignette != 0
+            || parameters.blackAndWhiteEnabled
+            || !parameters.colorBalance.isNeutral
             || parameters.whites != 0
             || parameters.blacks != 0
             || max(parameters.highlights, 0) != 0
@@ -221,6 +232,16 @@ enum DevelopPipeline {
     /// 例えば `neutral` のケルビンを上げる = 「元画像は今より青い光源で撮られた」と宣言することになり、
     /// 結果は赤方向（暖色）へ寄る。色かぶりも同様に、正の値でマゼンタ方向へ寄る。
     private static func applyWhiteBalance(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        if parameters.whiteBalance.hasEffect {
+            let filter = CIFilter.temperatureAndTint()
+            filter.inputImage = image
+            filter.neutral = CIVector(
+                x: parameters.whiteBalance.temperatureKelvin,
+                y: parameters.whiteBalance.tint
+            )
+            filter.targetNeutral = CIVector(x: referenceTemperature, y: 0)
+            return filter.outputImage ?? image
+        }
         guard parameters.temperature != 0 || parameters.tint != 0 else { return image }
 
         let filter = CIFilter.temperatureAndTint()
@@ -266,6 +287,38 @@ enum DevelopPipeline {
         // recovery = -1（highlights 最小）でちょうど下限に届くようにする。
         let recoveryRatio = clamp(recovery / 100, -1, 0)
         filter.highlightAmount = Float(1 + recoveryRatio * (1 - highlightRecoveryFloor))
+        return filter.outputImage ?? image
+    }
+
+    // MARK: - 3.5 ローカルコントラスト / Dehaze
+
+    private static func applyLocalContrast(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.clarity != 0 || parameters.structure != 0 else { return image }
+        var result = image
+        if parameters.clarity != 0 {
+            let filter = CIFilter.unsharpMask()
+            filter.inputImage = result
+            filter.radius = 8
+            filter.intensity = Float(parameters.clarity / 100 * 0.55)
+            result = filter.outputImage ?? result
+        }
+        if parameters.structure != 0 {
+            let filter = CIFilter.unsharpMask()
+            filter.inputImage = result
+            filter.radius = 2
+            filter.intensity = Float(parameters.structure / 100 * 0.35)
+            result = filter.outputImage ?? result
+        }
+        return result
+    }
+
+    private static func applyDehaze(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.dehaze != 0 else { return image }
+        let filter = CIFilter.colorControls()
+        filter.inputImage = image
+        let amount = clamp(parameters.dehaze / 100, -1, 1)
+        filter.contrast = Float(1 + amount * 0.35)
+        filter.saturation = Float(max(0, 1 + amount * 0.18))
         return filter.outputImage ?? image
     }
 
@@ -430,6 +483,60 @@ enum DevelopPipeline {
         filter.cubeData = cubeData
         // 画像は知覚ブラケットで既にガンマエンコード済み。フィルタ側で再変換させない。
         filter.colorSpace = perceptualBracketColorSpace
+        return filter.outputImage ?? image
+    }
+
+    // MARK: - 8.5 カラーグレーディング / B&W / 周辺光量
+
+    /// Core Image標準フィルターだけで実装できる安全な初期版。各トーン範囲の値は平均して効かせ、
+    /// 将来の局所調整レイヤーでは同じ設定値をLUTベースのトーン分離へ差し替えられるようにする。
+    private static func applyColorBalance(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard !parameters.colorBalance.isNeutral else { return image }
+        let components = [
+            parameters.colorBalance.master,
+            parameters.colorBalance.shadows,
+            parameters.colorBalance.midtones,
+            parameters.colorBalance.highlights
+        ]
+        let hue = components.map(\.hue).reduce(0, +) / Double(components.count)
+        let saturation = components.map(\.saturation).reduce(0, +) / Double(components.count)
+        let lightness = components.map(\.lightness).reduce(0, +) / Double(components.count)
+        var result = image
+        if hue != 0 {
+            let hueFilter = CIFilter.hueAdjust()
+            hueFilter.inputImage = result
+            hueFilter.angle = Float(hue / 180 * .pi)
+            result = hueFilter.outputImage ?? result
+        }
+        let controls = CIFilter.colorControls()
+        controls.inputImage = result
+        controls.saturation = Float(max(0, 1 + saturation / 100))
+        controls.brightness = Float(lightness / 100 * 0.15)
+        return controls.outputImage ?? result
+    }
+
+    private static func applyBlackAndWhite(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.blackAndWhiteEnabled else { return image }
+        let mix = parameters.bwMix + Array(repeating: 0, count: max(0, 6 - parameters.bwMix.count))
+        let red = clamp(0.30 + mix[0] / 100 * 0.12, 0, 1)
+        let green = clamp(0.59 + mix[3] / 100 * 0.12, 0, 1)
+        let blue = clamp(0.11 + mix[5] / 100 * 0.12, 0, 1)
+        let total = max(red + green + blue, 0.001)
+        let filter = CIFilter.colorMatrix()
+        filter.inputImage = image
+        let vector = CIVector(x: red / total, y: green / total, z: blue / total, w: 0)
+        filter.rVector = vector
+        filter.gVector = vector
+        filter.bVector = vector
+        return filter.outputImage ?? image
+    }
+
+    private static func applyVignette(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.vignette != 0 else { return image }
+        let filter = CIFilter.vignetteEffect()
+        filter.inputImage = image
+        filter.radius = Float(max(image.extent.width, image.extent.height) * 0.65)
+        filter.intensity = Float(parameters.vignette / 100 * 1.5)
         return filter.outputImage ?? image
     }
 

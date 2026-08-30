@@ -69,4 +69,20 @@ struct HistogramDataTests {
         #expect(histogram.blue.reduce(0, +) == 70)
         #expect(histogram.luminance.reduce(0, +) == 70)
     }
+
+    @Test func clippingFlagsTrackIndividualRGBAndLuminanceEdges() {
+        var red = Array(repeating: 0, count: HistogramData.binCount)
+        let green = red
+        var blue = red
+        var luminance = red
+        red[255] = 1
+        blue[0] = 1
+        luminance[255] = 1
+        let histogram = HistogramData(red: red, green: green, blue: blue, luminance: luminance)
+
+        #expect(histogram.hasHighlightClipping)
+        #expect(histogram.hasShadowClipping)
+        #expect(histogram.hasLuminanceHighlightClipping)
+        #expect(!histogram.hasLuminanceShadowClipping)
+    }
 }

@@ -33,14 +33,19 @@ enum RAWDevelopMapping {
             filter.exposure += Float(exposure)
         }
 
-        let temperature = clamp(parameters.temperature, -100, 100)
-        if temperature != 0 {
-            filter.neutralTemperature += Float(temperature) * kelvinPerTemperatureUnit
-        }
+        if parameters.whiteBalance.hasEffect {
+            filter.neutralTemperature = Float(parameters.whiteBalance.temperatureKelvin)
+            filter.neutralTint = Float(parameters.whiteBalance.tint)
+        } else {
+            let temperature = clamp(parameters.temperature, -100, 100)
+            if temperature != 0 {
+                filter.neutralTemperature += Float(temperature) * kelvinPerTemperatureUnit
+            }
 
-        let tint = clamp(parameters.tint, -100, 100)
-        if tint != 0 {
-            filter.neutralTint += Float(tint) * tintPerUnit
+            let tint = clamp(parameters.tint, -100, 100)
+            if tint != 0 {
+                filter.neutralTint += Float(tint) * tintPerUnit
+            }
         }
 
         // Apple のプロファイルベースのレンズ補正。対応していない RAW では何もしない。
@@ -56,6 +61,7 @@ enum RAWDevelopMapping {
         hasher.combine(parameters.exposure)
         hasher.combine(parameters.temperature)
         hasher.combine(parameters.tint)
+        hasher.combine(parameters.whiteBalance)
         hasher.combine(parameters.lensCorrectionEnabled)
         return hasher.finalize()
     }
@@ -63,6 +69,7 @@ enum RAWDevelopMapping {
     /// 委譲対象パラメータが 1 つでも中立でないか。
     static func hasEffect(_ parameters: DevelopParameters) -> Bool {
         parameters.exposure != 0 || parameters.temperature != 0 || parameters.tint != 0
+            || parameters.whiteBalance.hasEffect
             || parameters.lensCorrectionEnabled
     }
 

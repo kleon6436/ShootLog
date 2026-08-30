@@ -14,19 +14,20 @@ import SwiftData
 ///   version 1 の既存レコードは 1 のまま描画し、色が変わらないようにする。
 /// - 3: 手動レンズ補正（歪曲・周辺光量・色収差）を解釈する（v3 Phase 5）。version 2 のレコードは
 ///   編集時に 3 へ自動更新される（手動レンズ値は既定 0 で見た目を変えない）。version 1 は据え置き。
+/// - 4: 絶対 Kelvin/Tint とモードを持つホワイトバランスを保存する。旧値は従来の相対経路を維持する。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
     var photoID: UUID = UUID()
     /// `JSONEncoder().encode(DevelopParameters)` の結果。
     var parametersData: Data = DevelopSettings.encodedNeutral()
-    /// blob の解釈世代。新規レコードは 3。
+    /// blob の解釈世代。新規レコードは 4。
     var schemaVersion: Int = DevelopSettings.currentSchemaVersion
     /// 調整値を最後に更新した時刻。
     var updatedAt: Date = Date.now
 
     /// 新規レコードが名乗る世代。
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 4
 
     /// 中立状態のレコードを生成する。
     init(photoID: UUID) {
@@ -63,9 +64,9 @@ final class DevelopSettings {
         let encoded = try DevelopSettings.encode(newValue)
         parametersData = encoded
         updatedAt = .now
-        // version 2 のレコードは編集時に version 3 へ引き上げる。手動レンズ補正の値は既定 0 で
+        // version 2/3 のレコードは編集時に現行世代へ引き上げる。手動レンズ補正の値は既定 0 で
         // 既存の見た目を変えない。version 1 は据え置き（v1→v3 は露出・WB 委譲が入るため）。
-        if schemaVersion == 2 { schemaVersion = 3 }
+        if schemaVersion == 2 || schemaVersion == 3 { schemaVersion = Self.currentSchemaVersion }
     }
 
     /// `DevelopParameters` を JSON エンコードする。NaN / Inf を含む場合など `JSONEncoder` は throw する。

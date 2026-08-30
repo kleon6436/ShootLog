@@ -70,10 +70,23 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     // MARK: 色
 
     /// 色温度。as-shot（撮影時ホワイトバランス）からのオフセット（範囲目安 -100...100）。
+    /// schema v3以前の永続値を再現するため残す。新規編集は `whiteBalance` を使う。
     var temperature: Double = 0
     var tint: Double = 0
+    var whiteBalance: WhiteBalanceSettings = .neutral
     var vibrance: Double = 0
     var saturation: Double = 0
+
+    // MARK: クリエイティブ調整
+
+    var clarity: Double = 0
+    var structure: Double = 0
+    var dehaze: Double = 0
+    var vignette: Double = 0
+    var blackAndWhiteEnabled = false
+    /// red / orange / yellow / green / aqua / blue の順。B&W有効時だけ効く。
+    var bwMix: [Double] = Array(repeating: 0, count: 6)
+    var colorBalance: ColorBalanceSettings = .neutral
 
     // MARK: トーンカーブ（正規化 0...1 の制御点列。既定は恒等カーブ）
 
@@ -156,8 +169,17 @@ extension DevelopParameters {
 
         result.temperature = Self.clampUnit(temperature + delta.temperature)
         result.tint = Self.clampUnit(tint + delta.tint)
+        result.whiteBalance = Self.applyingWhiteBalance(base: whiteBalance, delta: delta.whiteBalance)
         result.vibrance = Self.clampUnit(vibrance + delta.vibrance)
         result.saturation = Self.clampUnit(saturation + delta.saturation)
+
+        result.clarity = Self.clampUnit(clarity + delta.clarity)
+        result.structure = Self.clampUnit(structure + delta.structure)
+        result.dehaze = Self.clampUnit(dehaze + delta.dehaze)
+        result.vignette = Self.clampUnit(vignette + delta.vignette)
+        result.blackAndWhiteEnabled = blackAndWhiteEnabled || delta.blackAndWhiteEnabled
+        result.bwMix = Self.addValues(bwMix, delta.bwMix, count: 6)
+        result.colorBalance = delta.colorBalance.isNeutral ? colorBalance : delta.colorBalance
 
         result.toneCurveRGB = Self.compose(base: toneCurveRGB, then: delta.toneCurveRGB)
         result.toneCurveRed = Self.compose(base: toneCurveRed, then: delta.toneCurveRed)
@@ -200,6 +222,28 @@ extension DevelopParameters {
             let d = delta.indices.contains(index) ? delta[index] : 0
             return clampUnit(b + d)
         }
+    }
+
+    private static func addValues(_ base: [Double], _ delta: [Double], count: Int) -> [Double] {
+        (0..<count).map { index in
+            let b = base.indices.contains(index) ? base[index] : 0
+            let d = delta.indices.contains(index) ? delta[index] : 0
+            return clampUnit(b + d)
+        }
+    }
+
+    private static func applyingWhiteBalance(
+        base: WhiteBalanceSettings, delta: WhiteBalanceSettings
+    ) -> WhiteBalanceSettings {
+        guard delta.mode != .asShot else { return base }
+        guard delta.mode == .auto || delta.mode == .custom else { return delta }
+        var result = delta
+        if delta.mode == .custom, base.mode == .custom {
+            result.temperatureKelvin = base.temperatureKelvin + (delta.temperatureKelvin - 6_500)
+            result.tint = base.tint + delta.tint
+            result.normalize()
+        }
+        return result
     }
 
     /// `base` を適用してから `then` を適用した合成カーブの制御点列を返す。
@@ -248,8 +292,16 @@ extension DevelopParameters {
         case brightness
         case temperature
         case tint
+        case whiteBalance
         case vibrance
         case saturation
+        case clarity
+        case structure
+        case dehaze
+        case vignette
+        case blackAndWhiteEnabled
+        case bwMix
+        case colorBalance
         case toneCurveRGB
         case toneCurveRed
         case toneCurveGreen
@@ -274,6 +326,12 @@ extension DevelopParameters {
         if result.count < expected {
             result.append(contentsOf: Array(repeating: 0, count: expected - result.count))
         }
+        return result
+    }
+
+    private static func normalizedValues(_ values: [Double], count: Int) -> [Double] {
+        var result = Array(values.prefix(count))
+        if result.count < count { result.append(contentsOf: repeatElement(0, count: count - result.count)) }
         return result
     }
 
@@ -309,6 +367,13 @@ extension DevelopParameters {
             return Self.normalizedBands(raw)
         }
 
+        func values(_ key: CodingKeys, count: Int) -> [Double] {
+            guard let raw = try? container.decodeIfPresent([Double].self, forKey: key) else {
+                return Array(repeating: 0, count: count)
+            }
+            return Self.normalizedValues(raw, count: count)
+        }
+
         self.init()
 
         exposure = double(.exposure)
@@ -321,8 +386,17 @@ extension DevelopParameters {
 
         temperature = double(.temperature)
         tint = double(.tint)
+        whiteBalance = (try? container.decodeIfPresent(WhiteBalanceSettings.self, forKey: .whiteBalance)) ?? .neutral
+        whiteBalance.normalize()
         vibrance = double(.vibrance)
         saturation = double(.saturation)
+        clarity = double(.clarity)
+        structure = double(.structure)
+        dehaze = double(.dehaze)
+        vignette = double(.vignette)
+        blackAndWhiteEnabled = bool(.blackAndWhiteEnabled)
+        bwMix = values(.bwMix, count: 6)
+        colorBalance = (try? container.decodeIfPresent(ColorBalanceSettings.self, forKey: .colorBalance)) ?? .neutral
 
         toneCurveRGB = curve(.toneCurveRGB)
         toneCurveRed = curve(.toneCurveRed)

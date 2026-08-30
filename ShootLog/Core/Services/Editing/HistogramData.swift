@@ -17,6 +17,11 @@ struct HistogramData: Sendable, Equatable {
 
     static let binCount = 256
 
+    var hasHighlightClipping: Bool { red.last != 0 || green.last != 0 || blue.last != 0 }
+    var hasShadowClipping: Bool { red.first != 0 || green.first != 0 || blue.first != 0 }
+    var hasLuminanceHighlightClipping: Bool { luminance.last != 0 }
+    var hasLuminanceShadowClipping: Bool { luminance.first != 0 }
+
     /// 全ビン 0 の空ヒストグラム。
     static let empty = HistogramData(
         red: Array(repeating: 0, count: binCount),
