@@ -120,16 +120,19 @@ struct DevelopViewModelTests {
 
     // MARK: - テスト
 
-    @Test func neutralLoadDoesNotCallEngine() async throws {
+    @Test func neutralLoadRendersHistogramOnly() async throws {
         let engine = SpyEngine()
+        engine.stub = makeStubImage()
         let vm = makeViewModel(engine: engine)
         let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg"))
 
         vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
         await settle()
 
-        #expect(engine.previewCallCount == 0)
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastParameters == .neutral)
         #expect(vm.previewImage == nil)
+        #expect(vm.histogram != nil)
     }
 
     @Test func changingParametersRendersAfterDebounce() async throws {
@@ -180,10 +183,11 @@ struct DevelopViewModelTests {
         #expect(vm.previewImage != nil)
 
         vm.reset()
+        await settle()
 
         #expect(vm.parameters == .neutral)
         #expect(vm.previewImage == nil)
-        #expect(vm.histogram == nil)
+        #expect(vm.histogram != nil)
         #expect(vm.canReset == false)
     }
 
@@ -312,12 +316,12 @@ struct DevelopViewModelTests {
         #expect(vm.previewImage != nil)
     }
 
-    @Test func neutralParametersAndNoGeometryDoesNotRender() async throws {
+    @Test func neutralParametersAndNoGeometryRendersHistogramOnly() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
         let vm = makeViewModel(engine: engine)
 
-        // 全体矩形は実質トリミングなし。回転も無し → レンダーしない。
+        // 全体矩形は実質トリミングなし。回転も無し → ヒストグラムだけをレンダーする。
         vm.load(
             photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
             displaySize: CGSize(width: 800, height: 600),
@@ -326,8 +330,10 @@ struct DevelopViewModelTests {
         )
         await settle()
 
-        #expect(engine.previewCallCount == 0)
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastParameters == .neutral)
         #expect(vm.previewImage == nil)
+        #expect(vm.histogram != nil)
     }
 
     @Test func updateEditGeometryTriggersRenderWithCrop() async throws {
@@ -336,13 +342,13 @@ struct DevelopViewModelTests {
         let vm = makeViewModel(engine: engine)
         vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
         await settle()
-        #expect(engine.previewCallCount == 0)
+        #expect(engine.previewCallCount == 1)
 
         let crop = CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.5)
         vm.updateEditGeometry(rotation: 0, cropRect: crop)
         await settle()
 
-        #expect(engine.previewCallCount == 1)
+        #expect(engine.previewCallCount == 2)
         #expect(engine.lastCropRect == crop)
         #expect(vm.previewImage != nil)
     }
@@ -363,7 +369,7 @@ struct DevelopViewModelTests {
         await settle()
 
         #expect(vm.previewImage == nil)
-        #expect(vm.histogram == nil)
+        #expect(vm.histogram != nil)
     }
 
     @Test func staleRotationResultIsDiscarded() async throws {
@@ -594,6 +600,7 @@ struct DevelopViewModelTests {
 
     @Test func nonRAWVersion3SettingsCanEditManualLensCorrection() async throws {
         let engine = SpyEngine()
+        engine.stub = makeStubImage()
         let (content, context, photo) = try makeContentViewModel()
         let settings = DevelopSettings(photoID: photo.id)
         context.insert(settings)
@@ -731,6 +738,34 @@ struct DevelopViewModelTests {
         await settle()
 
         #expect(vm.parameters == .neutral)
+        #expect(vm.previewImage == nil)
+    }
+
+    @Test func switchingToUneditedPhotoKeepsHistogram() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, editedPhoto) = try makeContentViewModel()
+        let uneditedPhoto = Photo(fileURL: URL(fileURLWithPath: "/tmp/unedited.jpg"))
+        let settings = DevelopSettings(photoID: editedPhoto.id)
+        var parameters = DevelopParameters.neutral
+        parameters.exposure = 1.0
+        settings.parameters = parameters
+        context.insert(settings)
+        context.insert(uneditedPhoto)
+        try context.save()
+        content.currentDevelopSettings = settings
+
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: editedPhoto, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(vm.histogram != nil)
+
+        content.currentDevelopSettings = nil
+        vm.load(photo: uneditedPhoto, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.histogram != nil)
         #expect(vm.previewImage == nil)
     }
 }
