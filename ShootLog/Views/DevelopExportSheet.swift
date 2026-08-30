@@ -47,6 +47,8 @@ struct DevelopExportSheet: View {
                     .accessibilityLabel("develop.export.jpegQuality")
                 }
 
+                superResolutionSection
+
                 Text("develop.export.editsBakedNote")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -59,6 +61,35 @@ struct DevelopExportSheet: View {
                 Button("common.cancel") { dismiss() }
                 Button("develop.export.start") { contentViewModel.startDevelopExport() }
                     .keyboardShortcut(.defaultAction)
+                    .disabled(!viewModel.canStart)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var superResolutionSection: some View {
+        Toggle("develop.export.superResolution", isOn: $viewModel.applySuperResolution)
+
+        if viewModel.applySuperResolution {
+            Picker("develop.export.superResolution.scale", selection: $viewModel.superResolutionScale) {
+                ForEach(viewModel.availableSuperResolutionScales) { scale in
+                    Text(scale.displayName).tag(scale)
+                }
+            }
+            .accessibilityLabel("develop.export.superResolution.scale")
+
+            if viewModel.exceedsSizeLimit {
+                VStack(alignment: .leading, spacing: Spacing.small) {
+                    Text("develop.export.superResolution.tooLarge")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    if viewModel.canReduceSuperResolutionScale {
+                        Button("develop.export.superResolution.reduceScale") {
+                            viewModel.reduceSuperResolutionScale()
+                        }
+                        .controlSize(.small)
+                    }
+                }
             }
         }
     }
@@ -67,8 +98,16 @@ struct DevelopExportSheet: View {
 
     private var runningView: some View {
         VStack(spacing: Spacing.xLarge) {
-            ProgressView()
-                .accessibilityLabel("develop.export.running")
+            switch viewModel.stage {
+            case .developing:
+                ProgressView { Text("develop.export.stage.developing") }
+                    .accessibilityLabel("develop.export.stage.developing")
+            case .upscaling:
+                ProgressView(value: viewModel.upscaleProgress) {
+                    Text("develop.export.stage.upscaling")
+                }
+                .accessibilityLabel("develop.export.stage.upscaling")
+            }
 
             if viewModel.state.isCancelling {
                 Text("develop.export.cancelling")

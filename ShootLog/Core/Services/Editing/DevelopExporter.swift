@@ -12,6 +12,12 @@ private let developExportLogger = Logger(subsystem: "com.shootlog.app", category
 /// 直接書き込み の順で進める。原本保護・SMB 対応の書き込み方式は `UpscaleExporter` と同じ。
 struct DevelopExporter: Sendable {
 
+    /// 現像結果へさらに超解像を適用する要求。
+    struct SuperResolutionRequest: Sendable {
+        let engine: any SuperResolutionEngine
+        let descriptor: SuperResolutionModelDescriptor
+    }
+
     let engine: any ImageDeveloping
 
     init(engine: any ImageDeveloping = ImageDevelopmentEngine.shared) {
@@ -26,6 +32,9 @@ struct DevelopExporter: Sendable {
     ///   - cropRect: `EditInfo.cropRect` 由来の正規化矩形。`nil` でトリミングなし。
     ///   - contentType: 出力形式（JPEG / TIFF）。
     ///   - jpegQuality: JPEG の圧縮品質（0.0〜1.0）。JPEG 以外では無視。
+    ///   - superResolution: 指定すると現像結果を拡大してから書き出す。`renderFull` が既に回転を
+    ///     焼き込むため、超解像エンジンへは常に `rotation: 0` を渡す。
+    ///   - upscaleProgress: 超解像段の 0.0〜1.0 の進捗。現像段は速いため通知しない。
     func export(
         source: URL,
         destination: URL,
@@ -34,8 +43,10 @@ struct DevelopExporter: Sendable {
         cropRect: CGRect?,
         contentType: UTType,
         jpegQuality: Double,
+        superResolution: SuperResolutionRequest? = nil,
         currentFolder: URL?,
-        folderPhotoURLs: [URL]
+        folderPhotoURLs: [URL],
+        upscaleProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws {
         try UpscaleOutputDestination.validate(
             destination: destination,
@@ -43,7 +54,7 @@ struct DevelopExporter: Sendable {
             photoURLs: folderPhotoURLs
         )
 
-        guard let output = await engine.renderFull(
+        guard let developed = await engine.renderFull(
             url: source,
             parameters: parameters,
             rotation: rotation,
@@ -54,6 +65,14 @@ struct DevelopExporter: Sendable {
             throw ShootLogError.developRenderFailed
         }
         try Task.checkCancellation()
+
+        let output: CGImage
+        if let superResolution {
+            output = try await Self.upscale(developed, request: superResolution, progress: upscaleProgress)
+            try Task.checkCancellation()
+        } else {
+            output = developed
+        }
 
         let estimatedBytes = output.width * output.height * 4
         guard UpscaleOutputDestination.hasSufficientCapacity(
@@ -70,8 +89,54 @@ struct DevelopExporter: Sendable {
             to: destination,
             contentType: contentType,
             sourceURL: source,
-            jpegQuality: contentType == .jpeg ? jpegQuality : nil
+            jpegQuality: contentType == .jpeg ? jpegQuality : nil,
+            superResolutionModelID: superResolution?.engine.modelID,
+            isTrainedAlgorithmicMedia: superResolution?.descriptor.isTrainedAlgorithmicMedia ?? false
         )
+    }
+
+    // MARK: - 超解像段
+
+    /// 現像済み CGImage を超解像エンジンへ通す。回転は現像段で焼き込み済みなので `rotation: 0` 固定。
+    private static func upscale(
+        _ image: CGImage,
+        request: SuperResolutionRequest,
+        progress: (@Sendable (Double) -> Void)?
+    ) async throws -> CGImage {
+        let scale = request.engine.scaleFactor
+        let outputPixels = image.width * image.height * scale * scale
+        try UpscaleExporter.validateOutputSize(pixelCount: outputPixels)
+
+        let transform = PixelCoordinateTransform(
+            sourceWidth: image.width * scale,
+            sourceHeight: image.height * scale,
+            rotation: 0
+        )
+        guard let buffer = OutputPixelBuffer(
+            width: transform.destinationWidth,
+            height: transform.destinationHeight
+        ) else {
+            throw ShootLogError.superResolutionFailed(reason: "output buffer allocation failed")
+        }
+
+        let stream = AsyncStream<Double>.makeStream(of: Double.self)
+        let forwarder = Task {
+            for await fraction in stream.stream { progress?(fraction) }
+        }
+        defer { forwarder.cancel() }
+
+        do {
+            try await request.engine.upscale(image, rotation: 0, into: buffer, progress: stream.continuation)
+            stream.continuation.finish()
+        } catch {
+            stream.continuation.finish()
+            throw error
+        }
+
+        guard let output = buffer.makeCGImage() else {
+            throw ShootLogError.superResolutionFailed(reason: "output image creation failed")
+        }
+        return output
     }
 
     // MARK: - エンコード
@@ -82,9 +147,16 @@ struct DevelopExporter: Sendable {
         to url: URL,
         contentType: UTType,
         sourceURL: URL,
-        jpegQuality: Double?
+        jpegQuality: Double?,
+        superResolutionModelID: String? = nil,
+        isTrainedAlgorithmicMedia: Bool = false
     ) async throws {
-        let properties = imageProperties(sourceURL: sourceURL, jpegQuality: jpegQuality)
+        let properties = imageProperties(
+            sourceURL: sourceURL,
+            jpegQuality: jpegQuality,
+            superResolutionModelID: superResolutionModelID,
+            isTrainedAlgorithmicMedia: isTrainedAlgorithmicMedia
+        )
         let handle = Task.detached(priority: .userInitiated) { () throws -> Void in
             let data = NSMutableData()
             guard let destination = CGImageDestinationCreateWithData(
@@ -120,9 +192,18 @@ struct DevelopExporter: Sendable {
     }
 
     /// 出力へ付与するメタデータ。原本から撮影日時・カメラ情報をコピーし、ソフトウェアタグを付ける。
-    static func imageProperties(sourceURL: URL, jpegQuality: Double?) -> [CFString: Any] {
+    /// 超解像を適用した場合はモデル ID をソフトウェアタグへ、学習済みモデルなら IPTC の
+    /// DigitalSourceType（AI 生成マーカー）も付ける（`UpscaleExporter` と同じ方式）。
+    static func imageProperties(
+        sourceURL: URL,
+        jpegQuality: Double?,
+        superResolutionModelID: String? = nil,
+        isTrainedAlgorithmicMedia: Bool = false
+    ) -> [CFString: Any] {
         var properties: [CFString: Any] = [:]
-        var tiff: [CFString: Any] = [kCGImagePropertyTIFFSoftware: softwareTag()]
+        var tiff: [CFString: Any] = [
+            kCGImagePropertyTIFFSoftware: softwareTag(superResolutionModelID: superResolutionModelID)
+        ]
 
         if let imageSource = CGImageSourceCreateWithURL(sourceURL as CFURL, nil),
            let sourceProps = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any] {
@@ -136,14 +217,22 @@ struct DevelopExporter: Sendable {
         }
 
         properties[kCGImagePropertyTIFFDictionary] = tiff
+        if isTrainedAlgorithmicMedia {
+            properties[kCGImagePropertyIPTCDictionary] = [
+                kCGImagePropertyIPTCExtDigitalSourceType: UpscaleExporter.trainedAlgorithmicMediaURI
+            ] as [CFString: Any]
+        }
         if let jpegQuality {
             properties[kCGImageDestinationLossyCompressionQuality] = jpegQuality
         }
         return properties
     }
 
-    static func softwareTag() -> String {
+    static func softwareTag(superResolutionModelID: String? = nil) -> String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        if let superResolutionModelID {
+            return "ShootLog \(version) / \(superResolutionModelID)"
+        }
         return "ShootLog \(version)"
     }
 }

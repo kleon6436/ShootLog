@@ -156,6 +156,120 @@ struct DevelopExporterTests {
         #expect(try sha256(of: source) == before)
     }
 
+    // MARK: - 現像 → 超解像チェーン
+
+    private func lanczosRequest(
+        scale: Int,
+        trainedAlgorithmicMedia: Bool = false
+    ) -> DevelopExporter.SuperResolutionRequest {
+        DevelopExporter.SuperResolutionRequest(
+            engine: LanczosSuperResolutionEngine(scaleFactor: scale),
+            descriptor: SuperResolutionModelDescriptor(
+                id: trainedAlgorithmicMedia ? "test-ai" : SuperResolutionModelCatalog.lanczosID,
+                scaleFactor: scale,
+                tileLayout: .scaled(by: scale),
+                isTrainedAlgorithmicMedia: trainedAlgorithmicMedia
+            )
+        )
+    }
+
+    private func properties(of url: URL) throws -> [CFString: Any] {
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        return try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+    }
+
+    @Test func superResolutionChainScalesOutputAndProtectsSource() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 40, height: 30, to: sandbox.appendingPathComponent("a.png"))
+        let before = try sha256(of: source)
+        let destination = sandbox.appendingPathComponent("a_edited.tiff")
+
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 0, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            superResolution: lanczosRequest(scale: 2),
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        let (width, height) = try dimensions(of: destination)
+        #expect(width == 80)
+        #expect(height == 60)
+        #expect(try sha256(of: source) == before)
+    }
+
+    @Test func superResolutionChainDoesNotDoubleApplyRotation() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 40, height: 30, to: sandbox.appendingPathComponent("b.png"))
+        let destination = sandbox.appendingPathComponent("b_edited.tiff")
+
+        // 40x30 を 90 度回転 → 30x40 → 2 倍 → 60x80
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 90, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            superResolution: lanczosRequest(scale: 2),
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        let (width, height) = try dimensions(of: destination)
+        #expect(width == 60)
+        #expect(height == 80)
+    }
+
+    @Test func superResolutionOutputCarriesModelSoftwareTag() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 32, height: 32, to: sandbox.appendingPathComponent("c.png"))
+        let destination = sandbox.appendingPathComponent("c_edited.tiff")
+
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 0, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            superResolution: lanczosRequest(scale: 2),
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        let tiff = try #require(try properties(of: destination)[kCGImagePropertyTIFFDictionary] as? [CFString: Any])
+        let software = try #require(tiff[kCGImagePropertyTIFFSoftware] as? String)
+        #expect(software.contains("ShootLog"))
+        #expect(software.contains(SuperResolutionModelCatalog.lanczosID))
+    }
+
+    @Test func trainedAlgorithmicMediaDescriptorMarksDigitalSource() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 32, height: 32, to: sandbox.appendingPathComponent("d.png"))
+        let destination = sandbox.appendingPathComponent("d_edited.tiff")
+
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 0, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            superResolution: lanczosRequest(scale: 2, trainedAlgorithmicMedia: true),
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        let iptc = try #require(try properties(of: destination)[kCGImagePropertyIPTCDictionary] as? [CFString: Any])
+        let sourceType = iptc[kCGImagePropertyIPTCExtDigitalSourceType] as? String
+        #expect(sourceType == UpscaleExporter.trainedAlgorithmicMediaURI)
+    }
+
+    @Test func noSuperResolutionOmitsDigitalSourceType() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 32, height: 32, to: sandbox.appendingPathComponent("e.png"))
+        let destination = sandbox.appendingPathComponent("e_edited.tiff")
+
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 0, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        let props = try properties(of: destination)
+        #expect(props[kCGImagePropertyIPTCDictionary] == nil)
+    }
+
     // MARK: - メタデータ
 
     @Test func softwareTagIsPresent() {

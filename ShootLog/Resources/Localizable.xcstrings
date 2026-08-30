@@ -1641,6 +1641,40 @@
         }
       }
     },
+    "develop.export.stage.developing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developing…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現像中…"
+          }
+        }
+      }
+    },
+    "develop.export.stage.upscaling" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upscaling…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超解像処理中…"
+          }
+        }
+      }
+    },
     "develop.export.start" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1654,6 +1688,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "書き出し"
+          }
+        }
+      }
+    },
+    "develop.export.superResolution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply Super Resolution After Developing"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現像後に超解像を適用"
+          }
+        }
+      }
+    },
+    "develop.export.superResolution.reduceScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower Scale to 2×"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "倍率を2倍に下げる"
+          }
+        }
+      }
+    },
+    "develop.export.superResolution.scale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拡大倍率"
+          }
+        }
+      }
+    },
+    "develop.export.superResolution.tooLarge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The output size exceeds the limit. Lower the scale or crop the photo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出力サイズが上限を超えています。倍率を下げるか、写真をトリミングしてください。"
           }
         }
       }
