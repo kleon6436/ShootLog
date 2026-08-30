@@ -18,7 +18,8 @@ protocol ImageDeveloping: Sendable {
     /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
     /// - Parameters:
     ///   - rotation: 0 / 90 / 180 / 270（時計回り）。
-    ///   - cropRect: 正規化トリミング矩形（左上原点・0...1）。`nil` でトリミングなし。
+    ///   - cropRect: **回転適用後に表示されている画像**を基準にした正規化トリミング矩形
+    ///     （左上原点・0...1）。`nil` でトリミングなし。`CropViewModel.normalizedRect` と同じ基準。
     func renderFull(url: URL, parameters: DevelopParameters, rotation: Int, cropRect: CGRect?) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
@@ -255,8 +256,10 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             guard !Task.isCancelled else { return nil }
             let source = CIImage(cgImage: base)
             var image = DevelopPipeline.apply(parameters, to: source, isRAW: isRAW, cache: cache)
-            image = applyCrop(cropRect, to: image)
+            // 回転 → トリミングの順。cropRect は「回転後に表示されている画像」基準の正規化矩形なので、
+            // 先に回転を焼き込んでから同じ割合で切り抜くと、ユーザーが画面で見た構図と一致する。
             image = applyRotation(rotation, to: image)
+            image = applyCrop(cropRect, to: image)
             guard !Task.isCancelled else { return nil }
 
             let rect = image.extent.integral
@@ -270,7 +273,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         }
     }
 
-    /// 正規化トリミング矩形（左上原点）を CIImage の座標系（左下原点）へ変換して切り抜く。
+    /// 正規化トリミング矩形（左上原点、回転後の画像基準）を CIImage の座標系（左下原点）へ
+    /// 変換して切り抜く。`applyRotation` の後に呼ぶこと（`image` が回転済みである前提）。
     private static func applyCrop(_ cropRect: CGRect?, to image: CIImage) -> CIImage {
         guard let cropRect,
               cropRect != CGRect(x: 0, y: 0, width: 1, height: 1),

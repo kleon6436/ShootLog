@@ -21,7 +21,7 @@ struct EditablePhotoView: View {
         // rotatedImage 内の GeometryReader は画像ロード後にしか存在せず、
         // 「どの解像度でデコードするか」の決定には使えない
         GeometryReader { geometry in
-            content
+            content(containerSize: geometry.size)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task(id: photo?.id) {
                     await vm.load(photo: photo, displaySize: geometry.size)
@@ -40,7 +40,7 @@ struct EditablePhotoView: View {
     }
 
     @ViewBuilder
-    private var content: some View {
+    private func content(containerSize: CGSize) -> some View {
         ZStack {
             // 現像プレビューがあれば最優先。無ければ従来の 2 段階ロード結果を表示する
             if let image = developViewModel.previewImage ?? vm.highRes ?? vm.thumbnail {
@@ -57,10 +57,18 @@ struct EditablePhotoView: View {
                     }
                 }
 
-                // トリミングモード時はオーバーレイを表示する
+                // トリミングモード時はオーバーレイを表示する。
+                // 正規化の基準は回転後に表示されている画像の矩形（レターボックスを除く）。
                 if isCropMode {
                     CropOverlayView(
                         initialRect: editInfo?.cropRect ?? CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+                        // rotatedImage は image.size を基準に aspect-fit しているので、
+                        // オーバーレイの基準も同じ image.size を使わないと矩形がずれる。
+                        imageFrame: CropViewModel.displayedImageFrame(
+                            imagePixelSize: image.size,
+                            rotation: editInfo?.rotation ?? 0,
+                            in: containerSize
+                        ),
                         onApply: onCropApply,
                         onCancel: onCropCancel
                     )

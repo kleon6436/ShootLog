@@ -1,17 +1,22 @@
 import SwiftUI
 
-// トリミング選択オーバーレイ。正規化座標（0.0〜1.0）でクロップ矩形を返す
+// トリミング選択オーバーレイ。正規化座標（0.0〜1.0）でクロップ矩形を返す。
+// 正規化の基準は `imageFrame`（回転適用後に表示されている画像の矩形。レターボックスを除く）。
 struct CropOverlayView: View {
     @State private var vm: CropViewModel
+    // 表示中画像のフレーム（コンテナ座標系）。この矩形内を 0...1 とみなす。
+    let imageFrame: CGRect
     let onApply: (CGRect) -> Void
     let onCancel: () -> Void
 
     init(
         initialRect: CGRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+        imageFrame: CGRect,
         onApply: @escaping (CGRect) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self._vm = State(initialValue: CropViewModel(initialRect: initialRect))
+        self.imageFrame = imageFrame
         self.onApply = onApply
         self.onCancel = onCancel
     }
@@ -19,7 +24,7 @@ struct CropOverlayView: View {
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
-            let pixRect = vm.toPixel(in: size)
+            let pixRect = vm.pixelRect(in: imageFrame)
 
             ZStack {
                 // クロップ外の半透明マスク（クロップ領域は透明に抜く）
@@ -60,7 +65,7 @@ struct CropOverlayView: View {
                     CropHandleView(
                         corner: corner,
                         pixRect: pixRect,
-                        containerSize: size,
+                        imageFrame: imageFrame,
                         vm: vm
                     )
                 }
@@ -90,7 +95,7 @@ enum CropCorner: CaseIterable {
 private struct CropHandleView: View {
     let corner: CropCorner
     let pixRect: CGRect
-    let containerSize: CGSize
+    let imageFrame: CGRect
     let vm: CropViewModel
 
     var handlePosition: CGPoint {
@@ -115,7 +120,7 @@ private struct CropHandleView: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    vm.applyDrag(corner: corner, location: value.location, containerSize: containerSize)
+                    vm.applyDrag(corner: corner, location: value.location, imageFrame: imageFrame)
                 }
         )
     }
