@@ -28,12 +28,22 @@ struct DevelopSettingsTests {
         #expect(!settings.parametersData.isEmpty)
     }
 
-    @Test func version2KeepsRAWMappingButDisablesManualLensCorrection() {
-        let settings = DevelopSettings(photoID: UUID())
-        settings.schemaVersion = 2
+    @Test func editingVersion2SettingsMigratesToVersion3WithoutMigratingVersion1() throws {
+        let version2 = DevelopSettings(photoID: UUID())
+        version2.schemaVersion = 2
+        #expect(version2.usesRAWParameterMapping)
+        #expect(version2.usesManualLensCorrection)
+        try version2.setParameters(.neutral)
+        #expect(version2.schemaVersion == 3)
 
-        #expect(settings.usesRAWParameterMapping)
-        #expect(settings.usesManualLensCorrection == false)
+        let version1 = DevelopSettings(photoID: UUID())
+        version1.schemaVersion = 1
+        try version1.setParameters(.neutral)
+        #expect(version1.schemaVersion == 1)
+
+        let version3 = DevelopSettings(photoID: UUID())
+        try version3.setParameters(.neutral)
+        #expect(version3.schemaVersion == 3)
     }
 
     // MARK: - パラメータの往復

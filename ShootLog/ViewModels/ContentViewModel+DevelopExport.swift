@@ -92,7 +92,8 @@ extension ContentViewModel {
         // RAW かつ version 2（またはレコード無し）のときだけ露出・WB を CIRAWFilter へ委譲する。
         let useRAWMapping = ImageDevelopmentEngine.shared.isRAW(url: photo.fileURL)
             && (currentDevelopSettings?.usesRAWParameterMapping ?? true)
-        let usesManualLens = currentDevelopSettings?.usesManualLensCorrection ?? true
+        let usesManualLens = (currentDevelopSettings?.usesManualLensCorrection ?? true)
+            && !(useRAWMapping && parameters.lensCorrectionEnabled)
 
         viewModel.beginProcessing()
 
