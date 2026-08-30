@@ -159,4 +159,82 @@ struct ToneCurveTests {
         #expect(ToneCurve.sampled(CurvePoint.identity, count: 0).isEmpty)
         #expect(ToneCurve.sampled(CurvePoint.identity, count: -5).isEmpty)
     }
+
+    // MARK: - 編集操作の座標クランプ
+
+    @Test func insertionKeepsPointsOrderedAndSeparated() throws {
+        let points = [
+            CurvePoint(x: 0, y: 0),
+            CurvePoint(x: 0.3, y: 0.4),
+            CurvePoint(x: 0.7, y: 0.6),
+            CurvePoint(x: 1, y: 1)
+        ]
+
+        let insertion = try #require(
+            ToneCurve.insertion(
+                for: CurvePoint(x: 0.305, y: 0.8),
+                in: points,
+                minimumSeparation: 0.02
+            )
+        )
+        #expect(insertion.index == 2)
+        #expect(abs(insertion.point.x - 0.32) < 1e-9)
+        #expect(insertion.point.y == 0.8)
+
+        var updated = points
+        updated.insert(insertion.point, at: insertion.index)
+        #expect(zip(updated, updated.dropFirst()).allSatisfy { $0.x < $1.x })
+        #expect(zip(updated, updated.dropFirst()).allSatisfy { $1.x - $0.x >= 0.02 })
+    }
+
+    @Test func insertionRejectsLocationsOutsideEndpointsOrWithoutSpace() {
+        let points = [
+            CurvePoint(x: 0, y: 0),
+            CurvePoint(x: 0.3, y: 0.4),
+            CurvePoint(x: 0.7, y: 0.6),
+            CurvePoint(x: 1, y: 1)
+        ]
+
+        #expect(ToneCurve.insertion(
+            for: CurvePoint(x: 0.02, y: 0.5), in: points, minimumSeparation: 0.02
+        )?.index == nil)
+        #expect(ToneCurve.insertion(
+            for: CurvePoint(x: 0.98, y: 0.5), in: points, minimumSeparation: 0.02
+        )?.index == nil)
+
+        let crowded = [
+            CurvePoint(x: 0, y: 0),
+            CurvePoint(x: 0.5, y: 0.5),
+            CurvePoint(x: 0.52, y: 0.6),
+            CurvePoint(x: 1, y: 1)
+        ]
+        #expect(ToneCurve.insertion(
+            for: CurvePoint(x: 0.51, y: 0.5), in: crowded, minimumSeparation: 0.02
+        )?.index == nil)
+    }
+
+    @Test func clampedPointKeepsEndpointsFixedAndMiddlePointSeparated() throws {
+        let points = [
+            CurvePoint(x: 0, y: 0),
+            CurvePoint(x: 0.3, y: 0.4),
+            CurvePoint(x: 0.7, y: 0.6),
+            CurvePoint(x: 1, y: 1)
+        ]
+
+        let start = try #require(ToneCurve.clampedPoint(
+            at: 0, location: CurvePoint(x: 0.8, y: 1.2), in: points, minimumSeparation: 0.02
+        ))
+        #expect(start == CurvePoint(x: 0, y: 1))
+
+        let end = try #require(ToneCurve.clampedPoint(
+            at: 3, location: CurvePoint(x: 0.2, y: -0.1), in: points, minimumSeparation: 0.02
+        ))
+        #expect(end == CurvePoint(x: 1, y: 0))
+
+        let middle = try #require(ToneCurve.clampedPoint(
+            at: 1, location: CurvePoint(x: 0.99, y: 0.9), in: points, minimumSeparation: 0.02
+        ))
+        #expect(abs(middle.x - 0.68) < 1e-9)
+        #expect(middle.y == 0.9)
+    }
 }
