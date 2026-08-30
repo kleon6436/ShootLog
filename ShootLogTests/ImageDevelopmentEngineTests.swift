@@ -400,6 +400,47 @@ struct ImageDevelopmentEngineTests {
         #expect(try meanLuma(of: light) > darkLuma + 80)
     }
 
+    // MARK: - 出力カラースペース
+
+    @Test func renderFullDefaultsToSRGBOutput() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 64, height: 48, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        let output = try #require(
+            await engine.renderFull(url: url, parameters: .neutral, rotation: 0, cropRect: nil)
+        )
+        let name = output.colorSpace?.name as String?
+        #expect(name == (CGColorSpace.sRGB as String))
+    }
+
+    @Test func renderFullHonorsRequestedOutputColorSpace() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 64, height: 48, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+
+        let output = try #require(
+            await engine.renderFull(
+                url: url, parameters: .neutral, rotation: 0, cropRect: nil, outputColorSpace: p3
+            )
+        )
+        #expect((output.colorSpace?.name as String?) == (CGColorSpace.displayP3 as String))
+    }
+
+    @Test func renderPreviewStaysSRGBRegardlessOfExportSetting() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = ImageDevelopmentEngine()
+
+        var params = DevelopParameters.neutral
+        params.exposure = 0.5
+        let preview = try #require(
+            await engine.renderPreview(url: url, parameters: params, targetMaxPixelSize: 256)
+        )
+        #expect((preview.colorSpace?.name as String?) == (CGColorSpace.sRGB as String))
+    }
+
     // MARK: - 失敗系
 
     @Test func missingFileReturnsNilInsteadOfCrashing() async throws {

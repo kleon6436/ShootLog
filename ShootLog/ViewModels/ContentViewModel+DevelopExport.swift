@@ -115,6 +115,7 @@ extension ContentViewModel {
                 cropRect: cropRect,
                 contentType: viewModel.outputFormat.utType,
                 jpegQuality: viewModel.jpegQuality.rawValue,
+                outputColorSpace: viewModel.effectiveColorSpace.cgColorSpace,
                 superResolution: superResolution,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),

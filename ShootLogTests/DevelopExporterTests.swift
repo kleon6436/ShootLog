@@ -270,6 +270,45 @@ struct DevelopExporterTests {
         #expect(props[kCGImagePropertyIPTCDictionary] == nil)
     }
 
+    // MARK: - 出力カラースペース
+
+    private func decodedColorSpaceName(of url: URL) throws -> String {
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let image = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        return try #require(image.colorSpace?.name as String?)
+    }
+
+    @Test func exportDefaultsToSRGBProfile() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 48, height: 48, to: sandbox.appendingPathComponent("s.png"))
+        let destination = sandbox.appendingPathComponent("s_edited.tiff")
+
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 0, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        #expect(try decodedColorSpaceName(of: destination) == (CGColorSpace.sRGB as String))
+    }
+
+    @Test func exportEmbedsDisplayP3Profile() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 48, height: 48, to: sandbox.appendingPathComponent("p.png"))
+        let destination = sandbox.appendingPathComponent("p_edited.tiff")
+
+        try await DevelopExporter().export(
+            source: source, destination: destination, parameters: .neutral,
+            rotation: 0, cropRect: nil, contentType: .tiff, jpegQuality: 1.0,
+            outputColorSpace: CGColorSpace(name: CGColorSpace.displayP3),
+            currentFolder: nil, folderPhotoURLs: []
+        )
+
+        #expect(try decodedColorSpaceName(of: destination) == (CGColorSpace.displayP3 as String))
+    }
+
     // MARK: - メタデータ
 
     @Test func softwareTagIsPresent() {

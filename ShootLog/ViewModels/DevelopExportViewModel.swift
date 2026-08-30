@@ -55,6 +55,13 @@ final class DevelopExportViewModel {
     var outputFormat: OutputFormat = .jpeg
     // JPEG 品質は超解像書き出しと同じ 4 段階 enum を再利用する
     var jpegQuality: UpscaleExportViewModel.JPEGQuality = .highest
+    // 出力カラースペース。既定は sRGB。超解像を挟む場合は sRGB 固定（超解像パイプラインが sRGB 前提のため）
+    var colorSpace: ExportColorSpace = .sRGB
+
+    /// 実際に書き出しへ渡す出力カラースペース。超解像 ON のときは sRGB を強制する。
+    var effectiveColorSpace: ExportColorSpace {
+        applySuperResolution ? .sRGB : colorSpace
+    }
 
     // MARK: - 超解像チェーン
 

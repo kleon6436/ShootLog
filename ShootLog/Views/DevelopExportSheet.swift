@@ -47,6 +47,20 @@ struct DevelopExportSheet: View {
                     .accessibilityLabel("develop.export.jpegQuality")
                 }
 
+                Picker("develop.export.colorSpace", selection: $viewModel.colorSpace) {
+                    ForEach(ExportColorSpace.allCases) { space in
+                        Text(space.displayName).tag(space)
+                    }
+                }
+                .accessibilityLabel("develop.export.colorSpace")
+                .disabled(viewModel.applySuperResolution)
+
+                if viewModel.applySuperResolution, viewModel.colorSpace != .sRGB {
+                    Text("develop.export.colorSpace.superResolutionNote")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 superResolutionSection
 
                 Text("develop.export.editsBakedNote")

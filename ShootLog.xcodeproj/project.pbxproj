@@ -15,6 +15,7 @@
 		0DDC70BF2C40AD0393C7FBBA /* DevelopPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AA2BC6EE417F74B8F6CAF6B /* DevelopPipelineTests.swift */; };
 		0E10ADC8AAE54EB8594762DA /* DevelopExportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9D1EBBB3403BB25B259476 /* DevelopExportViewModel.swift */; };
 		0E5C548B6F9A487ABE87505C /* InspectorTabContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E5D421B83DA05F21197BD15 /* InspectorTabContainer.swift */; };
+		0F5FED5F04D7E369113DE987 /* ExportColorSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000D375D3F1E2FDF11670761 /* ExportColorSpace.swift */; };
 		11E8117FFECA1218F289F6D4 /* DevelopExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9FD1DF9230C5E0AA46A301 /* DevelopExporter.swift */; };
 		1733D01012AF80071872C81F /* SidebarViewModelDevelopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8675EDFC43E5125BC753BE9E /* SidebarViewModelDevelopTests.swift */; };
 		1747A0F368BE64D2BBBCDDFB /* TiledInferenceRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E2DFFBCF2DF969FDB6A710 /* TiledInferenceRunnerTests.swift */; };
@@ -139,6 +140,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		000D375D3F1E2FDF11670761 /* ExportColorSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportColorSpace.swift; sourceTree = "<group>"; };
 		0875AA31E08C99CEEBFA3D73 /* ShootLog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShootLog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A83DBE9107D998FD6C6C202 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0AA343AB9889208D28018E38 /* UpscaleOutputDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpscaleOutputDestination.swift; sourceTree = "<group>"; };
@@ -303,6 +305,7 @@
 				CA9FD1DF9230C5E0AA46A301 /* DevelopExporter.swift */,
 				28535A210CC744917E63E581 /* DevelopParameters.swift */,
 				265E839CE10E96EA4AC9ED4C /* DevelopPipeline.swift */,
+				000D375D3F1E2FDF11670761 /* ExportColorSpace.swift */,
 				5E81E50B5921F974ACCE76F1 /* HistogramData.swift */,
 				0D3C806C67C80D794675C819 /* HSLColorCube.swift */,
 				48D367A1563A7C929CA8EA42 /* ImageDevelopmentEngine.swift */,
@@ -649,6 +652,7 @@
 				D28DB6E2AD582B366940AA5B /* EditablePhotoView.swift in Sources */,
 				939EAF44EFEE3CD5B6575215 /* EditorToolbarView.swift in Sources */,
 				A71903CDC4FB9D908259A1C9 /* EmptyStateView.swift in Sources */,
+				0F5FED5F04D7E369113DE987 /* ExportColorSpace.swift in Sources */,
 				8C7557CE655D13FD8E5D853F /* ExternalAppProtocol.swift in Sources */,
 				AE6A82C6C24B772C10BFDC8A /* FinderAdapter.swift in Sources */,
 				320EB5024F5CACDE698678FA /* FolderAvailabilityChecker.swift in Sources */,

@@ -81,6 +81,17 @@ struct DevelopExportViewModelTests {
         #expect(vm.upscaleProgress == 0.4)
     }
 
+    @Test func effectiveColorSpaceForcesSRGBWhenSuperResolutionOn() {
+        let vm = DevelopExportViewModel()
+        vm.colorSpace = .displayP3
+
+        vm.applySuperResolution = false
+        #expect(vm.effectiveColorSpace == .displayP3)
+
+        vm.applySuperResolution = true
+        #expect(vm.effectiveColorSpace == .sRGB)
+    }
+
     @Test func availableScalesMatchBundledAIModels() {
         let vm = DevelopExportViewModel()
         let expected = UpscaleExportViewModel.ScaleFactor.allCases.filter {
