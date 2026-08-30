@@ -9,7 +9,7 @@ struct ShootLogApp: App {
         do {
             return try ModelContainer(
                 for: Photo.self, EditInfo.self, DevelopSettings.self, DevelopPreset.self,
-                FolderHistory.self, IntegrationAppSetting.self
+                LensCorrectionProfile.self, FolderHistory.self, IntegrationAppSetting.self
             )
         } catch {
             // コンテナを作れない場合はアプリとして動作できないため起動を継続しない
