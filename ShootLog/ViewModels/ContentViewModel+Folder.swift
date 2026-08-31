@@ -27,6 +27,7 @@ extension ContentViewModel {
     }
 
     func restoreFolder(_ history: FolderHistory) async {
+        await cancelPhotoStaging()
         releaseBookmarkAccess()
         guard let context = modelContext else { return }
         do {
@@ -110,6 +111,7 @@ extension ContentViewModel {
     // MARK: - Private
 
     private func selectFolder(url: URL) async {
+        await cancelPhotoStaging()
         guard let context = modelContext else { return }
         releaseBookmarkAccess()
         do {
@@ -128,7 +130,7 @@ extension ContentViewModel {
 
     private func loadFolderPhotos(_ folderURL: URL) async {
         guard let context = modelContext else { return }
-        cancelPhotoStaging()
+        await cancelPhotoStaging()
         isLoading = true
         photos = []
         selectedPhoto = nil
@@ -142,6 +144,14 @@ extension ContentViewModel {
             }.value
             syncPhotos(urls: urls, context: context)
             selectPhoto(photos.first)
+            let previewGenerationToken = beginPreviewGeneration()
+            await PreviewGenerator.shared.start(urls: urls, around: 0) { [weak self] done, total in
+                Task { @MainActor in
+                    guard let self else { return }
+                    guard previewGenerationToken == self.previewGenerationToken else { return }
+                    self.updatePreviewGenerationProgress(done: done, total: total)
+                }
+            }
         } catch {
             self.error = error
         }
@@ -197,12 +207,14 @@ extension ContentViewModel {
     }
 
     // 進行中の段階挿入を打ち切る。フォルダ切替の直前に呼び、古いTaskが photos を汚さないようにする
-    private func cancelPhotoStaging() {
+    private func cancelPhotoStaging() async {
         photoStagingTask?.cancel()
         photoStagingTask = nil
         pendingSelectNextTask?.cancel()
         pendingSelectNextTask = nil
         photoStagingGeneration &+= 1
+        cancelPreviewGeneration()
+        await PreviewGenerator.shared.cancel()
     }
 
     private func addToHistory(url: URL, bookmark: Data, context: ModelContext) {

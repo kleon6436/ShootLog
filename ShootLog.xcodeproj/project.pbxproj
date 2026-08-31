@@ -33,6 +33,8 @@
 		290BABFDD1571FA2F18936A7 /* SlideshowViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40631F5AD94C18E166DF3A55 /* SlideshowViewModel.swift */; };
 		2A94103F4153796229A5235D /* PreviewCacheStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A667C271CD28F31A13522F /* PreviewCacheStoreTests.swift */; };
 		2B577FC734C98FD7D91EB0C0 /* UpscaleOutputDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA343AB9889208D28018E38 /* UpscaleOutputDestination.swift */; };
+		2BD8BC396979117D857654AA /* PreviewGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491C778B9EBCC1D76DA0F5A9 /* PreviewGenerator.swift */; };
+		2D195D185851FE35056F3DF7 /* PreviewGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7A351A947D5595EB57E9EF /* PreviewGeneratorTests.swift */; };
 		2DF06D9ABCC05247D3C95A5F /* PhotoRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38DCCF54537DA8318CC0813 /* PhotoRepository.swift */; };
 		320EB5024F5CACDE698678FA /* FolderAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11C6C12F60B2B0D0F861DFE /* FolderAvailabilityChecker.swift */; };
 		33120C24CC572BDCF8D097FF /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763EE10565D38482AD27DB18 /* ContentViewModel.swift */; };
@@ -201,6 +203,7 @@
 		486E30AF949E00541CC2CC1D /* PageDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageDotsView.swift; sourceTree = "<group>"; };
 		488F26B8E28E635D94B979A9 /* ImageDevelopmentEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageDevelopmentEngineTests.swift; sourceTree = "<group>"; };
 		48D367A1563A7C929CA8EA42 /* ImageDevelopmentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageDevelopmentEngine.swift; sourceTree = "<group>"; };
+		491C778B9EBCC1D76DA0F5A9 /* PreviewGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewGenerator.swift; sourceTree = "<group>"; };
 		49F7F6E392E8A396396F2056 /* TiledInferenceRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiledInferenceRunner.swift; sourceTree = "<group>"; };
 		4A7D1B8592291539F1790C33 /* TrackpadSwipeCatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackpadSwipeCatcher.swift; sourceTree = "<group>"; };
 		4AA2BC6EE417F74B8F6CAF6B /* DevelopPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopPipelineTests.swift; sourceTree = "<group>"; };
@@ -252,6 +255,7 @@
 		94A667C271CD28F31A13522F /* PreviewCacheStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewCacheStoreTests.swift; sourceTree = "<group>"; };
 		97DE986569CCC3B2BDC8D6B7 /* DevelopPresetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopPresetBar.swift; sourceTree = "<group>"; };
 		99E2DFFBCF2DF969FDB6A710 /* TiledInferenceRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiledInferenceRunnerTests.swift; sourceTree = "<group>"; };
+		9A7A351A947D5595EB57E9EF /* PreviewGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewGeneratorTests.swift; sourceTree = "<group>"; };
 		9E7C8A4E64B55ABE6DF40F10 /* DevelopPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopPreset.swift; sourceTree = "<group>"; };
 		9ECB385FB8E648722B9DD8D7 /* ZoomPanGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomPanGeometry.swift; sourceTree = "<group>"; };
 		9F90C78D40BDAFABFD28CD5F /* LensDistortion.ci.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = LensDistortion.ci.metal; sourceTree = "<group>"; };
@@ -505,6 +509,7 @@
 				55A1A6F6E4F06A49FBA8B77B /* LensCorrectionProfileTests.swift */,
 				CD6B40E47A098C322668F578 /* LensProfileStoreTests.swift */,
 				94A667C271CD28F31A13522F /* PreviewCacheStoreTests.swift */,
+				9A7A351A947D5595EB57E9EF /* PreviewGeneratorTests.swift */,
 				C45275D786A5EDC473D7F9A4 /* RAWDevelopMappingTests.swift */,
 				F5DE919666BE32896CB553EE /* ShootLogTestsExample.swift */,
 				8675EDFC43E5125BC753BE9E /* SidebarViewModelDevelopTests.swift */,
@@ -539,6 +544,7 @@
 				6536D3FE43A4B25BDD7E78BD /* ImageLoader.swift */,
 				D38DCCF54537DA8318CC0813 /* PhotoRepository.swift */,
 				4C9DBB7EBD9913CC8039BD40 /* PreviewCacheStore.swift */,
+				491C778B9EBCC1D76DA0F5A9 /* PreviewGenerator.swift */,
 				BF24E8239C713890AF34C144 /* URL+Volume.swift */,
 				35D73902125A0C43FAB14E5C /* Editing */,
 				5B884B4CECC64074CAF4A4B6 /* SuperResolution */,
@@ -746,6 +752,7 @@
 				FE2E5BB83783BC3DE04AE003 /* PhotoshopAdapter.swift in Sources */,
 				40F9A27F3AB730F493F2CF13 /* PreviewAdapter.swift in Sources */,
 				4F49BE37F18BC18C10658A4C /* PreviewCacheStore.swift in Sources */,
+				2BD8BC396979117D857654AA /* PreviewGenerator.swift in Sources */,
 				6E460BEF4B818A36B1530126 /* RAWDevelopMapping.swift in Sources */,
 				B6B6F4E1A408DBBAB25E4D6A /* SettingsView.swift in Sources */,
 				245F3DE1BDBD2C3FDC1B1453 /* ShootLogApp.swift in Sources */,
@@ -798,6 +805,7 @@
 				6D499B2A1CD53489DA52BC16 /* LensCorrectionProfileTests.swift in Sources */,
 				C768A90716968BE83407AC29 /* LensProfileStoreTests.swift in Sources */,
 				2A94103F4153796229A5235D /* PreviewCacheStoreTests.swift in Sources */,
+				2D195D185851FE35056F3DF7 /* PreviewGeneratorTests.swift in Sources */,
 				97257FA20964775071F001F1 /* RAWDevelopMappingTests.swift in Sources */,
 				EB63C67DC3703BDBD56AE2E3 /* ShootLogTestsExample.swift in Sources */,
 				1733D01012AF80071872C81F /* SidebarViewModelDevelopTests.swift in Sources */,
