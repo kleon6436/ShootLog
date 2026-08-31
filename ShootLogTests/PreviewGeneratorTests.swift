@@ -69,15 +69,14 @@ struct PreviewGeneratorTests {
         let progress = ProgressRecorder()
 
         await generator.start(urls: urls, around: nil) { done, total in
-            Task { await progress.record(done: done, total: total) }
+            progress.record(done: done, total: total)
         }
 
-        #expect(await wait { await progress.didFinish(total: urls.count) })
+        #expect(await wait { progress.didFinish(total: urls.count) })
         for url in urls {
             #expect(await store.cachedProxy(for: url) != nil)
         }
-        let lastEvent = try #require(await progress.lastEvent())
-        #expect(lastEvent == (urls.count, urls.count))
+        #expect(progress.maxDone() == urls.count)
     }
 
     @Test func prioritizesSelectedIndexBeforeOtherURLs() async {
@@ -87,10 +86,10 @@ struct PreviewGeneratorTests {
         let progress = ProgressRecorder()
 
         await generator.start(urls: urls, around: 2) { done, total in
-            Task { await progress.record(done: done, total: total) }
+            progress.record(done: done, total: total)
         }
 
-        #expect(await wait { await progress.didFinish(total: urls.count) })
+        #expect(await wait { progress.didFinish(total: urls.count) })
         #expect(await store.generatedURLs().first == urls[2])
     }
 
@@ -116,27 +115,30 @@ struct PreviewGeneratorTests {
         let progress = ProgressRecorder()
 
         await generator.start(urls: urls, around: nil) { done, total in
-            Task { await progress.record(done: done, total: total) }
+            progress.record(done: done, total: total)
         }
 
-        #expect(await wait { await progress.didFinish(total: urls.count) })
+        #expect(await wait { progress.didFinish(total: urls.count) })
         #expect(await store.generatedURLs().isEmpty)
     }
 }
 
-private actor ProgressRecorder {
+// 進捗コールバックは複数タスクから同期的に呼ばれ、順序保証が無い。
+// events.last での判定は不安定なので「(total, total) を一度でも観測したか」で判定する。
+private final class ProgressRecorder: @unchecked Sendable {
+    private let lock = NSLock()
     private var events: [(Int, Int)] = []
 
     func record(done: Int, total: Int) {
-        events.append((done, total))
+        lock.withLock { events.append((done, total)) }
     }
 
     func didFinish(total: Int) -> Bool {
-        events.last.map { $0 == (total, total) } ?? false
+        lock.withLock { events.contains { $0 == (total, total) } }
     }
 
-    func lastEvent() -> (Int, Int)? {
-        events.last
+    func maxDone() -> Int {
+        lock.withLock { events.map(\.0).max() ?? 0 }
     }
 }
 
