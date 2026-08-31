@@ -14,6 +14,7 @@ enum AppSettingsKeys {
     static let networkConcurrency = "generalSettings.networkConcurrency"
     static let previewProxyLongEdge = "generalSettings.previewProxyLongEdge"
     static let previewCacheMaxBytes = "generalSettings.previewCacheMaxBytes"
+    static let developBaseCacheMaxBytes = "generalSettings.developBaseCacheMaxBytes"
     static let folderHistoryLimit = "generalSettings.folderHistoryLimit"
     // サイドバーモードの右インスペクタで最後に開いていたタブ（InspectorTab の rawValue）
     static let inspectorTab = "sidebar.inspectorTab"
@@ -28,6 +29,7 @@ enum AppSettingsKeys {
     static let networkConcurrencyDefault = 4
     static let previewProxyLongEdgeDefault = 3200
     static let previewCacheMaxBytesDefault = 4 * 1024 * 1024 * 1024
+    static let developBaseCacheMaxBytesDefault = 2 * 1024 * 1024 * 1024
     static let folderHistoryLimitDefault = 10
     static let developClippingWarningsDefault = false
 }

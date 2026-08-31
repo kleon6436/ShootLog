@@ -179,7 +179,11 @@ final class DevelopViewModel {
         if let photo {
             Task { [weak self] in
                 guard let self else { return }
-                let sample = await self.engine.asShotNeutral(for: photo.fileURL)
+                let sample = if let content = self.content {
+                    await content.asShotWhiteBalance(for: photo)
+                } else {
+                    await self.engine.asShotNeutral(for: photo.fileURL)
+                }
                 guard self.currentPhoto?.id == photo.id else { return }
                 self.isAsShotWhiteBalanceLoaded = true
                 if let sample {
@@ -303,7 +307,11 @@ final class DevelopViewModel {
                 return
             }
             if !self.isAsShotWhiteBalanceLoaded {
-                let fetchedAsShot = await self.engine.asShotNeutral(for: photo.fileURL)
+                let fetchedAsShot = if let content = self.content {
+                    await content.asShotWhiteBalance(for: photo)
+                } else {
+                    await self.engine.asShotNeutral(for: photo.fileURL)
+                }
                 guard self.currentPhoto?.id == photoID else { return }
                 self.asShotWhiteBalance = fetchedAsShot
                 self.isAsShotWhiteBalanceLoaded = true
