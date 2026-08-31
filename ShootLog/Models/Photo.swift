@@ -44,6 +44,10 @@ final class Photo {
     var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）
     // 軽量マイグレーションのため宣言時デフォルト値が必須（既存行にはinitが走らない）
     var successTagRawValues: [String] = []
+    var asShotTemperatureKelvin: Double? = nil
+    var asShotTint: Double? = nil
+    var asShotWhiteBalanceIsEstimated: Bool? = nil
+    var asShotWhiteBalanceFetchedAt: Date? = nil
 
     /// 成功要因タグの読み書きアクセサ。未知のraw valueは無視し、他のタグの読み取りに影響させない
     var successTags: [SuccessTagCategory] {

@@ -27,12 +27,40 @@ final class DevelopViewModel {
     private(set) var histogram: HistogramData?
     /// 選択中写真が RAW か。
     private(set) var isRAW = false
+    /// 撮影時ホワイトバランス。RAW ではデコーダーの実測値、非 RAW では推定値を保持する。
+    private(set) var asShotWhiteBalance: WhiteBalanceSample?
+    /// 撮影時ホワイトバランスの取得が完了したか。取得不能時も完了後は `true`。
+    private(set) var isAsShotWhiteBalanceLoaded = false
+    /// 撮影時ホワイトバランスの色温度。取得できない場合は `nil`。
+    var asShotTemperatureKelvin: Double? { asShotWhiteBalance?.temperatureKelvin }
+    /// 撮影時ホワイトバランスの色かぶり。取得できない場合は `nil`。
+    var asShotTint: Double? { asShotWhiteBalance?.tint }
+    /// 撮影時ホワイトバランスが推定値か。
+    var asShotWhiteBalanceIsEstimated: Bool { asShotWhiteBalance?.isEstimated ?? false }
+    /// true の間は現像前（回転・トリミングのみ反映）のベース画像を表示する。
+    var isShowingBefore = false
+    /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
+    private(set) var whiteBalanceStatusMessage: String?
+    /// プレビュー上のクリッピング状態をビューア帯・ヒストグラム凡例に表示するか。
+    /// 選択は UserDefaults(AppSettingsKeys.developClippingWarnings) へ永続化する。
+    var showsClippingWarnings: Bool {
+        didSet {
+            guard showsClippingWarnings != oldValue else { return }
+            UserDefaults.standard.set(showsClippingWarnings, forKey: AppSettingsKeys.developClippingWarnings)
+        }
+    }
 
     /// リセット可能か（何らかの調整が入っている）。
     var canReset: Bool { !parameters.isNeutral }
 
     /// RAW かつ `CIRAWFilter` 委譲が有効か（レンズ補正トグルなど RAW 固有 UI の表示条件）。
     var canDelegateToRAWFilter: Bool { rawMappingActive }
+
+    /// 手動レンズ補正スライダーを編集できるか（schemaVersion 2 以降。RAW の CIRAWFilter 委譲中で
+    /// レンズ補正トグル ON のときは CIRAWFilter 側が担うので不可）。
+    var canEditManualLensCorrection: Bool {
+        manualLensCorrectionActive && !(canDelegateToRAWFilter && parameters.lensCorrectionEnabled)
+    }
 
     /// 保存済みプリセット（`ContentViewModel` が所有・写真をまたいで共有）。
     var presets: [DevelopPreset] { content?.developPresets ?? [] }
@@ -57,9 +85,16 @@ final class DevelopViewModel {
     private var cropRect: CGRect?
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈するか（`DevelopSettings.schemaVersion` >= 2 の RAW）。
     private var rawMappingActive = false
+    /// 手動レンズ補正を解釈するか（`DevelopSettings.schemaVersion` >= 2）。
+    private var manualLensCorrectionActive = false
+    /// カラーグレーディングへトーン域マスク方式を適用するか（`DevelopSettings.schemaVersion` >= 5）。
+    private var toneMaskedColorGradingActive = false
     /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
     /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
     private var isRAWParameterDragging = false
+    /// プレビュー CGImage の色空間。`nil` で sRGB。P3 ディスプレイ編集時にビューアが載っている
+    /// ディスプレイの色空間を `setPreviewColorSpace` で渡すと、P3 書き出しと画面の見えが一致する。
+    private var previewColorSpace: CGColorSpace?
 
     /// プレビューを engine でレンダーすべきか。現像調整または回転・トリミングのいずれかがある。
     private var shouldRender: Bool {
@@ -75,6 +110,7 @@ final class DevelopViewModel {
     private var isApplyingLoadedState = false
 
     private var renderTask: Task<Void, Never>?
+    private var histogramTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
     /// レンダー要求の世代。await 明けにこれと一致しない結果は破棄し、`isRendering` の後始末も
     /// 最新世代のみが行う（キャンセル・supersede でスピナーが残らないようにする）。
@@ -102,6 +138,8 @@ final class DevelopViewModel {
         self.content = content
         self.renderDebounce = renderDebounce
         self.persistDebounce = persistDebounce
+        self.showsClippingWarnings = UserDefaults.standard.object(forKey: AppSettingsKeys.developClippingWarnings) as? Bool
+            ?? AppSettingsKeys.developClippingWarningsDefault
     }
 
     // MARK: - ライフサイクル
@@ -111,6 +149,7 @@ final class DevelopViewModel {
         // 切り替え前の写真のデバウンス保存を取りこぼさないよう、先にフラッシュする。
         flushPendingPersist()
         renderTask?.cancel()
+        histogramTask?.cancel()
         _ = nextRenderGeneration()
         if displaySize.width > 0, displaySize.height > 0 { self.displaySize = displaySize }
         currentPhoto = photo
@@ -129,21 +168,48 @@ final class DevelopViewModel {
         isRendering = false
         isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
+        asShotWhiteBalance = nil
+        isAsShotWhiteBalanceLoaded = false
         // version 1 の既存 RAW レコードは標準チェーンのまま（色が変わらないように）。
         // レコードが無い新規は version 2 相当として委譲する。
         rawMappingActive = isRAW && (content?.currentDevelopSettings?.usesRAWParameterMapping ?? true)
+        manualLensCorrectionActive = content?.currentDevelopSettings?.usesManualLensCorrection ?? true
+        toneMaskedColorGradingActive = content?.currentDevelopSettings?.usesToneMaskedColorGrading ?? true
 
-        if let photo, shouldRender {
-            let params = parameters
-            let rot = rotation
-            let crop = cropRect
-            let mapping = rawMappingActive
-            let generation = renderGeneration
-            renderTask = Task { [weak self] in
-                await self?.render(
-                    photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                    useRAWParameterMapping: mapping, generation: generation
-                )
+        if let photo {
+            Task { [weak self] in
+                guard let self else { return }
+                let sample = if let content = self.content {
+                    await content.asShotWhiteBalance(for: photo)
+                } else {
+                    await self.engine.asShotNeutral(for: photo.fileURL)
+                }
+                guard self.currentPhoto?.id == photo.id else { return }
+                self.isAsShotWhiteBalanceLoaded = true
+                if let sample {
+                    self.applyAsShotWhiteBalance(sample)
+                }
+            }
+            if shouldRender {
+                let params = parameters
+                let rot = rotation
+                let crop = cropRect
+                let mapping = rawMappingActive
+                let manualLensCorrection = shouldApplyManualLensCorrection(params)
+                let usesToneMaskedColorGrading = toneMaskedColorGradingActive
+                let asShot = usesToneMaskedColorGrading ? asShotWhiteBalance : nil
+                let generation = renderGeneration
+                renderTask = Task { [weak self] in
+                    await self?.render(
+                        photo: photo, parameters: params, rotation: rot, cropRect: crop,
+                        useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
+                        usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+                        asShotWhiteBalance: asShot,
+                        generation: generation
+                    )
+                }
+            } else {
+                scheduleHistogramOnly(generation: renderGeneration)
             }
         }
     }
@@ -159,6 +225,113 @@ final class DevelopViewModel {
         }
     }
 
+    func selectWhiteBalanceMode(_ mode: WhiteBalanceSettings.Mode) {
+        switch mode {
+        case .custom:
+            let baseK = asShotWhiteBalance?.temperatureKelvin ?? 6_500
+            let baseTint = asShotWhiteBalance?.tint ?? 0
+            var seeded = WhiteBalanceSettings(mode: mode, temperatureKelvin: baseK, tint: baseTint)
+            seeded.normalize()
+            parameters.whiteBalance = seeded
+        case .auto:
+            // Picker を即座に確定しつつ、計算完了までの中間フレームが恒等になるよう
+            // as-shot 値でシードする（mode だけ変えると hasEffect が立ち一瞬色が飛ぶ）。
+            // 推定失敗時は切り替え前の設定へ戻す。
+            let previous = parameters.whiteBalance
+            let baseK = asShotWhiteBalance?.temperatureKelvin ?? 6_500
+            let baseTint = asShotWhiteBalance?.tint ?? 0
+            var seeded = WhiteBalanceSettings(mode: .auto, temperatureKelvin: baseK, tint: baseTint)
+            seeded.normalize()
+            parameters.whiteBalance = seeded
+            applyAutomaticWhiteBalance(restoringOnFailureTo: previous)
+        default:
+            parameters.whiteBalance = WhiteBalanceSettings.preset(mode)
+        }
+    }
+
+    /// ホワイトバランスの色温度を変更する。As Shot からの初回編集時は撮影時値を基準に Custom へ切り替える。
+    func setWhiteBalanceTemperature(_ kelvin: Double) {
+        if parameters.whiteBalance.mode == .asShot {
+            let baseTint = asShotWhiteBalance?.tint ?? 0
+            var whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: kelvin, tint: baseTint)
+            whiteBalance.normalize()
+            parameters.whiteBalance = whiteBalance
+        } else {
+            parameters.whiteBalance.mode = .custom
+            parameters.whiteBalance.temperatureKelvin = kelvin
+            parameters.whiteBalance.normalize()
+        }
+    }
+
+    /// ホワイトバランスの色かぶりを変更する。As Shot からの初回編集時は撮影時値を基準に Custom へ切り替える。
+    func setWhiteBalanceTint(_ value: Double) {
+        if parameters.whiteBalance.mode == .asShot {
+            let baseK = asShotWhiteBalance?.temperatureKelvin ?? 6_500
+            var whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: baseK, tint: value)
+            whiteBalance.normalize()
+            parameters.whiteBalance = whiteBalance
+        } else {
+            parameters.whiteBalance.mode = .custom
+            parameters.whiteBalance.tint = value
+            parameters.whiteBalance.normalize()
+        }
+    }
+
+    /// グレーワールド推定でホワイトバランスを合わせる。
+    /// - Parameter restoringOnFailureTo: 推定失敗時に戻す設定。`nil` なら呼び出し時点の設定へ戻す
+    ///   （mode だけ `.asShot` へ倒すとユーザーが入力した数値が死ぬため丸ごと復元する）。
+    func applyAutomaticWhiteBalance(restoringOnFailureTo restoreTarget: WhiteBalanceSettings? = nil) {
+        guard let photo = currentPhoto else { return }
+        let photoID = photo.id
+        let previousWhiteBalance = restoreTarget ?? parameters.whiteBalance
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        Task { [weak self] in
+            guard let self else { return }
+            let source = await self.engine.renderPreview(
+                url: photo.fileURL,
+                parameters: .neutral,
+                targetMaxPixelSize: target,
+                rotation: self.rotation,
+                cropRect: self.cropRect,
+                previewColorSpace: self.previewColorSpace,
+                useRAWParameterMapping: false,
+                usesManualLensCorrection: false,
+                usesToneMaskedColorGrading: false,
+                asShotWhiteBalance: nil
+            )
+            guard self.currentPhoto?.id == photoID else { return }
+            guard let source,
+                  let settings = WhiteBalanceResolver.automaticSettings(from: source) else {
+                self.whiteBalanceStatusMessage = String(localized: "develop.whiteBalance.autoUnavailable")
+                self.parameters.whiteBalance = previousWhiteBalance
+                return
+            }
+            if !self.isAsShotWhiteBalanceLoaded {
+                let fetchedAsShot = if let content = self.content {
+                    await content.asShotWhiteBalance(for: photo)
+                } else {
+                    await self.engine.asShotNeutral(for: photo.fileURL)
+                }
+                guard self.currentPhoto?.id == photoID else { return }
+                self.asShotWhiteBalance = fetchedAsShot
+                self.isAsShotWhiteBalanceLoaded = true
+            }
+            self.whiteBalanceStatusMessage = nil
+            let baseK = self.asShotWhiteBalance?.temperatureKelvin ?? 6_500
+            let baseTint = self.asShotWhiteBalance?.tint ?? 0
+            var seeded = settings
+            seeded.temperatureKelvin = baseK + (settings.temperatureKelvin - 6_500)
+            seeded.tint = baseTint + settings.tint
+            seeded.mode = .auto
+            seeded.normalize()
+            self.parameters.whiteBalance = seeded
+        }
+    }
+
+    func toggleBeforeAfter() {
+        isShowingBefore.toggle()
+    }
+
     /// 回転・トリミングの変更を受けて再レンダーする。調整も幾何変換も無くなればプレビューを解除する。
     func updateEditGeometry(rotation: Int, cropRect: CGRect?) {
         guard rotation != self.rotation || cropRect != self.cropRect else { return }
@@ -169,10 +342,30 @@ final class DevelopViewModel {
             scheduleRender()
         } else {
             renderTask?.cancel()
+            histogramTask?.cancel()
             _ = nextRenderGeneration()
             previewImage = nil
-            histogram = nil
+            scheduleHistogramOnly(generation: renderGeneration)
             isRendering = false
+        }
+    }
+
+    /// ビューアが載っているディスプレイの色空間を伝える。P3 ディスプレイなら P3 を渡すと
+    /// プレビューが P3 書き出しの見えと一致する。`nil` で sRGB。変化があれば再描画する。
+    func setPreviewColorSpace(_ colorSpace: CGColorSpace?) {
+        guard !Self.sameColorSpace(colorSpace, previewColorSpace) else { return }
+        previewColorSpace = colorSpace
+        if currentPhoto != nil, shouldRender {
+            scheduleRender()
+        }
+    }
+
+    /// `CGColorSpace` は `Equatable` ではないため `CFEqual` で比較する。
+    private static func sameColorSpace(_ lhs: CGColorSpace?, _ rhs: CGColorSpace?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): return true
+        case let (left?, right?): return CFEqual(left, right)
+        default: return false
         }
     }
 
@@ -184,6 +377,8 @@ final class DevelopViewModel {
         displaySize = size
         if changed, currentPhoto != nil, shouldRender {
             scheduleRender()
+        } else if changed, currentPhoto != nil {
+            scheduleHistogramOnly(generation: renderGeneration)
         }
     }
 
@@ -191,6 +386,7 @@ final class DevelopViewModel {
     /// 回転・トリミングが残っていれば、それだけを焼き込んだプレビューを出し直す。
     func reset() {
         renderTask?.cancel()
+        histogramTask?.cancel()
         // resetDevelop がレコードを消すので、保留中の保存はフラッシュせず破棄する。
         persistTask?.cancel()
         pendingPersist = nil
@@ -202,11 +398,23 @@ final class DevelopViewModel {
         histogram = nil
         isRendering = false
         content?.resetDevelop()
+        // reset で旧レコードは削除され、次の保存は schemaVersion 5（RAW は露出・WB 委譲も有効）。
+        manualLensCorrectionActive = true
+        rawMappingActive = isRAW
+        toneMaskedColorGradingActive = true
         undoParameters = nil
         canUndo = false
         if currentPhoto != nil, shouldRender {
             scheduleRender()
+        } else if currentPhoto != nil {
+            scheduleHistogramOnly(generation: renderGeneration)
         }
+    }
+
+    /// セクション単位で調整を中立へ戻す。didSet 経由でプレビュー再描画・保存が予約される。
+    func resetSection(_ section: DevelopSection) {
+        guard parameters.isModified(in: section) else { return }
+        parameters.reset(section)
     }
 
     // MARK: - プリセット / コピー & ペースト
@@ -225,8 +433,11 @@ final class DevelopViewModel {
     }
 
     /// プリセットの調整値を適用する。直前の状態は 1 段だけ戻せる。
-    func applyPreset(_ preset: DevelopPreset) {
-        applyReplacingParameters(preset.parameters)
+    /// - Parameter relative: `true` なら現在の調整値へプリセットを差分として重ねる（露出違いの
+    ///   複数カットへ同じスタイルを崩さず足せる）。`false`（既定）なら丸ごと置き換える。
+    func applyPreset(_ preset: DevelopPreset, relative: Bool = false) {
+        let target = relative ? parameters.applying(delta: preset.parameters) : preset.parameters
+        applyReplacingParameters(target)
     }
 
     /// 現在の調整値をクリップボードへコピーする。
@@ -261,6 +472,7 @@ final class DevelopViewModel {
 
     private func scheduleRender() {
         renderTask?.cancel()
+        histogramTask?.cancel()
         guard let photo = currentPhoto else {
             _ = nextRenderGeneration()
             previewImage = nil
@@ -273,6 +485,9 @@ final class DevelopViewModel {
         let crop = cropRect
         // ドラッグ中は RAW 委譲を止めて標準チェーンで近似する。
         let mapping = rawMappingActive && !isRAWParameterDragging
+        let manualLensCorrection = shouldApplyManualLensCorrection(params)
+        let usesToneMaskedColorGrading = toneMaskedColorGradingActive
+        let asShot = usesToneMaskedColorGrading ? asShotWhiteBalance : nil
         // RAW 再デコードを伴う描画は連打で溜めないよう長めのデバウンスにする。
         let debounce = mapping ? Self.rawMappingDebounce : renderDebounce
         let generation = nextRenderGeneration()
@@ -281,8 +496,42 @@ final class DevelopViewModel {
             guard !Task.isCancelled else { return }
             await self?.render(
                 photo: photo, parameters: params, rotation: rot, cropRect: crop,
-                useRAWParameterMapping: mapping, generation: generation
+                useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
+                usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+                asShotWhiteBalance: asShot,
+                generation: generation
             )
+        }
+    }
+
+    /// 現像レンダーを伴わない写真でも、選択時にヒストグラムを表示するため
+    /// ベース画像（.neutral）から集計する。previewImage は変更しない。
+    private func scheduleHistogramOnly(generation: Int) {
+        guard let photo = currentPhoto else { return }
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        let rot = rotation
+        let crop = cropRect
+        let colorSpace = previewColorSpace
+        histogramTask?.cancel()
+        histogramTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.renderDebounce ?? .zero)
+            guard let self, !Task.isCancelled, generation == self.renderGeneration else { return }
+            let base = await self.engine.renderPreview(
+                url: photo.fileURL,
+                parameters: .neutral,
+                targetMaxPixelSize: target,
+                rotation: rot,
+                cropRect: crop,
+                previewColorSpace: colorSpace,
+                useRAWParameterMapping: false,
+                usesManualLensCorrection: false,
+                usesToneMaskedColorGrading: self.toneMaskedColorGradingActive,
+                asShotWhiteBalance: nil
+            )
+            guard generation == self.renderGeneration, let base else { return }
+            let computed = await HistogramData.make(from: base)
+            guard generation == self.renderGeneration else { return }
+            self.histogram = computed
         }
     }
 
@@ -292,13 +541,16 @@ final class DevelopViewModel {
         rotation: Int,
         cropRect: CGRect?,
         useRAWParameterMapping: Bool,
+        usesManualLensCorrection: Bool,
+        usesToneMaskedColorGrading: Bool,
+        asShotWhiteBalance: WhiteBalanceSample?,
         generation: Int
     ) async {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
         guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) else {
             if generation == renderGeneration {
                 previewImage = nil
-                histogram = nil
+                scheduleHistogramOnly(generation: generation)
                 isRendering = false
             }
             return
@@ -312,7 +564,11 @@ final class DevelopViewModel {
             targetMaxPixelSize: target,
             rotation: rotation,
             cropRect: cropRect,
-            useRAWParameterMapping: useRAWParameterMapping
+            previewColorSpace: previewColorSpace,
+            useRAWParameterMapping: useRAWParameterMapping,
+            usesManualLensCorrection: usesManualLensCorrection,
+            usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+            asShotWhiteBalance: asShotWhiteBalance
         )
         // supersede されていたら後始末は最新世代に任せる。
         guard generation == renderGeneration else { return }
@@ -329,6 +585,33 @@ final class DevelopViewModel {
         let computed = await HistogramData.make(from: rendered)
         guard generation == renderGeneration else { return }
         histogram = computed
+    }
+
+    /// パイプラインへ渡す手動レンズ補正の適用可否。schemaVersion ゲート + RAW のプロファイル補正が
+    /// 有効なら手動はスキップ（二重補正防止。ドラッグ状態には依存しない）。
+    private func shouldApplyManualLensCorrection(_ params: DevelopParameters) -> Bool {
+        manualLensCorrectionActive && !(rawMappingActive && params.lensCorrectionEnabled)
+    }
+
+    private func applyAsShotWhiteBalance(_ sample: WhiteBalanceSample) {
+        asShotWhiteBalance = sample
+        if toneMaskedColorGradingActive, currentPhoto != nil, shouldRender {
+            scheduleRender()
+        }
+    }
+
+    /// 永続化時に DevelopSettings.setParameters が schemaVersion を現行世代へバンプするため、
+    /// レコード由来のゲートフラグを再同期する。カラーグレーディング方式が切り替わったら再描画する。
+    private func syncSchemaGatedFlags() {
+        // レコードが中立で削除された場合は新規レコード相当（現行世代）として扱う。
+        let settings = content?.currentDevelopSettings
+        rawMappingActive = isRAW && (settings?.usesRAWParameterMapping ?? true)
+        manualLensCorrectionActive = settings?.usesManualLensCorrection ?? true
+        let wasToneMasked = toneMaskedColorGradingActive
+        toneMaskedColorGradingActive = settings?.usesToneMaskedColorGrading ?? true
+        if toneMaskedColorGradingActive != wasToneMasked, currentPhoto != nil, shouldRender {
+            scheduleRender()
+        }
     }
 
     /// 新しいレンダー要求の世代番号を発行する。
@@ -349,6 +632,7 @@ final class DevelopViewModel {
             try? await Task.sleep(for: self?.persistDebounce ?? .zero)
             guard !Task.isCancelled else { return }
             self?.content?.updateDevelopParameters(params)
+            self?.syncSchemaGatedFlags()
             self?.pendingPersist = nil
         }
     }

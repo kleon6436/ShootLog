@@ -3,7 +3,7 @@ import SwiftUI
 /// トーンカーブエディタ。RGB マスターと R/G/B チャンネル別を切り替えて編集する。
 ///
 /// 制御点は正規化座標（x, y ∈ 0...1）。端点（x=0 / x=1）は y 方向のみ、
-/// 中間点は x/y 両方向へドラッグできる。空き領域のクリックで点を追加、
+/// 中間点は x/y 両方向へドラッグできる。キャンバスのクリック＆ドラッグで点を追加、
 /// 中間点のダブルクリックで削除する（最低 2 点は残す）。
 struct ToneCurveEditorView: View {
     @Binding var rgb: [CurvePoint]
@@ -56,14 +56,6 @@ struct ToneCurveEditorView: View {
             CurveCanvas(points: activePoints, tint: channel.tint)
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: 240)
-
-            Button("develop.toneCurve.reset") {
-                activePoints.wrappedValue = CurvePoint.identity
-            }
-            .buttonStyle(.plain)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .disabled(ToneCurve.isIdentity(activePoints.wrappedValue))
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("develop.section.toneCurve")
@@ -76,7 +68,10 @@ private struct CurveCanvas: View {
     @Binding var points: [CurvePoint]
     let tint: Color
 
+    @State private var activeIndex: Int?
+
     private let handleSize: CGFloat = 10
+    private let hitRadius: CGFloat = 14
     private let minSeparation: CGFloat = 0.02
 
     var body: some View {
@@ -90,9 +85,7 @@ private struct CurveCanvas: View {
                 handles(size: size)
             }
             .contentShape(Rectangle())
-            .onTapGesture { location in
-                addPoint(at: location, size: size)
-            }
+            .gesture(canvasDragGesture(size: size))
         }
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.small))
     }
@@ -122,7 +115,7 @@ private struct CurveCanvas: View {
     }
 
     private func curvePath(size: CGSize) -> Path {
-        let sampleCount = 64
+        let sampleCount = 128
         let samples = ToneCurve.sampled(points, count: sampleCount)
         return Path { path in
             for (index, y) in samples.enumerated() {
@@ -140,54 +133,92 @@ private struct CurveCanvas: View {
     private func handles(size: CGSize) -> some View {
         ForEach(points.indices, id: \.self) { index in
             let point = points[index]
-            Circle()
-                .fill(tint)
-                .frame(width: handleSize, height: handleSize)
-                .position(
-                    x: size.width * CGFloat(point.x),
-                    y: size.height * (1 - CGFloat(point.y))
-                )
-                .gesture(dragGesture(index: index, size: size))
-                .onTapGesture(count: 2) { removePoint(at: index) }
-                .accessibilityElement()
-                .accessibilityLabel("develop.toneCurve.point")
-                .accessibilityValue(Text("\(Int(point.x * 255)), \(Int(point.y * 255))"))
-                .accessibilityAdjustableAction { direction in
-                    let delta = direction == .increment ? 0.04 : -0.04
-                    let newY = min(max(point.y + delta, 0), 1)
-                    points[index] = CurvePoint(x: point.x, y: newY)
-                }
+            ZStack {
+                Circle()
+                    .fill(tint)
+                    .frame(width: handleSize, height: handleSize)
+                Circle()
+                    .fill(.clear)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Circle())
+            }
+            .position(
+                x: size.width * CGFloat(point.x),
+                y: size.height * (1 - CGFloat(point.y))
+            )
+            .highPriorityGesture(
+                TapGesture(count: 2)
+                    .onEnded { removePoint(at: index) }
+            )
+            .accessibilityElement()
+            .accessibilityLabel("develop.toneCurve.point")
+            .accessibilityValue(Text("\(Int(point.x * 255)), \(Int(point.y * 255))"))
+            .accessibilityAdjustableAction { direction in
+                let delta = direction == .increment ? 0.04 : -0.04
+                let newY = min(max(point.y + delta, 0), 1)
+                points[index] = CurvePoint(x: point.x, y: newY)
+            }
         }
     }
 
-    private func dragGesture(index: Int, size: CGSize) -> some Gesture {
+    private func canvasDragGesture(size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { drag in
-                guard size.width > 0, size.height > 0 else { return }
-                var nx = Double(min(max(drag.location.x / size.width, 0), 1))
-                let ny = Double(min(max(1 - drag.location.y / size.height, 0), 1))
-
-                let isEndpoint = index == 0 || index == points.count - 1
-                if isEndpoint {
-                    nx = points[index].x   // 端点は x を固定
-                } else {
-                    let lower = points[index - 1].x + Double(minSeparation)
-                    let upper = points[index + 1].x - Double(minSeparation)
-                    nx = min(max(nx, lower), upper)
-                }
-                points[index] = CurvePoint(x: nx, y: ny)
+                updateActivePoint(with: drag, size: size)
             }
+            .onEnded { _ in activeIndex = nil }
     }
 
-    private func addPoint(at location: CGPoint, size: CGSize) {
+    private func updateActivePoint(with drag: DragGesture.Value, size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
-        let nx = Double(min(max(location.x / size.width, 0), 1))
-        let ny = Double(min(max(1 - location.y / size.height, 0), 1))
-        let firstX = points.first?.x ?? 0
-        let lastX = points.last?.x ?? 1
-        guard nx > firstX + Double(minSeparation), nx < lastX - Double(minSeparation) else { return }
-        guard let insertIndex = points.firstIndex(where: { $0.x > nx }) else { return }
-        points.insert(CurvePoint(x: nx, y: ny), at: insertIndex)
+        if activeIndex == nil {
+            beginInteraction(at: drag.startLocation, size: size)
+        }
+        guard let activeIndex,
+              let point = ToneCurve.clampedPoint(
+                  at: activeIndex,
+                  location: normalizedPoint(for: drag.location, size: size),
+                  in: points,
+                  minimumSeparation: Double(minSeparation)
+              ) else {
+            return
+        }
+        points[activeIndex] = point
+    }
+
+    private func beginInteraction(at location: CGPoint, size: CGSize) {
+        if let index = handleIndex(at: location, size: size) {
+            activeIndex = index
+            return
+        }
+
+        guard let insertion = ToneCurve.insertion(
+            for: normalizedPoint(for: location, size: size),
+            in: points,
+            minimumSeparation: Double(minSeparation)
+        ) else {
+            return
+        }
+        points.insert(insertion.point, at: insertion.index)
+        activeIndex = insertion.index
+    }
+
+    private func handleIndex(at location: CGPoint, size: CGSize) -> Int? {
+        points.indices.first { index in
+            let point = points[index]
+            let handleLocation = CGPoint(
+                x: size.width * CGFloat(point.x),
+                y: size.height * (1 - CGFloat(point.y))
+            )
+            return hypot(location.x - handleLocation.x, location.y - handleLocation.y) <= hitRadius
+        }
+    }
+
+    private func normalizedPoint(for location: CGPoint, size: CGSize) -> CurvePoint {
+        CurvePoint(
+            x: Double(min(max(location.x / size.width, 0), 1)),
+            y: Double(min(max(1 - location.y / size.height, 0), 1))
+        )
     }
 
     private func removePoint(at index: Int) {

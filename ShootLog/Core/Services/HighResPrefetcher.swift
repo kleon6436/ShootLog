@@ -1,6 +1,6 @@
 import Foundation
 
-// 選択中写真の前後1枚を先読みしてImageLoaderのキャッシュへ載せるための共通処理。
+// 選択中写真の前後数枚を先読みしてプレビュープロキシのキャッシュへ載せるための共通処理。
 // ビューア（PhotoViewerView / EditablePhotoView）とスライドショー（SlideshowViewModel）が
 // 同じ挙動を共有できるよう、先読みの実装をここ1か所に集約する
 enum HighResPrefetcher {
@@ -9,24 +9,47 @@ enum HighResPrefetcher {
     // 写真を連続で送った際に通り過ぎた写真の先読みを（開始前に）打ち切るデバウンスとして働く
     private static let startDelay = Duration.milliseconds(250)
 
-    // 指定URLの高解像度画像をキャッシュへ載せる。戻り値は破棄する（View更新はトリガーしない）。
-    // targetMaxPixelSize は既定値のまま呼び、本表示と同じキャッシュキーへ載せる。
+    // 先読みする前後枚数。ローカルは連続送りでも先行できるよう広め、
+    // ネットワークは同時取得を絞る `ImageLoader` の方針に合わせて狭くする
+    private static let localRadius = 3
+    private static let networkRadius = 1
+
+    // ボリューム種別（ネットワーク/ローカル）の判定は resourceValues の syscall を伴うため、
+    // ボリュームルート単位でキャッシュする（`neighborURLs` は body 再評価のたびに呼ばれうる）
+    @MainActor private static var networkVolumeCache: [String: Bool] = [:]
+
+    @MainActor
+    private static func prefetchRadius(for url: URL) -> Int {
+        let volumeKey = ((try? url.resourceValues(forKeys: [.volumeURLKey]))?.volume ?? url).path
+        let isNetwork: Bool
+        if let cached = networkVolumeCache[volumeKey] {
+            isNetwork = cached
+        } else {
+            isNetwork = url.isOnNetworkVolume
+            networkVolumeCache[volumeKey] = isNetwork
+        }
+        return isNetwork ? networkRadius : localRadius
+    }
+
+    // 指定URLのプレビュープロキシをキャッシュへ載せる。戻り値は破棄する（View更新はトリガーしない）。
+    // 固定解像度のため、本表示と同じキャッシュキーへ載せられる。
     //
     // キャンセルで打ち切れるのは「まだ開始していないURL」までである点に注意する。
-    // ImageLoader.highResImage 内部のデコードは Task.detached で走りキャンセルを継承しないため、
+    // ImageLoader.proxyImage 内部のデコードは Task.detached で走りキャンセルを継承しないため、
     // 開始済みの1枚分は最後まで実行される
     static func prefetch(urls: [URL]) async {
         guard !urls.isEmpty else { return }
         try? await Task.sleep(for: startDelay)
         for url in urls {
             guard !Task.isCancelled else { return }
-            _ = await ImageLoader.shared.highResImage(for: url)
+            _ = await ImageLoader.shared.proxyImage(for: url)
         }
     }
 
-    // 選択中写真の前後1枚のURL。進行方向が優先されるよう「次」を先に並べる。
-    // 先頭・末尾では存在する側だけを返し、wrapsAround が true のときのみ
-    // 末尾の「次」を先頭へ巻き戻す（スライドショーの自動送りがループするため）
+    // 選択中写真の前後数枚のURL。進行方向が優先されるよう距離ごとに「次」を先に並べる
+    // （next, prev, next+1, prev-1, …）。先読み枚数はボリューム種別で決まる。
+    // 先頭・末尾では存在する側だけを返し、「次」方向は wrapsAround が true のときのみ
+    // 先頭へ巻き戻す（スライドショーの自動送りがループするため）。「前」方向は巻き戻さない。
     @MainActor
     static func neighborURLs(
         in photos: [Photo],
@@ -34,15 +57,32 @@ enum HighResPrefetcher {
         wrapsAround: Bool = false
     ) -> [URL] {
         guard let index, photos.count > 1, photos.indices.contains(index) else { return [] }
+        let radius = min(prefetchRadius(for: photos[index].fileURL), photos.count - 1)
         var urls: [URL] = []
-        if index + 1 < photos.count {
-            urls.append(photos[index + 1].fileURL)
-        } else if wrapsAround {
-            urls.append(photos[0].fileURL)
-        }
-        if index > 0 {
-            urls.append(photos[index - 1].fileURL)
+        var seen: Set<Int> = [index]
+        for distance in 1...radius {
+            let forward = index + distance
+            if forward < photos.count {
+                appendIfNew(forward, from: photos, into: &urls, seen: &seen)
+            } else if wrapsAround {
+                appendIfNew(forward % photos.count, from: photos, into: &urls, seen: &seen)
+            }
+            let backward = index - distance
+            if backward >= 0 {
+                appendIfNew(backward, from: photos, into: &urls, seen: &seen)
+            }
         }
         return urls
+    }
+
+    @MainActor
+    private static func appendIfNew(
+        _ photoIndex: Int,
+        from photos: [Photo],
+        into urls: inout [URL],
+        seen: inout Set<Int>
+    ) {
+        guard seen.insert(photoIndex).inserted else { return }
+        urls.append(photos[photoIndex].fileURL)
     }
 }

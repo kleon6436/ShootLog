@@ -20,10 +20,56 @@ struct DevelopSettingsTests {
     @Test func initialStateIsNeutral() {
         let settings = DevelopSettings(photoID: UUID())
 
+        #expect(DevelopSettings.currentSchemaVersion == 5)
         #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
         #expect(settings.usesRAWParameterMapping)
+        #expect(settings.usesManualLensCorrection)
+        #expect(settings.usesToneMaskedColorGrading)
         #expect(settings.parameters == .neutral)
         #expect(!settings.parametersData.isEmpty)
+    }
+
+    @Test func editingCurrentEligibleSettingsMigratesToVersion5WithoutMigratingVersion1() throws {
+        let version2 = DevelopSettings(photoID: UUID())
+        version2.schemaVersion = 2
+        #expect(version2.usesRAWParameterMapping)
+        #expect(version2.usesManualLensCorrection)
+        try version2.setParameters(.neutral)
+        #expect(version2.schemaVersion == 5)
+
+        let version1 = DevelopSettings(photoID: UUID())
+        version1.schemaVersion = 1
+        try version1.setParameters(.neutral)
+        #expect(version1.schemaVersion == 1)
+
+        let version3 = DevelopSettings(photoID: UUID())
+        version3.schemaVersion = 3
+        try version3.setParameters(.neutral)
+        #expect(version3.schemaVersion == 5)
+
+        let version4 = DevelopSettings(photoID: UUID())
+        version4.schemaVersion = 4
+        try version4.setParameters(.neutral)
+        #expect(version4.schemaVersion == 5)
+    }
+
+    @Test func version4RecordMigratesToVersion5OnEdit() throws {
+        let settings = DevelopSettings(photoID: UUID())
+        settings.schemaVersion = 4
+
+        try settings.setParameters(.neutral)
+
+        #expect(settings.schemaVersion == 5)
+    }
+
+    @Test func usesToneMaskedColorGradingGate() {
+        let legacy = DevelopSettings(photoID: UUID())
+        legacy.schemaVersion = 4
+        #expect(!legacy.usesToneMaskedColorGrading)
+
+        let current = DevelopSettings(photoID: UUID())
+        current.schemaVersion = 5
+        #expect(current.usesToneMaskedColorGrading)
     }
 
     // MARK: - パラメータの往復

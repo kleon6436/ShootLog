@@ -23,6 +23,9 @@ struct EditablePhotoView: View {
         GeometryReader { geometry in
             content(containerSize: geometry.size)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    DisplayColorSpaceReader { developViewModel.setPreviewColorSpace($0) }
+                )
                 .task(id: photo?.id) {
                     await vm.load(photo: photo, displaySize: geometry.size)
                     // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）。
@@ -56,7 +59,7 @@ struct EditablePhotoView: View {
         // 従来の 2 段階ロード結果。トリミングオーバーレイの基準と、現像プレビュー未生成時の表示に使う。
         let baseImage = vm.highRes ?? vm.thumbnail
         // 現像プレビューは回転・トリミング焼き込み済み。トリミングモード中はベース全体を見せるため使わない。
-        let developPreview = isCropMode ? nil : developViewModel.previewImage
+        let developPreview = (isCropMode || developViewModel.isShowingBefore) ? nil : developViewModel.previewImage
 
         ZStack {
             if let displayImage = developPreview ?? baseImage {
@@ -96,6 +99,11 @@ struct EditablePhotoView: View {
                         onCancel: onCropCancel
                     )
                 }
+
+                if developViewModel.showsClippingWarnings, !isCropMode {
+                    ExposureWarningOverlay(data: developViewModel.histogram)
+                        .allowsHitTesting(false)
+                }
             } else if photo != nil {
                 ProgressView()
             } else {
@@ -130,5 +138,32 @@ struct EditablePhotoView: View {
                 .rotationEffect(.degrees(Double(rotation)))
                 .frame(width: containerSize.width, height: containerSize.height)
         }
+    }
+}
+
+/// プレビューのRGBヒストグラムから、画像全体に対するクリッピング警告を重ねる。
+/// 空間マスクではなく表示中プレビューの集計に基づくため、書き出し時の判定とは分離される。
+private struct ExposureWarningOverlay: View {
+    let data: HistogramData?
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if data?.hasHighlightClipping == true {
+                    Rectangle()
+                        .fill(Color.highlightClippingWarning.opacity(0.16))
+                        .frame(height: 5)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
+                if data?.hasShadowClipping == true {
+                    Rectangle()
+                        .fill(Color.shadowClippingWarning.opacity(0.16))
+                        .frame(height: 5)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .accessibilityHidden(true)
     }
 }

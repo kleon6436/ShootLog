@@ -4,6 +4,7 @@ import SwiftUI
 /// データが無い間はプレースホルダの枠だけ出す。
 struct HistogramView: View {
     let data: HistogramData?
+    var showsClippingWarnings = true
 
     private let height: CGFloat = 72
 
@@ -20,6 +21,19 @@ struct HistogramView: View {
                 }
                 .blendMode(.plusLighter)
                 .padding(2)
+                if showsClippingWarnings && (data.hasHighlightClipping || data.hasShadowClipping) {
+                    VStack {
+                        HStack {
+                            if data.hasShadowClipping { Label("develop.clipping.shadow", systemImage: "circle.fill") }
+                            Spacer()
+                            if data.hasHighlightClipping { Label("develop.clipping.highlight", systemImage: "circle.fill") }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.primary)
+                        .padding(4)
+                        Spacer()
+                    }
+                }
             }
         }
         .frame(height: height)

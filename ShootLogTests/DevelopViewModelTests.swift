@@ -17,14 +17,34 @@ struct DevelopViewModelTests {
         private var lastRotationValue = 0
         private var lastCropValue: CGRect?
         private var lastRAWMappingValue = false
+        private var lastUsesManualLensCorrectionValue = false
+        private var lastUsesToneMaskedColorGradingValue = false
+        private var lastAsShotWhiteBalanceValue: WhiteBalanceSample?
+        private var previewDelayMilliseconds = 0
+        private var asShotDelayMilliseconds = 0
         var rawFileNames: Set<String> = []
         var stub: CGImage?
+        var asShotStub: WhiteBalanceSample? = nil
 
         var previewCallCount: Int { lock.withLock { previewCalls } }
         var lastParameters: DevelopParameters? { lock.withLock { lastParams } }
         var lastRotation: Int { lock.withLock { lastRotationValue } }
         var lastCropRect: CGRect? { lock.withLock { lastCropValue } }
         var lastRAWMapping: Bool { lock.withLock { lastRAWMappingValue } }
+        var lastUsesManualLensCorrection: Bool { lock.withLock { lastUsesManualLensCorrectionValue } }
+        var lastUsesToneMaskedColorGrading: Bool { lock.withLock { lastUsesToneMaskedColorGradingValue } }
+        var lastAsShotWhiteBalance: WhiteBalanceSample? { lock.withLock { lastAsShotWhiteBalanceValue } }
+        var previewDelay: Int {
+            get { lock.withLock { previewDelayMilliseconds } }
+            set { lock.withLock { previewDelayMilliseconds = newValue } }
+        }
+        var asShotDelay: Int {
+            get { lock.withLock { asShotDelayMilliseconds } }
+            set { lock.withLock { asShotDelayMilliseconds = newValue } }
+        }
+
+        private var lastPreviewColorSpaceValue: CGColorSpace?
+        var lastPreviewColorSpace: CGColorSpace? { lock.withLock { lastPreviewColorSpaceValue } }
 
         func renderPreview(
             url: URL,
@@ -32,14 +52,26 @@ struct DevelopViewModelTests {
             targetMaxPixelSize: CGFloat,
             rotation: Int,
             cropRect: CGRect?,
-            useRAWParameterMapping: Bool
+            previewColorSpace: CGColorSpace?,
+            useRAWParameterMapping: Bool,
+            usesManualLensCorrection: Bool,
+            usesToneMaskedColorGrading: Bool,
+            asShotWhiteBalance: WhiteBalanceSample?
         ) async -> CGImage? {
+            let delay = lock.withLock { previewDelayMilliseconds }
+            if delay > 0 {
+                try? await Task.sleep(for: .milliseconds(delay))
+            }
             lock.withLock {
                 previewCalls += 1
                 lastParams = parameters
                 lastRotationValue = rotation
                 lastCropValue = cropRect
+                lastPreviewColorSpaceValue = previewColorSpace
                 lastRAWMappingValue = useRAWParameterMapping
+                lastUsesManualLensCorrectionValue = usesManualLensCorrection
+                lastUsesToneMaskedColorGradingValue = usesToneMaskedColorGrading
+                lastAsShotWhiteBalanceValue = asShotWhiteBalance
             }
             return stub
         }
@@ -50,10 +82,28 @@ struct DevelopViewModelTests {
             rotation: Int,
             cropRect: CGRect?,
             outputColorSpace: CGColorSpace?,
-            useRAWParameterMapping: Bool
-        ) async -> CGImage? { stub }
+            useRAWParameterMapping: Bool,
+            usesManualLensCorrection: Bool,
+            usesToneMaskedColorGrading: Bool,
+            asShotWhiteBalance: WhiteBalanceSample?
+        ) async -> CGImage? {
+            lock.withLock {
+                lastUsesManualLensCorrectionValue = usesManualLensCorrection
+                lastUsesToneMaskedColorGradingValue = usesToneMaskedColorGrading
+                lastAsShotWhiteBalanceValue = asShotWhiteBalance
+            }
+            return stub
+        }
 
         func isRAW(url: URL) -> Bool { rawFileNames.contains(url.lastPathComponent) }
+
+        func asShotNeutral(for url: URL) async -> WhiteBalanceSample? {
+            let delay = lock.withLock { asShotDelayMilliseconds }
+            if delay > 0 {
+                try? await Task.sleep(for: .milliseconds(delay))
+            }
+            return asShotStub
+        }
     }
 
     // MARK: - ヘルパー
@@ -70,6 +120,25 @@ struct DevelopViewModelTests {
             bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
             provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
         )
+    }
+
+    private func makeAutomaticWhiteBalanceImage() throws -> CGImage {
+        let width = 16, height = 16
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            pixels[index] = 150
+            pixels[index + 1] = 160
+            pixels[index + 2] = 170
+            pixels[index + 3] = 255
+        }
+        let colorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
+        return try #require(CGImage(
+            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
+            bytesPerRow: width * 4, space: colorSpace,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+        ))
     }
 
     private func makeContentViewModel() throws -> (ContentViewModel, ModelContext, Photo) {
@@ -107,16 +176,205 @@ struct DevelopViewModelTests {
 
     // MARK: - テスト
 
-    @Test func neutralLoadDoesNotCallEngine() async throws {
+    @Test func defaultIsClippingWarningsOff() {
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+
+        let vm = DevelopViewModel(content: nil)
+
+        #expect(vm.showsClippingWarnings == false)
+
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+    }
+
+    @Test func clippingWarningsChoicePersists() {
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+        let vm = DevelopViewModel(content: nil)
+        vm.showsClippingWarnings = true
+
+        #expect(UserDefaults.standard.object(forKey: AppSettingsKeys.developClippingWarnings) as? Bool == true)
+
+        let restored = DevelopViewModel(content: nil)
+        #expect(restored.showsClippingWarnings == true)
+
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+    }
+
+    @Test func neutralLoadRendersHistogramOnly() async throws {
         let engine = SpyEngine()
+        engine.stub = makeStubImage()
         let vm = makeViewModel(engine: engine)
         let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg"))
 
         vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
         await settle()
 
-        #expect(engine.previewCallCount == 0)
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastParameters == .neutral)
         #expect(vm.previewImage == nil)
+        #expect(vm.histogram != nil)
+    }
+
+    @Test func loadPopulatesAsShotWhiteBalance() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.asShotStub = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: true)
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.asShotWhiteBalance?.temperatureKelvin == 5_200)
+        #expect(vm.asShotWhiteBalanceIsEstimated)
+        #expect(vm.isAsShotWhiteBalanceLoaded)
+    }
+
+    @Test func selectingCustomWhiteBalanceSeedsFromAsShot() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.asShotStub = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: false)
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        vm.selectWhiteBalanceMode(.custom)
+
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 5_200)
+        #expect(vm.parameters.whiteBalance.temperatureKelvin != 6_500)
+    }
+
+    @Test func selectingCustomWithoutAsShotFallsBackTo6500() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        vm.selectWhiteBalanceMode(.custom)
+
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 6_500)
+    }
+
+    @Test func setWhiteBalanceTemperatureFromAsShotModeTransitionsToCustom() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.asShotStub = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: false)
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        vm.setWhiteBalanceTemperature(6_000)
+
+        #expect(vm.parameters.whiteBalance.mode == .custom)
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 6_000)
+    }
+
+    @Test func toneMaskedColorGradingFlagReachesEngine() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        var parameters = vm.parameters
+        parameters.exposure = 1
+        vm.parameters = parameters
+        await settle()
+
+        #expect(engine.lastUsesToneMaskedColorGrading)
+    }
+
+    @Test func schemaBumpResyncsToneMaskedFlag() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photo) = try makeContentViewModel()
+        let settings = DevelopSettings(photoID: photo.id)
+        settings.schemaVersion = 4
+        var parameters = DevelopParameters.neutral
+        parameters.colorBalance.master.saturation = 10
+        settings.parameters = parameters
+        context.insert(settings)
+        try context.save()
+        content.currentDevelopSettings = settings
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        var updated = vm.parameters
+        updated.exposure = 1
+        vm.parameters = updated
+        await settle(120)
+
+        #expect(settings.schemaVersion == 5)
+        #expect(engine.lastUsesToneMaskedColorGrading)
+    }
+
+    @Test func asShotWhiteBalanceReachesEngineWhenToneMasked() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let asShot = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: true)
+        engine.asShotStub = asShot
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        vm.selectWhiteBalanceMode(.custom)
+        await settle()
+
+        #expect(engine.lastAsShotWhiteBalance == asShot)
+    }
+
+    @Test func automaticWhiteBalanceWaitsForAsShotBaseline() async throws {
+        let engine = SpyEngine()
+        let source = try makeAutomaticWhiteBalanceImage()
+        engine.stub = source
+        engine.asShotStub = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: true)
+        engine.asShotDelay = 40
+        let vm = makeViewModel(engine: engine)
+
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        vm.applyAutomaticWhiteBalance()
+        await settle(140)
+
+        let automatic = try #require(WhiteBalanceResolver.automaticSettings(from: source))
+        #expect(vm.parameters.whiteBalance.mode == .auto)
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 5_200 + (automatic.temperatureKelvin - 6_500))
+        #expect(vm.parameters.whiteBalance.tint == 4 + automatic.tint)
+    }
+
+    @Test func automaticWhiteBalanceFailureRestoresPreviousSettings() async throws {
+        let engine = SpyEngine()
+        // 4x4 の小画像は有効画素が 64 未満で WhiteBalanceResolver.automaticSettings が nil を返す（推定不能）。
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(
+            photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
+            displaySize: CGSize(width: 800, height: 600)
+        )
+        await settle()
+
+        var custom = WhiteBalanceSettings(mode: .custom, temperatureKelvin: 4_200, tint: -8)
+        custom.normalize()
+        vm.parameters.whiteBalance = custom
+
+        vm.applyAutomaticWhiteBalance()
+        await settle()
+
+        #expect(vm.parameters.whiteBalance == custom)
+        #expect(vm.whiteBalanceStatusMessage != nil)
+    }
+
+    @Test func automaticWhiteBalanceDoesNotApplyAfterPhotoSwitch() async throws {
+        let engine = SpyEngine()
+        engine.stub = try makeAutomaticWhiteBalanceImage()
+        engine.previewDelay = 40
+        let vm = makeViewModel(engine: engine)
+        let first = Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg"))
+        let second = Photo(fileURL: URL(fileURLWithPath: "/tmp/b.jpg"))
+
+        vm.load(photo: first, displaySize: CGSize(width: 800, height: 600))
+        vm.applyAutomaticWhiteBalance()
+        vm.load(photo: second, displaySize: CGSize(width: 800, height: 600))
+        await settle(100)
+
+        #expect(vm.parameters.whiteBalance.mode == .asShot)
     }
 
     @Test func changingParametersRendersAfterDebounce() async throws {
@@ -167,11 +425,48 @@ struct DevelopViewModelTests {
         #expect(vm.previewImage != nil)
 
         vm.reset()
+        await settle()
 
         #expect(vm.parameters == .neutral)
         #expect(vm.previewImage == nil)
-        #expect(vm.histogram == nil)
+        #expect(vm.histogram != nil)
         #expect(vm.canReset == false)
+    }
+
+    @Test func resetSectionRevertsSectionAndSchedulesRender() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        vm.parameters.exposure = 1
+        await settle()
+        let renderCountBeforeReset = engine.previewCallCount
+
+        vm.resetSection(.basic)
+        await settle()
+
+        #expect(vm.parameters.exposure == 0)
+        #expect(engine.previewCallCount > renderCountBeforeReset)
+        #expect(engine.lastParameters == .neutral)
+    }
+
+    @Test func resetSectionDoesNothingWhenSectionIsUnmodified() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        vm.parameters.vibrance = 20
+        await settle()
+        let parametersBeforeReset = vm.parameters
+        let renderCountBeforeReset = engine.previewCallCount
+
+        vm.resetSection(.basic)
+        await settle()
+
+        #expect(vm.parameters == parametersBeforeReset)
+        #expect(engine.previewCallCount == renderCountBeforeReset)
     }
 
     @Test func loadPullsPersistedParametersAndRenders() async throws {
@@ -299,12 +594,12 @@ struct DevelopViewModelTests {
         #expect(vm.previewImage != nil)
     }
 
-    @Test func neutralParametersAndNoGeometryDoesNotRender() async throws {
+    @Test func neutralParametersAndNoGeometryRendersHistogramOnly() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
         let vm = makeViewModel(engine: engine)
 
-        // 全体矩形は実質トリミングなし。回転も無し → レンダーしない。
+        // 全体矩形は実質トリミングなし。回転も無し → ヒストグラムだけをレンダーする。
         vm.load(
             photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")),
             displaySize: CGSize(width: 800, height: 600),
@@ -313,8 +608,10 @@ struct DevelopViewModelTests {
         )
         await settle()
 
-        #expect(engine.previewCallCount == 0)
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastParameters == .neutral)
         #expect(vm.previewImage == nil)
+        #expect(vm.histogram != nil)
     }
 
     @Test func updateEditGeometryTriggersRenderWithCrop() async throws {
@@ -323,13 +620,13 @@ struct DevelopViewModelTests {
         let vm = makeViewModel(engine: engine)
         vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
         await settle()
-        #expect(engine.previewCallCount == 0)
+        #expect(engine.previewCallCount == 1)
 
         let crop = CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.5)
         vm.updateEditGeometry(rotation: 0, cropRect: crop)
         await settle()
 
-        #expect(engine.previewCallCount == 1)
+        #expect(engine.previewCallCount == 2)
         #expect(engine.lastCropRect == crop)
         #expect(vm.previewImage != nil)
     }
@@ -350,7 +647,7 @@ struct DevelopViewModelTests {
         await settle()
 
         #expect(vm.previewImage == nil)
-        #expect(vm.histogram == nil)
+        #expect(vm.histogram != nil)
     }
 
     @Test func staleRotationResultIsDiscarded() async throws {
@@ -413,6 +710,60 @@ struct DevelopViewModelTests {
         #expect(vm.canUndo == false)
     }
 
+    @Test func relativePresetApplyAddsToCurrentAndIsUndoable() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var start = DevelopParameters.neutral
+        start.exposure = 0.8
+        start.contrast = 10
+        vm.parameters = start
+        await settle()
+
+        var presetParams = DevelopParameters.neutral
+        presetParams.contrast = 20
+        presetParams.saturation = 15
+        vm.applyPreset(DevelopPreset(name: "style", parameters: presetParams, sortIndex: 0), relative: true)
+
+        // 露出は保たれ、コントラストは加算、彩度はプリセット分。
+        #expect(vm.parameters.exposure == 0.8)
+        #expect(vm.parameters.contrast == 30)
+        #expect(vm.parameters.saturation == 15)
+        #expect(vm.canUndo)
+
+        vm.undoLastApply()
+        #expect(vm.parameters.exposure == 0.8)
+        #expect(vm.parameters.contrast == 10)
+        #expect(vm.parameters.saturation == 0)
+    }
+
+    @Test func setPreviewColorSpaceReRendersWithThatSpaceOnChange() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.exposure = 0.5
+        vm.parameters = params
+        await settle()
+        let callsBeforeColorSpace = engine.previewCallCount
+
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+        vm.setPreviewColorSpace(p3)
+        await settle()
+        #expect(engine.previewCallCount > callsBeforeColorSpace)
+        #expect(engine.lastPreviewColorSpace.map { CFEqual($0, p3) } == true)
+
+        // 同じ色空間の再設定は再レンダーを起こさない。
+        let callsAfterFirst = engine.previewCallCount
+        vm.setPreviewColorSpace(p3)
+        await settle()
+        #expect(engine.previewCallCount == callsAfterFirst)
+    }
+
     @Test func copyThenPasteMovesAdjustments() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
@@ -454,7 +805,7 @@ struct DevelopViewModelTests {
             settings.schemaVersion = schemaVersion
             var params = DevelopParameters.neutral
             params.exposure = 0.5
-            settings.parameters = params
+            settings.parametersData = try DevelopSettings.encode(params)
             context.insert(settings)
             try context.save()
         }
@@ -511,6 +862,123 @@ struct DevelopViewModelTests {
         #expect(vm.canDelegateToRAWFilter == false)
     }
 
+    @Test func photoWithoutSettingsUsesManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 20
+        vm.parameters = parameters
+        await settle()
+
+        #expect(engine.lastUsesManualLensCorrection)
+    }
+
+    @Test func nonRAWVersion3SettingsCanEditManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photo) = try makeContentViewModel()
+        let settings = DevelopSettings(photoID: photo.id)
+        context.insert(settings)
+        try context.save()
+        content.loadDevelopSettings(for: photo)
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.canEditManualLensCorrection)
+    }
+
+    @Test func changingLensDistortionRendersPreview() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 20
+        vm.parameters = parameters
+        await settle()
+
+        #expect(engine.previewCallCount == 1)
+        #expect(engine.lastParameters?.lensDistortion == 20)
+    }
+
+    @Test func version2SettingsCanEditManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.canEditManualLensCorrection)
+    }
+
+    @Test func resetVersion2SettingsEnablesManualLensCorrectionForNewEdits() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(vm.canEditManualLensCorrection)
+
+        vm.reset()
+        #expect(vm.canEditManualLensCorrection)
+
+        var parameters = DevelopParameters.neutral
+        parameters.lensDistortion = 20
+        vm.parameters = parameters
+        await settle(220)
+
+        #expect(engine.lastUsesManualLensCorrection)
+    }
+
+    @Test func rawProfileLensCorrectionDisablesManualLensCorrection() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 3)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle(220)
+
+        var params = vm.parameters
+        params.lensDistortion = 20
+        params.lensCorrectionEnabled = true
+        vm.parameters = params
+        await settle(220)
+        #expect(engine.lastUsesManualLensCorrection == false)
+
+        params.lensCorrectionEnabled = false
+        vm.parameters = params
+        await settle(220)
+        #expect(engine.lastUsesManualLensCorrection)
+    }
+
+    @Test func resetVersion1RAWSettingsEnablesRAWParameterMapping() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 1)
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(vm.canDelegateToRAWFilter == false)
+
+        vm.reset()
+        #expect(vm.canDelegateToRAWFilter)
+    }
+
     @Test func draggingRAWParameterSuppressesMappingUntilRelease() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
@@ -548,6 +1016,34 @@ struct DevelopViewModelTests {
         await settle()
 
         #expect(vm.parameters == .neutral)
+        #expect(vm.previewImage == nil)
+    }
+
+    @Test func switchingToUneditedPhotoKeepsHistogram() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, editedPhoto) = try makeContentViewModel()
+        let uneditedPhoto = Photo(fileURL: URL(fileURLWithPath: "/tmp/unedited.jpg"))
+        let settings = DevelopSettings(photoID: editedPhoto.id)
+        var parameters = DevelopParameters.neutral
+        parameters.exposure = 1.0
+        settings.parameters = parameters
+        context.insert(settings)
+        context.insert(uneditedPhoto)
+        try context.save()
+        content.currentDevelopSettings = settings
+
+        let vm = makeViewModel(engine: engine, content: content)
+
+        vm.load(photo: editedPhoto, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        #expect(vm.histogram != nil)
+
+        content.currentDevelopSettings = nil
+        vm.load(photo: uneditedPhoto, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        #expect(vm.histogram != nil)
         #expect(vm.previewImage == nil)
     }
 }

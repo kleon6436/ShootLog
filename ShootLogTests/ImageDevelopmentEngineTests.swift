@@ -19,6 +19,15 @@ struct ImageDevelopmentEngineTests {
         return root
     }
 
+    /// テストごとに隔離した現像ベースキャッシュを持つエンジン。
+    /// 実ユーザーの develop-base-v1 へ書き込ませない。
+    private func makeEngine(in sandbox: URL) -> ImageDevelopmentEngine {
+        ImageDevelopmentEngine(
+            baseCacheDirectory: sandbox.appendingPathComponent("engine-base-cache", isDirectory: true),
+            baseCacheMaxBytes: .max
+        )
+    }
+
     /// R/G が位置で変化し B が一定の、決定論的なカラー画像。
     private func makeColorImage(width: Int, height: Int) throws -> CGImage {
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
@@ -63,6 +72,18 @@ struct ImageDevelopmentEngineTests {
         ))
         CGImageDestinationAddImage(destination, image, nil)
         #expect(CGImageDestinationFinalize(destination))
+    }
+
+    @discardableResult
+    private func writeJPEG(width: Int, height: Int, in sandbox: URL) throws -> URL {
+        let image = try makeColorImage(width: width, height: height)
+        let url = sandbox.appendingPathComponent("\(UUID().uuidString).jpg")
+        let destination = try #require(CGImageDestinationCreateWithURL(
+            url as CFURL, UTType.jpeg.identifier as CFString, 1, nil
+        ))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+        return url
     }
 
     /// 全ピクセルが同じグレー値の画像。
@@ -136,8 +157,10 @@ struct ImageDevelopmentEngineTests {
 
     // MARK: - RAW 判定
 
-    @Test func rawExtensionsAreDetectedCaseInsensitively() {
-        let engine = ImageDevelopmentEngine()
+    @Test func rawExtensionsAreDetectedCaseInsensitively() throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let engine = makeEngine(in: sandbox)
         let base = URL(fileURLWithPath: "/tmp/sample")
 
         for ext in ["NEF", "dng", "Arw", "cr3", "RAF"] {
@@ -148,12 +171,87 @@ struct ImageDevelopmentEngineTests {
         }
     }
 
+    // MARK: - 撮影時ホワイトバランス
+
+    @Test func asShotNeutralForNonRAWReturnsEstimatedSample() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+
+        let sample = try #require(await engine.asShotNeutral(for: url))
+        #expect(sample.isEstimated)
+        #expect(sample.temperatureKelvin.isFinite)
+        #expect((1_000...50_000).contains(sample.temperatureKelvin))
+    }
+
+    @Test func asShotNeutralForJPEGReturnsEstimatedSample() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writeJPEG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+
+        let sample = try #require(await engine.asShotNeutral(for: url))
+        #expect(sample.isEstimated)
+    }
+
+    @Test func asShotNeutralCachesBySourceModificationTime() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+
+        let first = try #require(await engine.asShotNeutral(for: url))
+        let second = try #require(await engine.asShotNeutral(for: url))
+        #expect(first == second)
+        #expect(await engine.asShotCacheCountForTesting() == 1)
+
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: 5)], ofItemAtPath: url.path
+        )
+        _ = try #require(await engine.asShotNeutral(for: url))
+        #expect(await engine.asShotCacheCountForTesting() == 2)
+    }
+
+    @Test func rawParameterBaseCacheDoesNotUseDiskLayer() {
+        #expect(ImageDevelopmentEngine.shouldUseDiskBaseCache(bucket: 1, rawParameters: nil))
+        #expect(ImageDevelopmentEngine.shouldUseDiskBaseCache(bucket: 1, rawParameters: .neutral) == false)
+        #expect(ImageDevelopmentEngine.shouldUseDiskBaseCache(bucket: 0, rawParameters: nil) == false)
+    }
+
+    @Test func rawPreviewDecodeTargetIsCappedAtProxyLongEdge() {
+        let capped = ImageDevelopmentEngine.previewDecodeTarget(
+            8_000,
+            cropRect: CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5),
+            hasRAWParameters: true
+        )
+        #expect(capped == CGFloat(PreviewCacheStore.shared.proxyLongEdge))
+        #expect(ImageDevelopmentEngine.previewDecodeTarget(
+            8_000, cropRect: nil, hasRAWParameters: false
+        ) == 8_000)
+    }
+
+    @Test func asShotNeutralForMissingFileReturnsNil() async throws {
+        let sandbox = try makeSandbox()
+        let missing = sandbox.appendingPathComponent("does-not-exist.png")
+        let engine = makeEngine(in: sandbox)
+
+        #expect(await engine.asShotNeutral(for: missing) == nil)
+    }
+
+    /// RAW 経路は実 RAW フィクスチャ不足のため手動検証する。
+    @Test func asShotNeutralForMissingRAWReturnsNil() async throws {
+        let sandbox = try makeSandbox()
+        let missing = sandbox.appendingPathComponent("does-not-exist.dng")
+        let engine = makeEngine(in: sandbox)
+
+        #expect(await engine.asShotNeutral(for: missing) == nil)
+    }
+
     // MARK: - プレビュー
 
     @Test func neutralPreviewKeepsSourceDimensionsWhenSmallerThanTarget() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let preview = try #require(
             await engine.renderPreview(url: url, parameters: .neutral, targetMaxPixelSize: 256)
@@ -166,7 +264,7 @@ struct ImageDevelopmentEngineTests {
     @Test func previewDownscalesLargeSourceAndKeepsAspectRatio() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 600, height: 400, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let preview = try #require(
             await engine.renderPreview(url: url, parameters: .neutral, targetMaxPixelSize: 256)
@@ -184,7 +282,7 @@ struct ImageDevelopmentEngineTests {
     @Test func neutralPreviewPreservesSourceColors() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let source = try makeColorImage(width: 128, height: 96)
         let preview = try #require(
@@ -201,7 +299,7 @@ struct ImageDevelopmentEngineTests {
     @Test func positiveExposureBrightensPreview() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         var parameters = DevelopParameters.neutral
         parameters.exposure = 1.0
@@ -218,7 +316,7 @@ struct ImageDevelopmentEngineTests {
     @Test func repeatedPreviewRequestsAreConsistent() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         var parameters = DevelopParameters.neutral
         parameters.contrast = 40
@@ -238,7 +336,7 @@ struct ImageDevelopmentEngineTests {
     @Test func previewBakesRotationAndCrop() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 400, height: 200, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         // 90度回転 → 見かけ 200x400。左半分(x:0, w:0.5)を切り抜き。
         let preview = try #require(
@@ -255,7 +353,7 @@ struct ImageDevelopmentEngineTests {
     @Test func previewCropUpscalesBaseDecodeForResolution() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 2000, height: 2000, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         // 20% クロップ。ベースデコードが target まで引き上げられ、切り抜き後も解像度が保たれる。
         let crop = CGRect(x: 0.4, y: 0.4, width: 0.2, height: 0.2)
@@ -275,7 +373,7 @@ struct ImageDevelopmentEngineTests {
     @Test func renderFullKeepsSourceDimensions() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let full = try #require(await engine.renderFull(url: url, parameters: .neutral, rotation: 0, cropRect: nil))
         #expect(full.width == 128)
@@ -285,7 +383,7 @@ struct ImageDevelopmentEngineTests {
     @Test func renderFullAppliesAdjustments() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         var parameters = DevelopParameters.neutral
         parameters.exposure = 1.0
@@ -300,7 +398,7 @@ struct ImageDevelopmentEngineTests {
     @Test func adjustmentIsSizeInvariant() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 400, height: 300, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         var parameters = DevelopParameters.neutral
         parameters.exposure = 0.8
@@ -320,7 +418,7 @@ struct ImageDevelopmentEngineTests {
     @Test func renderFullQuarterRotationSwapsDimensions() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 120, height: 80, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let rotated = try #require(
             await engine.renderFull(url: url, parameters: .neutral, rotation: 90, cropRect: nil)
@@ -332,7 +430,7 @@ struct ImageDevelopmentEngineTests {
     @Test func renderFullCropReducesDimensions() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 200, height: 100, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let crop = CGRect(x: 0.25, y: 0.0, width: 0.5, height: 1.0)
         let cropped = try #require(
@@ -348,7 +446,7 @@ struct ImageDevelopmentEngineTests {
     @Test func renderFullCropIsRelativeToRotatedImage() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 200, height: 100, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let rotatedFull = try #require(
             await engine.renderFull(url: url, parameters: .neutral, rotation: 90, cropRect: nil)
@@ -380,7 +478,7 @@ struct ImageDevelopmentEngineTests {
     @Test func baseCacheInvalidatesWhenSourceFileChanges() async throws {
         let sandbox = try makeSandbox()
         let url = sandbox.appendingPathComponent("subject.png")
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         try writePNG(try makeSolidImage(gray: 40, size: 64), to: url)
         let dark = try #require(
@@ -400,12 +498,72 @@ struct ImageDevelopmentEngineTests {
         #expect(try meanLuma(of: light) > darkLuma + 80)
     }
 
+    @Test func neutralBaseCachePersistsLosslesslyAcrossEngineInstances() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 640, height: 400, in: sandbox)
+        let cacheDirectory = sandbox.appendingPathComponent("develop-base", isDirectory: true)
+        let firstEngine = ImageDevelopmentEngine(baseCacheDirectory: cacheDirectory, baseCacheMaxBytes: .max)
+
+        let first = try #require(
+            await firstEngine.renderPreview(url: source, parameters: .neutral, targetMaxPixelSize: 256)
+        )
+        await firstEngine.waitForBaseCacheWritesForTesting()
+        #expect(try FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
+            .contains { $0.pathExtension == "png" })
+
+        let reloadedEngine = ImageDevelopmentEngine(baseCacheDirectory: cacheDirectory, baseCacheMaxBytes: .max)
+        let reloaded = try #require(
+            await reloadedEngine.renderPreview(url: source, parameters: .neutral, targetMaxPixelSize: 256)
+        )
+        #expect(try rgbaBytes(of: reloaded) == rgbaBytes(of: first))
+    }
+
+    @Test func developBaseCacheEvictsOldestDiskEntry() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let firstSource = try writePNG(width: 640, height: 400, in: sandbox)
+        let secondSource = try writePNG(width: 641, height: 400, in: sandbox)
+        let cacheDirectory = sandbox.appendingPathComponent("develop-base", isDirectory: true)
+        let writer = ImageDevelopmentEngine(baseCacheDirectory: cacheDirectory, baseCacheMaxBytes: .max)
+
+        _ = try #require(await writer.renderPreview(
+            url: firstSource, parameters: .neutral, targetMaxPixelSize: 256
+        ))
+        await writer.waitForBaseCacheWritesForTesting()
+        let firstFile = try #require(
+            try FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil).first
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceReferenceDate: 1)], ofItemAtPath: firstFile.path
+        )
+
+        _ = try #require(await writer.renderPreview(
+            url: secondSource, parameters: .neutral, targetMaxPixelSize: 256
+        ))
+        await writer.waitForBaseCacheWritesForTesting()
+        let files = try FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
+        let secondFile = try #require(files.first { $0 != firstFile })
+        let maxBytes = max(
+            try #require(firstFile.resourceValues(forKeys: [.fileSizeKey]).fileSize),
+            try #require(secondFile.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceReferenceDate: 2)], ofItemAtPath: secondFile.path
+        )
+
+        let limiter = ImageDevelopmentEngine(baseCacheDirectory: cacheDirectory, baseCacheMaxBytes: maxBytes)
+        await limiter.warmUpCaches()
+        let remaining = try FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
+        #expect(remaining == [secondFile])
+    }
+
     // MARK: - 出力カラースペース
 
     @Test func renderFullDefaultsToSRGBOutput() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 64, height: 48, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         let output = try #require(
             await engine.renderFull(url: url, parameters: .neutral, rotation: 0, cropRect: nil)
@@ -417,7 +575,7 @@ struct ImageDevelopmentEngineTests {
     @Test func renderFullHonorsRequestedOutputColorSpace() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 64, height: 48, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
         let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
 
         let output = try #require(
@@ -428,10 +586,10 @@ struct ImageDevelopmentEngineTests {
         #expect((output.colorSpace?.name as String?) == (CGColorSpace.displayP3 as String))
     }
 
-    @Test func renderPreviewStaysSRGBRegardlessOfExportSetting() async throws {
+    @Test func renderPreviewDefaultsToSRGB() async throws {
         let sandbox = try makeSandbox()
         let url = try writePNG(width: 128, height: 96, in: sandbox)
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         var params = DevelopParameters.neutral
         params.exposure = 0.5
@@ -441,12 +599,67 @@ struct ImageDevelopmentEngineTests {
         #expect((preview.colorSpace?.name as String?) == (CGColorSpace.sRGB as String))
     }
 
+    @Test func renderPreviewHonorsRequestedDisplayColorSpace() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+
+        var params = DevelopParameters.neutral
+        params.saturation = 100   // 色域外へ振ってエンコード差が出るようにする
+
+        let sRGBPreview = try #require(
+            await engine.renderPreview(
+                url: url, parameters: params, targetMaxPixelSize: 256,
+                previewColorSpace: nil
+            )
+        )
+        let p3Preview = try #require(
+            await engine.renderPreview(
+                url: url, parameters: params, targetMaxPixelSize: 256,
+                previewColorSpace: p3
+            )
+        )
+
+        #expect((sRGBPreview.colorSpace?.name as String?) == (CGColorSpace.sRGB as String))
+        #expect((p3Preview.colorSpace?.name as String?) == (CGColorSpace.displayP3 as String))
+
+        // 同じ色でも P3 と sRGB では原色が違うため、ネイティブ空間でのエンコード値が変わる。
+        let sRGBFallback = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        func nativeMean(of image: CGImage) -> (r: Double, g: Double, b: Double) {
+            let width = image.width
+            let height = image.height
+            let space = image.colorSpace ?? sRGBFallback
+            var buffer = [UInt8](repeating: 0, count: width * height * 4)
+            _ = buffer.withUnsafeMutableBytes { raw in
+                CGContext(
+                    data: raw.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                    bytesPerRow: width * 4, space: space,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                )?.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            }
+            var totals = (0.0, 0.0, 0.0)
+            let count = Double(width * height)
+            for index in stride(from: 0, to: buffer.count, by: 4) {
+                totals.0 += Double(buffer[index])
+                totals.1 += Double(buffer[index + 1])
+                totals.2 += Double(buffer[index + 2])
+            }
+            return (totals.0 / count, totals.1 / count, totals.2 / count)
+        }
+
+        let sRGBMean = nativeMean(of: sRGBPreview)
+        let p3Mean = nativeMean(of: p3Preview)
+        let delta = abs(sRGBMean.r - p3Mean.r) + abs(sRGBMean.g - p3Mean.g) + abs(sRGBMean.b - p3Mean.b)
+        #expect(delta > 3)
+    }
+
     // MARK: - 失敗系
 
     @Test func missingFileReturnsNilInsteadOfCrashing() async throws {
         let sandbox = try makeSandbox()
         let missing = sandbox.appendingPathComponent("does-not-exist.png")
-        let engine = ImageDevelopmentEngine()
+        let engine = makeEngine(in: sandbox)
 
         #expect(await engine.renderPreview(
             url: missing, parameters: .neutral, targetMaxPixelSize: 256

@@ -33,6 +33,12 @@ struct HistogramDataTests {
         ))
     }
 
+    private func bins(_ value: Int = 0, at index: Int = 0) -> [Int] {
+        var bins = Array(repeating: 0, count: HistogramData.binCount)
+        bins[index] = value
+        return bins
+    }
+
     @Test func emptyHistogramHasZeroedBins() {
         let empty = HistogramData.empty
         #expect(empty.red.count == HistogramData.binCount)
@@ -68,5 +74,80 @@ struct HistogramDataTests {
         let histogram = try #require(await HistogramData.make(from: image))
         #expect(histogram.blue.reduce(0, +) == 70)
         #expect(histogram.luminance.reduce(0, +) == 70)
+    }
+
+    @Test func clippingFlagsTrackIndividualRGBAndLuminanceEdges() {
+        var red = Array(repeating: 0, count: HistogramData.binCount)
+        let green = red
+        var blue = red
+        var luminance = red
+        red[255] = 1
+        blue[0] = 1
+        luminance[255] = 1
+        let histogram = HistogramData(red: red, green: green, blue: blue, luminance: luminance)
+
+        #expect(histogram.hasHighlightClipping)
+        #expect(histogram.hasShadowClipping)
+        #expect(histogram.hasLuminanceHighlightClipping)
+        #expect(!histogram.hasLuminanceShadowClipping)
+    }
+
+    @Test func clippingBelowFractionThresholdIsIgnored() {
+        let pixelCount = 100_000
+        let luminance = bins(pixelCount, at: 128)
+        let highlightHistogram = HistogramData(
+            red: bins(50, at: 255),
+            green: bins(),
+            blue: bins(),
+            luminance: luminance
+        )
+        let shadowHistogram = HistogramData(
+            red: bins(),
+            green: bins(),
+            blue: bins(50, at: 0),
+            luminance: luminance
+        )
+
+        #expect(!highlightHistogram.hasHighlightClipping)
+        #expect(!shadowHistogram.hasShadowClipping)
+    }
+
+    @Test func clippingAtOrAboveFractionThresholdWarns() {
+        let pixelCount = 100_000
+        let luminance = bins(pixelCount, at: 128)
+        let highlightHistogram = HistogramData(
+            red: bins(150, at: 255),
+            green: bins(),
+            blue: bins(),
+            luminance: luminance
+        )
+        let shadowHistogram = HistogramData(
+            red: bins(),
+            green: bins(100, at: 0),
+            blue: bins(),
+            luminance: luminance
+        )
+
+        #expect(highlightHistogram.hasHighlightClipping)
+        #expect(shadowHistogram.hasShadowClipping)
+    }
+
+    @Test func emptyHistogramHasNoClipping() {
+        let histogram = HistogramData.empty
+
+        #expect(!histogram.hasHighlightClipping)
+        #expect(!histogram.hasShadowClipping)
+        #expect(!histogram.hasLuminanceHighlightClipping)
+        #expect(!histogram.hasLuminanceShadowClipping)
+        #expect(histogram.pixelCount == 0)
+    }
+
+    @Test func pixelCountMatchesLuminanceTotal() async throws {
+        let width = 10
+        let height = 7
+        let image = try solidImage(width: width, height: height, r: 10, g: 20, b: 30)
+        let histogram = try #require(await HistogramData.make(from: image))
+
+        #expect(histogram.pixelCount == width * height)
     }
 }

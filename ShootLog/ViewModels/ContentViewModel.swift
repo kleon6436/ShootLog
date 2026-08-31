@@ -30,6 +30,10 @@ final class ContentViewModel {
     var photos: [Photo] = []
     var selectedPhoto: Photo?
     var isLoading = false
+    /// バックグラウンドのプレビュープロキシ生成の残件数。0 のとき表示しない。
+    private(set) var previewGenerationRemaining = 0
+    // キャンセル済みバッチから遅れて届く進捗コールバックを無視するための世代番号。
+    var previewGenerationToken = 0
     var error: (any Error)?
     var toastMessage: String?
 
@@ -128,6 +132,25 @@ final class ContentViewModel {
 
     // グリッドの初期表示に必要な可視セル数の目安。この件数までは即時にinsert/saveする
     static let initialPhotoBatchSize = 50
+
+    func updatePreviewGenerationProgress(done: Int, total: Int) {
+        previewGenerationRemaining = max(0, total - done)
+    }
+
+    func beginPreviewGeneration() -> Int {
+        previewGenerationToken &+= 1
+        clearPreviewGenerationProgress()
+        return previewGenerationToken
+    }
+
+    func clearPreviewGenerationProgress() {
+        previewGenerationRemaining = 0
+    }
+
+    func cancelPreviewGeneration() {
+        previewGenerationToken &+= 1
+        clearPreviewGenerationProgress()
+    }
 
     // 段階挿入の2回目以降で1度に処理する件数
     static let photoStagingChunkSize = 100

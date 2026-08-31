@@ -17,6 +17,19 @@ struct HistogramData: Sendable, Equatable {
 
     static let binCount = 256
 
+    /// クリッピング警告を出す端ビン（0 / 255）の最小画素割合。
+    /// 1画素の鏡面ハイライトや少数の光源では点灯させず、意味のある白飛び・黒潰れだけを警告する。
+    /// 割合基準なのでプレビュー解像度とフル解像度で判定が一致する。
+    static let clippingPixelFraction = 0.001   // 0.1%
+
+    /// ヒストグラムに集計された総画素数。
+    var pixelCount: Int { luminance.reduce(0, +) }
+
+    var hasHighlightClipping: Bool { exceedsClipThreshold(red.last, green.last, blue.last) }
+    var hasShadowClipping: Bool { exceedsClipThreshold(red.first, green.first, blue.first) }
+    var hasLuminanceHighlightClipping: Bool { exceedsClipThreshold(luminance.last) }
+    var hasLuminanceShadowClipping: Bool { exceedsClipThreshold(luminance.first) }
+
     /// 全ビン 0 の空ヒストグラム。
     static let empty = HistogramData(
         red: Array(repeating: 0, count: binCount),
@@ -33,6 +46,12 @@ struct HistogramData: Sendable, Equatable {
     }
 
     // MARK: - Private
+
+    /// 渡された端ビンのいずれかがクリッピングしきい値以上か。
+    private func exceedsClipThreshold(_ bins: Int?...) -> Bool {
+        let threshold = max(1, Int((Double(pixelCount) * Self.clippingPixelFraction).rounded()))
+        return bins.contains { ($0 ?? 0) >= threshold }
+    }
 
     private static func compute(from image: CGImage) -> HistogramData? {
         let width = image.width
