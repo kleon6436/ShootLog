@@ -2508,6 +2508,35 @@
         }
       }
     },
+    "develop.previewGeneration.progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Generating previews: %lld"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Generating previews: %lld"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビュー生成中 %lld枚"
+          }
+        }
+      }
+    },
     "develop.preset.apply" : {
       "extractionState" : "manual",
       "localizations" : {

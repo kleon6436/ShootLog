@@ -126,6 +126,7 @@ final class SidebarViewModel: ContentViewModelProxy {
     }
 
     var isLoading: Bool { content.isLoading }
+    var previewGenerationRemaining: Int { content.previewGenerationRemaining }
     var toastMessage: String? { content.toastMessage }
     var isSelectedPhotoFavorite: Bool { content.selectedPhoto?.isFavorite ?? false }
 

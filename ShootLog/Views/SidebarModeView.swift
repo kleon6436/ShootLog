@@ -78,6 +78,16 @@ struct SidebarModeView: View {
                         .padding(Spacing.medium)
                         .glassOrMaterial(cornerRadius: CornerRadius.medium)
                         .padding(.bottom, Spacing.medium)
+                } else if vm.previewGenerationRemaining > 0 {
+                    ProgressView(
+                        String(
+                            format: String(localized: "develop.previewGeneration.progress"),
+                            Int64(vm.previewGenerationRemaining)
+                        )
+                    )
+                    .padding(Spacing.medium)
+                    .glassOrMaterial(cornerRadius: CornerRadius.medium)
+                    .padding(.bottom, Spacing.medium)
                 }
             }
     }
