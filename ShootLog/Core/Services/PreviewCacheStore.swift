@@ -161,11 +161,14 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     }
 
     private func cacheKey(for url: URL) async -> String {
-        await Task.detached(priority: .utility) {
+        // proxyLongEdge を混ぜることで、設定でプロキシ解像度を変えても
+        // 旧解像度のファイルが誤ってヒットしない（旧ファイルは孤児となり eviction で消える）。
+        let proxyLongEdge = proxyLongEdge
+        return await Task.detached(priority: .utility) {
             let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
             let modificationDate = (attributes?[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0
             let fileSize = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
-            let source = "\(url.absoluteString)|\(modificationDate)|\(fileSize)"
+            let source = "\(url.absoluteString)|\(modificationDate)|\(fileSize)|\(proxyLongEdge)"
             return SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
         }.value
     }

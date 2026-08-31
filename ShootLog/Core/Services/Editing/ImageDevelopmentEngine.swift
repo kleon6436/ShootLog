@@ -411,6 +411,22 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         }.value
     }
 
+    /// 設定画面の「ディスクキャッシュを削除」から呼ぶ。現像ベースのメモリ・ディスク双方を空にする。
+    /// 撮影時 WB のメモリキャッシュも落とす（`Photo` の永続値は消さない）。
+    func clearDiskCaches() async {
+        baseImageCache.removeAll()
+        baseCacheOrder.removeAll()
+        asShotCache.removeAll()
+        asShotCacheOrder.removeAll()
+        let directory = baseCacheDirectory
+        await Task.detached(priority: .utility) {
+            guard let files = try? FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: nil
+            ) else { return }
+            for file in files { try? FileManager.default.removeItem(at: file) }
+        }.value
+    }
+
     /// テストが非同期ディスク書き込みの完了を待つためのフック。
     func waitForBaseCacheWritesForTesting() async {
         let tasks = Array(baseCacheWriteTasks.values)

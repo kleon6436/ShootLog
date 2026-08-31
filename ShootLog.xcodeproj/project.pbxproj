@@ -100,6 +100,7 @@
 		A38831FB309A43EC53C4634B /* CoreMLSuperResolutionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F728D910332DF193BEAD261 /* CoreMLSuperResolutionEngine.swift */; };
 		A4A3FF41CB4E1088D57B922D /* HSLColorCube.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D3C806C67C80D794675C819 /* HSLColorCube.swift */; };
 		A71903CDC4FB9D908259A1C9 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D54B7A657E5C95915EC1419C /* EmptyStateView.swift */; };
+		A9C0F639646C4A8407D691F6 /* HighResPrefetcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054483E7B11E5E1051F6A23B /* HighResPrefetcherTests.swift */; };
 		AA83ED5B262EE3DF3C4D0512 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6536D3FE43A4B25BDD7E78BD /* ImageLoader.swift */; };
 		AE6A82C6C24B772C10BFDC8A /* FinderAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16B48462D59123CF5C95947 /* FinderAdapter.swift */; };
 		B505DA43EF5FB9371CE5910B /* ShootLogError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55E9767345E935E9D60FD6F /* ShootLogError.swift */; };
@@ -162,6 +163,7 @@
 
 /* Begin PBXFileReference section */
 		000D375D3F1E2FDF11670761 /* ExportColorSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportColorSpace.swift; sourceTree = "<group>"; };
+		054483E7B11E5E1051F6A23B /* HighResPrefetcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighResPrefetcherTests.swift; sourceTree = "<group>"; };
 		0875AA31E08C99CEEBFA3D73 /* ShootLog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShootLog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A83DBE9107D998FD6C6C202 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0AA343AB9889208D28018E38 /* UpscaleOutputDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpscaleOutputDestination.swift; sourceTree = "<group>"; };
@@ -504,6 +506,7 @@
 				574D62AB2BE53760390585D9 /* DevelopSettingsTests.swift */,
 				51221DFACE1BBB2B84647042 /* DevelopViewModelTests.swift */,
 				40C45C35D791261F17559956 /* EXIFPanelViewModelTests.swift */,
+				054483E7B11E5E1051F6A23B /* HighResPrefetcherTests.swift */,
 				FA84F5C47F603BB722131E64 /* HistogramDataTests.swift */,
 				1BC2B610E9622F0C94503759 /* HSLColorCubeTests.swift */,
 				488F26B8E28E635D94B979A9 /* ImageDevelopmentEngineTests.swift */,
@@ -803,6 +806,7 @@
 				E77784B2E1E9F9BE6D2704A8 /* DevelopViewModelTests.swift in Sources */,
 				EC9429A149799C331B048C6E /* EXIFPanelViewModelTests.swift in Sources */,
 				86731DDD42F6EB1472364E38 /* HSLColorCubeTests.swift in Sources */,
+				A9C0F639646C4A8407D691F6 /* HighResPrefetcherTests.swift in Sources */,
 				213AE90D275DF66A574FFF3C /* HistogramDataTests.swift in Sources */,
 				84696CDF04461CE1C9C42B3C /* ImageDevelopmentEngineTests.swift in Sources */,
 				7F3652AD06A2722AAD9B5EA3 /* LensCorrectionFilterTests.swift in Sources */,
