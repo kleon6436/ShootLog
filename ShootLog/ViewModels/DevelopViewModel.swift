@@ -41,8 +41,14 @@ final class DevelopViewModel {
     var isShowingBefore = false
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
     private(set) var whiteBalanceStatusMessage: String?
-    /// プレビュー上のクリッピング状態をヒストグラムに表示するか。
-    var showsClippingWarnings = true
+    /// プレビュー上のクリッピング状態をビューア帯・ヒストグラム凡例に表示するか。
+    /// 選択は UserDefaults(AppSettingsKeys.developClippingWarnings) へ永続化する。
+    var showsClippingWarnings: Bool {
+        didSet {
+            guard showsClippingWarnings != oldValue else { return }
+            UserDefaults.standard.set(showsClippingWarnings, forKey: AppSettingsKeys.developClippingWarnings)
+        }
+    }
 
     /// リセット可能か（何らかの調整が入っている）。
     var canReset: Bool { !parameters.isNeutral }
@@ -132,6 +138,8 @@ final class DevelopViewModel {
         self.content = content
         self.renderDebounce = renderDebounce
         self.persistDebounce = persistDebounce
+        self.showsClippingWarnings = UserDefaults.standard.object(forKey: AppSettingsKeys.developClippingWarnings) as? Bool
+            ?? AppSettingsKeys.developClippingWarningsDefault
     }
 
     // MARK: - ライフサイクル

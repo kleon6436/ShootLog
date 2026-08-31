@@ -176,6 +176,29 @@ struct DevelopViewModelTests {
 
     // MARK: - テスト
 
+    @Test func defaultIsClippingWarningsOff() {
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+
+        let vm = DevelopViewModel(content: nil)
+
+        #expect(vm.showsClippingWarnings == false)
+
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+    }
+
+    @Test func clippingWarningsChoicePersists() {
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+        let vm = DevelopViewModel(content: nil)
+        vm.showsClippingWarnings = true
+
+        #expect(UserDefaults.standard.object(forKey: AppSettingsKeys.developClippingWarnings) as? Bool == true)
+
+        let restored = DevelopViewModel(content: nil)
+        #expect(restored.showsClippingWarnings == true)
+
+        UserDefaults.standard.removeObject(forKey: AppSettingsKeys.developClippingWarnings)
+    }
+
     @Test func neutralLoadRendersHistogramOnly() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
