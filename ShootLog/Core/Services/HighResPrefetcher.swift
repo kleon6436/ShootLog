@@ -1,6 +1,6 @@
 import Foundation
 
-// 選択中写真の前後1枚を先読みしてImageLoaderのキャッシュへ載せるための共通処理。
+// 選択中写真の前後1枚を先読みしてプレビュープロキシのキャッシュへ載せるための共通処理。
 // ビューア（PhotoViewerView / EditablePhotoView）とスライドショー（SlideshowViewModel）が
 // 同じ挙動を共有できるよう、先読みの実装をここ1か所に集約する
 enum HighResPrefetcher {
@@ -9,18 +9,18 @@ enum HighResPrefetcher {
     // 写真を連続で送った際に通り過ぎた写真の先読みを（開始前に）打ち切るデバウンスとして働く
     private static let startDelay = Duration.milliseconds(250)
 
-    // 指定URLの高解像度画像をキャッシュへ載せる。戻り値は破棄する（View更新はトリガーしない）。
-    // targetMaxPixelSize は既定値のまま呼び、本表示と同じキャッシュキーへ載せる。
+    // 指定URLのプレビュープロキシをキャッシュへ載せる。戻り値は破棄する（View更新はトリガーしない）。
+    // 固定解像度のため、本表示と同じキャッシュキーへ載せられる。
     //
     // キャンセルで打ち切れるのは「まだ開始していないURL」までである点に注意する。
-    // ImageLoader.highResImage 内部のデコードは Task.detached で走りキャンセルを継承しないため、
+    // ImageLoader.proxyImage 内部のデコードは Task.detached で走りキャンセルを継承しないため、
     // 開始済みの1枚分は最後まで実行される
     static func prefetch(urls: [URL]) async {
         guard !urls.isEmpty else { return }
         try? await Task.sleep(for: startDelay)
         for url in urls {
             guard !Task.isCancelled else { return }
-            _ = await ImageLoader.shared.highResImage(for: url)
+            _ = await ImageLoader.shared.proxyImage(for: url)
         }
     }
 
