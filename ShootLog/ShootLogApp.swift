@@ -26,6 +26,7 @@ struct ShootLogApp: App {
                     Task.detached(priority: .utility) {
                         _ = ImageLoader.shared
                         await PreviewCacheStore.shared.warmUp()
+                        await ImageDevelopmentEngine.shared.warmUpCaches()
                     }
                 }
         }

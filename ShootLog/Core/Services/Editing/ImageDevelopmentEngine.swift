@@ -1,5 +1,6 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import CryptoKit
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -81,6 +82,17 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     static let shared = ImageDevelopmentEngine()
 
+    static let defaultBaseCacheDirectory: URL = {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("com.shootlog.app/develop-base-v1", isDirectory: true)
+    }()
+
+    // UserDefaults.integer(forKey:) は未設定時に 0 を返すため、既定値へフォールバックする。
+    static let storedBaseCacheMaxBytes: Int = {
+        let stored = UserDefaults.standard.integer(forKey: AppSettingsKeys.developBaseCacheMaxBytes)
+        return stored > 0 ? stored : AppSettingsKeys.developBaseCacheMaxBytesDefault
+    }()
+
     /// CIContext はスレッドセーフで生成コストが高いため共有する。
     /// 露出・ハイライト/シャドウ・ノイズ低減はリニア光前提の演算のため、作業空間はリニア sRGB。
     /// ガンマ空間で処理すると `ev = 1` が物理的な 1 段（2 倍）にならない。出力は sRGB。
@@ -105,9 +117,10 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     /// Stage A キャッシュのサイズバケット幅（px）。要求解像度をこの刻みへ切り上げてキーにする。
     private static let bucketStep: CGFloat = 512
-    /// Stage A キャッシュの最大エントリ数。RAW の露出・WB 委譲でパラメータ違いのデコードが増えるため
-    /// 直近の値を数件保持できるようにする（写真 2 枚 × パラメータ 3 状態を想定）。
-    private static let cacheLimit = 6
+    /// Stage A キャッシュの最大エントリ数。中立ベースはディスクにも退避するが、編集中の写真を往復しても
+    /// 再読み込みを避けるため 24 件を保持する（3200px sRGB で最大およそ 650MB）。
+    private static let cacheLimit = 24
+    private static let asShotCacheLimit = 64
 
     /// ベースデコード結果のキャッシュキー。フル解像度（bucket 0）はキャッシュ対象外。
     /// `modifiedAt` を含めることで、同じパスのファイルが外部で差し替えられても
@@ -123,6 +136,20 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     private var baseImageCache: [BaseKey: CGImage] = [:]
     /// `baseImageCache` のアクセス順（先頭が最古）。上限超過時の LRU 退避に使う。
     private var baseCacheOrder: [BaseKey] = []
+    private let baseCacheDirectory: URL
+    private let baseCacheMaxBytes: Int
+    private var baseCacheWriteTasks: [UUID: Task<Void, Never>] = [:]
+
+    private var asShotCache: [String: WhiteBalanceSample] = [:]
+    private var asShotCacheOrder: [String] = []
+
+    init(
+        baseCacheDirectory: URL = ImageDevelopmentEngine.defaultBaseCacheDirectory,
+        baseCacheMaxBytes: Int = ImageDevelopmentEngine.storedBaseCacheMaxBytes
+    ) {
+        self.baseCacheDirectory = baseCacheDirectory
+        self.baseCacheMaxBytes = max(0, baseCacheMaxBytes)
+    }
 
     // MARK: - RAW 判定
 
@@ -132,6 +159,11 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     /// 撮影時ホワイトバランスを返す。RAW はデコーダーの as-shot 値を、非 RAW はメタデータまたは画像から推定する。
     func asShotNeutral(for url: URL) async -> WhiteBalanceSample? {
+        let cacheKey = asShotCacheKey(for: url)
+        if let cached = asShotCache[cacheKey] {
+            touchAsShotCache(cacheKey)
+            return cached
+        }
         let isRAWImage = isRAW(url: url)
         let handle = Task.detached(priority: .userInitiated) { () -> WhiteBalanceSample? in
             _ = url.startAccessingSecurityScopedResource()
@@ -166,11 +198,15 @@ actor ImageDevelopmentEngine: ImageDeveloping {
                 isEstimated: true
             )
         }
-        return await withTaskCancellationHandler {
+        let sample = await withTaskCancellationHandler {
             await handle.value
         } onCancel: {
             handle.cancel()
         }
+        if let sample {
+            storeAsShotCache(sample, for: cacheKey)
+        }
+        return sample
     }
 
     /// Apple 標準の RAW デコード経路について、UI と保存世代が参照できる最小限の識別情報を返す。
@@ -229,9 +265,13 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
-        let decodeTarget = Self.decodeTarget(targetMaxPixelSize, cropRect: cropRect)
+        let boundedDecodeTarget = Self.previewDecodeTarget(
+            targetMaxPixelSize,
+            cropRect: cropRect,
+            hasRAWParameters: rawParameters != nil
+        )
         guard let base = await baseImage(
-            url: url, targetMaxPixelSize: decodeTarget, rawParameters: rawParameters
+            url: url, targetMaxPixelSize: boundedDecodeTarget, rawParameters: rawParameters
         ) else { return nil }
         guard !Task.isCancelled else { return nil }
         // 既定は sRGB。P3 ディスプレイ編集時のみ呼び出し側がディスプレイの色空間を渡す。
@@ -262,6 +302,19 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         let longestFraction = max(cropRect.width, cropRect.height)
         guard longestFraction > 0, longestFraction < 1 else { return target }
         return min(target / longestFraction, target * 4)
+    }
+
+    /// RAW 委譲時の Stage A デコードは、表示上必要な最大サイズを固定プロキシ相当へ抑える。
+    static func previewDecodeTarget(
+        _ target: CGFloat,
+        cropRect: CGRect?,
+        hasRAWParameters: Bool
+    ) -> CGFloat {
+        let decodeTarget = decodeTarget(target, cropRect: cropRect)
+        // フル解像度書き出しは renderFull が直接 decodeBase を呼ぶため、この制限を通らない。
+        return hasRAWParameters && decodeTarget > 0
+            ? min(decodeTarget, CGFloat(PreviewCacheStore.shared.proxyLongEdge))
+            : decodeTarget
     }
 
     /// フル解像度の現像結果を返す。回転・トリミングも焼き込む。
@@ -323,6 +376,12 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             return cached
         }
 
+        if Self.shouldUseDiskBaseCache(bucket: bucket, rawParameters: rawParameters),
+           let diskCached = await readDiskBase(for: key) {
+            store(diskCached, for: key)
+            return diskCached
+        }
+
         // デコード中は actor が中断するため、同一キーの要求が重なると二重デコードになりうる。
         // 起きても結果は同じで、後勝ちでキャッシュされるだけなので、進行中タスクの共有は行わない。
         guard let decoded = await Self.decodeBase(
@@ -333,8 +392,75 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             return nil
         }
 
-        if bucket > 0 { store(decoded, for: key) }
+        if bucket > 0 {
+            store(decoded, for: key)
+            if Self.shouldUseDiskBaseCache(bucket: bucket, rawParameters: rawParameters) {
+                scheduleDiskBaseWrite(decoded, for: key)
+            }
+        }
         return decoded
+    }
+
+    /// 起動時に現像ベースキャッシュの中断ファイルを掃除し、容量上限まで削除する。
+    func warmUpCaches() async {
+        let directory = baseCacheDirectory
+        let maxBytes = baseCacheMaxBytes
+        await Task.detached(priority: .utility) {
+            ImageFileCache.prepare(directory: directory, extensions: ["png"])
+            ImageFileCache.evict(in: directory, maxBytes: maxBytes)
+        }.value
+    }
+
+    /// テストが非同期ディスク書き込みの完了を待つためのフック。
+    func waitForBaseCacheWritesForTesting() async {
+        let tasks = Array(baseCacheWriteTasks.values)
+        for task in tasks {
+            await task.value
+        }
+    }
+
+    func asShotCacheCountForTesting() -> Int {
+        asShotCache.count
+    }
+
+    private func readDiskBase(for key: BaseKey) async -> CGImage? {
+        let directory = baseCacheDirectory
+        let diskKey = Self.diskKey(for: key)
+        let task: Task<CGImage?, Never> = Task.detached(priority: .utility) {
+            guard !Task.isCancelled else { return nil }
+            return ImageFileCache.read(forKey: diskKey, extensions: ["png"], in: directory)
+        }
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func scheduleDiskBaseWrite(_ image: CGImage, for key: BaseKey) {
+        let id = UUID()
+        let directory = baseCacheDirectory
+        let maxBytes = baseCacheMaxBytes
+        let diskKey = Self.diskKey(for: key)
+        let engine = self
+        let task = Task.detached(priority: .utility) {
+            defer {
+                Task { await engine.finishBaseCacheWrite(id) }
+            }
+            guard !Task.isCancelled else { return }
+            ImageFileCache.prepare(directory: directory, extensions: ["png"])
+            guard ImageFileCache.write(
+                image,
+                type: "public.png" as CFString,
+                to: ImageFileCache.fileURL(forKey: diskKey, extension: "png", in: directory)
+            ) else { return }
+            ImageFileCache.evict(in: directory, maxBytes: maxBytes)
+        }
+        baseCacheWriteTasks[id] = task
+    }
+
+    private func finishBaseCacheWrite(_ id: UUID) {
+        baseCacheWriteTasks.removeValue(forKey: id)
     }
 
     private func store(_ image: CGImage, for key: BaseKey) {
@@ -354,6 +480,37 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             baseCacheOrder.remove(at: index)
         }
         baseCacheOrder.append(key)
+    }
+
+    private func asShotCacheKey(for url: URL) -> String {
+        "\(url.path)|\(Self.modificationTime(of: url))"
+    }
+
+    private func storeAsShotCache(_ sample: WhiteBalanceSample, for key: String) {
+        if asShotCache[key] == nil {
+            while asShotCache.count >= Self.asShotCacheLimit, let victim = asShotCacheOrder.first {
+                asShotCacheOrder.removeFirst()
+                asShotCache.removeValue(forKey: victim)
+            }
+        }
+        asShotCache[key] = sample
+        touchAsShotCache(key)
+    }
+
+    private func touchAsShotCache(_ key: String) {
+        if let index = asShotCacheOrder.firstIndex(of: key) {
+            asShotCacheOrder.remove(at: index)
+        }
+        asShotCacheOrder.append(key)
+    }
+
+    private static func diskKey(for key: BaseKey) -> String {
+        let source = "\(key.path)|\(key.modifiedAt)|\(key.sizeBucket)"
+        return SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func shouldUseDiskBaseCache(bucket: Int, rawParameters: DevelopParameters?) -> Bool {
+        bucket > 0 && rawParameters == nil
     }
 
     /// 原本の最終更新時刻（参照日時基準の秒）。取得できなければ 0。

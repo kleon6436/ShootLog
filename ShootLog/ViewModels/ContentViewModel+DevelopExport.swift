@@ -114,7 +114,7 @@ extension ContentViewModel {
 
         do {
             let asShot = usesToneMasked
-                ? await ImageDevelopmentEngine.shared.asShotNeutral(for: photo.fileURL)
+                ? await asShotWhiteBalance(for: photo)
                 : nil
             try await exporter.export(
                 source: photo.fileURL,

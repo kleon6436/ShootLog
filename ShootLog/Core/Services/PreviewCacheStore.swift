@@ -104,17 +104,10 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
 
     /// 上限を超えた分を、最終更新日時が古いファイルから削除する。
     func evictToLimit() async {
-        let entries = await diskEntries().sorted { $0.modificationDate < $1.modificationDate }
-        var usage = entries.reduce(0) { $0 + $1.size }
-        var filesToRemove: [URL] = []
-        for entry in entries where usage > maxDiskBytes {
-            filesToRemove.append(entry.url)
-            usage -= entry.size
-        }
+        let directory = directory
+        let maxDiskBytes = maxDiskBytes
         await Task.detached(priority: .utility) {
-            for fileURL in filesToRemove {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            ImageFileCache.evict(in: directory, maxBytes: maxDiskBytes)
         }.value
     }
 
@@ -142,8 +135,7 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     /// 起動時にキャッシュディレクトリを用意し、古いエントリを上限まで削除する。
     func warmUp() async {
         await Task.detached(priority: .utility) { [directory] in
-            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            Self.removeInterruptedWriteFiles(in: directory)
+            ImageFileCache.prepare(directory: directory, extensions: ["heic", "jpg"])
         }.value
         await evictToLimit()
     }
@@ -214,14 +206,14 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     private func readDiskProxy(forKey key: String) async -> CGImage? {
         let directory = directory
         let task: Task<CGImage?, Never> = Task.detached(priority: .utility) {
-            for fileURL in Self.diskURLs(forKey: key, in: directory) {
+            for fileURL in ImageFileCache.fileURLs(forKey: key, extensions: ["heic", "jpg"], in: directory) {
                 guard !Task.isCancelled else { return nil }
                 guard FileManager.default.fileExists(atPath: fileURL.path),
                       let source = CGImageSourceCreateWithURL(fileURL as CFURL, nil),
                       let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
                     continue
                 }
-                try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
+                ImageFileCache.touch(fileURL)
                 return image
             }
             return nil as CGImage?
@@ -242,11 +234,19 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
             } catch {
                 return false
             }
-            if Self.write(image, type: "public.heic" as CFString, to: Self.diskURL(forKey: key, extension: "heic", in: directory)) {
-                try? FileManager.default.removeItem(at: Self.diskURL(forKey: key, extension: "jpg", in: directory))
+            if ImageFileCache.write(
+                image, type: "public.heic" as CFString,
+                properties: [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary,
+                to: ImageFileCache.fileURL(forKey: key, extension: "heic", in: directory)
+            ) {
+                try? FileManager.default.removeItem(at: ImageFileCache.fileURL(forKey: key, extension: "jpg", in: directory))
                 return true
-            } else if Self.write(image, type: "public.jpeg" as CFString, to: Self.diskURL(forKey: key, extension: "jpg", in: directory)) {
-                try? FileManager.default.removeItem(at: Self.diskURL(forKey: key, extension: "heic", in: directory))
+            } else if ImageFileCache.write(
+                image, type: "public.jpeg" as CFString,
+                properties: [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary,
+                to: ImageFileCache.fileURL(forKey: key, extension: "jpg", in: directory)
+            ) {
+                try? FileManager.default.removeItem(at: ImageFileCache.fileURL(forKey: key, extension: "heic", in: directory))
                 return true
             }
             return false
@@ -261,41 +261,25 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     private func removeDiskFiles(forKey key: String) async {
         let directory = directory
         await Task.detached(priority: .utility) {
-            for fileURL in Self.diskURLs(forKey: key, in: directory) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            ImageFileCache.remove(forKey: key, extensions: ["heic", "jpg"], in: directory)
         }.value
     }
 
     private func touchDiskProxy(forKey key: String) {
         let directory = directory
         Task.detached(priority: .utility) {
-            for fileURL in Self.diskURLs(forKey: key, in: directory)
+            for fileURL in ImageFileCache.fileURLs(forKey: key, extensions: ["heic", "jpg"], in: directory)
             where FileManager.default.fileExists(atPath: fileURL.path) {
-                try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
+                ImageFileCache.touch(fileURL)
                 return
             }
         }
     }
 
-    private func diskEntries() async -> [DiskEntry] {
+    private func diskEntries() async -> [ImageFileCache.DiskEntry] {
         let directory = directory
         return await Task.detached(priority: .utility) {
-            let keys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey]
-            guard let files = try? FileManager.default.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: Array(keys)
-            ) else { return [] }
-            return files.compactMap { fileURL in
-                guard let values = try? fileURL.resourceValues(forKeys: keys), values.isRegularFile == true else {
-                    return nil
-                }
-                return DiskEntry(
-                    url: fileURL,
-                    size: values.fileSize ?? 0,
-                    modificationDate: values.contentModificationDate ?? .distantPast
-                )
-            }
+            ImageFileCache.entries(in: directory)
         }.value
     }
 
@@ -316,68 +300,6 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
             kCGImageSourceShouldCacheImmediately: false
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary)
-    }
-
-    private static func write(_ image: CGImage, type: CFString, to url: URL) -> Bool {
-        let temporaryURL = url.deletingPathExtension()
-            .appendingPathExtension("\(UUID().uuidString).\(url.pathExtension)")
-        guard let destination = CGImageDestinationCreateWithURL(temporaryURL as CFURL, type, 1, nil) else {
-            return false
-        }
-        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary)
-        guard CGImageDestinationFinalize(destination) else {
-            try? FileManager.default.removeItem(at: temporaryURL)
-            return false
-        }
-
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: url.path) {
-            if (try? fileManager.replaceItemAt(url, withItemAt: temporaryURL)) != nil {
-                return true
-            }
-        } else if (try? fileManager.moveItem(at: temporaryURL, to: url)) != nil {
-            return true
-        }
-
-        try? fileManager.removeItem(at: temporaryURL)
-        // 同一キーを並行生成した別タスクが先に置換していれば、その完成済みプロキシを採用する。
-        return fileManager.fileExists(atPath: url.path)
-    }
-
-    private static func diskURLs(forKey key: String, in directory: URL) -> [URL] {
-        [
-            diskURL(forKey: key, extension: "heic", in: directory),
-            diskURL(forKey: key, extension: "jpg", in: directory)
-        ]
-    }
-
-    private static func diskURL(forKey key: String, extension fileExtension: String, in directory: URL) -> URL {
-        directory.appendingPathComponent(key).appendingPathExtension(fileExtension)
-    }
-
-    private static func removeInterruptedWriteFiles(in directory: URL) {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil
-        ) else { return }
-
-        for fileURL in files where isInterruptedWriteFile(fileURL) {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-    }
-
-    private static func isInterruptedWriteFile(_ url: URL) -> Bool {
-        let fileExtension = url.pathExtension.lowercased()
-        guard fileExtension == "heic" || fileExtension == "jpg" else { return false }
-
-        let components = url.deletingPathExtension().lastPathComponent.split(separator: ".")
-        guard components.count == 2,
-              components[0].count == 64,
-              components[0].allSatisfy({ $0.isHexDigit }),
-              UUID(uuidString: String(components[1])) != nil else {
-            return false
-        }
-        return true
     }
 
     private func estimatedCost(of image: CGImage) -> Int {
@@ -432,10 +354,4 @@ private final class CGImageBox {
     init(_ image: CGImage) {
         self.image = image
     }
-}
-
-private struct DiskEntry: Sendable {
-    let url: URL
-    let size: Int
-    let modificationDate: Date
 }
