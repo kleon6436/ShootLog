@@ -15,6 +15,8 @@ enum AppSettingsKeys {
     static let folderHistoryLimit = "generalSettings.folderHistoryLimit"
     // サイドバーモードの右インスペクタで最後に開いていたタブ（InspectorTab の rawValue）
     static let inspectorTab = "sidebar.inspectorTab"
+    // 現像編集: プレビュー上のクリッピング警告帯・ヒストグラム凡例ドットを表示するか
+    static let developClippingWarnings = "develop.clippingWarnings"
 
     static let defaultViewModeIDDefault = "sidebar"
     static let defaultFavoritesOnlyDefault = false
@@ -23,6 +25,7 @@ enum AppSettingsKeys {
     static let slideshowIntervalDefault = 3.0
     static let networkConcurrencyDefault = 4
     static let folderHistoryLimitDefault = 10
+    static let developClippingWarningsDefault = false
 }
 
 // サムネイル画質プリセット。rawValue がそのまま最大ピクセルサイズを表し、UserDefaultsへ保存される
