@@ -32,6 +32,9 @@ struct UpscaleExporter: Sendable {
     ///   - source: 原本ファイル
     ///   - destination: 保存先（`NSSavePanel` が返した URL）
     ///   - rotation: `EditInfo.rotation` 由来の 0 / 90 / 180 / 270
+    ///   - cropRect: `EditInfo.cropRect` 由来の正規化トリミング矩形（回転適用後に表示されている
+    ///     画像基準・左上原点・0...1）。`nil` でトリミングなし。原本を回転前に切り抜いてから
+    ///     回転・拡大するため、`DevelopExporter` 経由（現像→超解像チェーン）と同じ構図になる。
     ///   - currentFolder: 現在開いているフォルダ（防御1に使う）
     ///   - folderPhotoURLs: 現在フォルダ内の写真 URL 一覧（防御2に使う）
     ///   - jpegQuality: JPEG の圧縮品質（0.0〜1.0）。JPEG 以外の形式では無視される
@@ -39,6 +42,7 @@ struct UpscaleExporter: Sendable {
         source: URL,
         destination: URL,
         rotation: Int,
+        cropRect: CGRect? = nil,
         currentFolder: URL?,
         folderPhotoURLs: [URL],
         jpegQuality: Double,
@@ -50,7 +54,10 @@ struct UpscaleExporter: Sendable {
             photoURLs: folderPhotoURLs
         )
 
-        let input = try await Self.decodeFullResolution(from: source)
+        let decoded = try await Self.decodeFullResolution(from: source)
+        // 回転前の原本を、表示画像基準の矩形へ逆変換して切り抜く。以降のバッファ確保・上限判定は
+        // 切り抜き後の画素数で行われるため、トリミング済み写真を等倍以上へ拡大できる。
+        let input = Self.cropped(decoded, toDisplayRect: cropRect, rotation: rotation)
         let outputPixels = input.width * input.height * engine.scaleFactor * engine.scaleFactor
         try Self.validateOutputSize(pixelCount: outputPixels)
 
@@ -100,6 +107,51 @@ struct UpscaleExporter: Sendable {
             isTrainedAlgorithmicMedia: descriptor.isTrainedAlgorithmicMedia,
             jpegQuality: jpegQuality
         )
+    }
+
+    // MARK: - トリミング
+
+    /// 「回転適用後に表示されている画像」を基準にした正規化トリミング矩形を、
+    /// 回転前の原本 `CGImage` のピクセル矩形へ逆変換して切り抜く。
+    ///
+    /// 原本を切り抜いてから回転・拡大しても、回転してから切り抜いた構図と一致する
+    /// （回転と切り抜きは座標変換の下で可換）。矩形基準は `CropViewModel.normalizedRect` /
+    /// `ImageDevelopmentEngine.applyCrop` と同じ（左上原点・0...1）。
+    static func cropped(_ image: CGImage, toDisplayRect cropRect: CGRect?, rotation: Int) -> CGImage {
+        guard let cropRect,
+              cropRect != CGRect(x: 0, y: 0, width: 1, height: 1),
+              cropRect.width > 0, cropRect.height > 0 else {
+            return image
+        }
+
+        let normalized = ((rotation % 360) + 360) % 360
+        let x = cropRect.minX
+        let y = cropRect.minY
+        let w = cropRect.width
+        let h = cropRect.height
+
+        // 表示画像 → 原本（回転前）の正規化矩形。90 度刻みなので軸並行のまま。
+        let sourceRect: CGRect
+        switch normalized {
+        case 90:  sourceRect = CGRect(x: y, y: 1 - x - w, width: h, height: w)
+        case 180: sourceRect = CGRect(x: 1 - x - w, y: 1 - y - h, width: w, height: h)
+        case 270: sourceRect = CGRect(x: 1 - y - h, y: x, width: h, height: w)
+        default:  sourceRect = CGRect(x: x, y: y, width: w, height: h)
+        }
+
+        let pixelRect = CGRect(
+            x: sourceRect.minX * CGFloat(image.width),
+            y: sourceRect.minY * CGFloat(image.height),
+            width: sourceRect.width * CGFloat(image.width),
+            height: sourceRect.height * CGFloat(image.height)
+        ).integral
+        let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let clamped = pixelRect.intersection(bounds)
+        guard !clamped.isNull, clamped.width >= 1, clamped.height >= 1,
+              let result = image.cropping(to: clamped) else {
+            return image
+        }
+        return result
     }
 
     // MARK: - 上限チェック

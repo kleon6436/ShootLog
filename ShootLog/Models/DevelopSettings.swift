@@ -12,19 +12,24 @@ import SwiftData
 /// - 1: RAW も含めすべて標準 `CIFilter` チェーンで解釈する（v1）。
 /// - 2: RAW のとき露出・色温度・色かぶりを `CIRAWFilter` 側へ委譲して解釈する（v2）。
 ///   version 1 の既存レコードは 1 のまま描画し、色が変わらないようにする。
+/// - 3: 手動レンズ補正（歪曲・周辺光量・色収差）を解釈する（v3 Phase 5）。version 2 のレコードは
+///   編集時に以降の現行世代へ自動更新される（手動レンズ値は既定 0 で見た目を変えない）。version 1 は据え置き。
+/// - 4: 絶対 Kelvin/Tint とモードを持つホワイトバランスを保存する。旧値は従来の相対経路を維持する。
+/// - 5: カラーグレーディングをトーン域マスク方式（Metal カーネル）で解釈する。version 2〜4 のレコードは
+///   編集時に 5 へ自動更新される（カラーグレーディング未使用時の見た目は不変）。version 1 は据え置き。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
     var photoID: UUID = UUID()
     /// `JSONEncoder().encode(DevelopParameters)` の結果。
     var parametersData: Data = DevelopSettings.encodedNeutral()
-    /// blob の解釈世代。新規レコードは 2。
+    /// blob の解釈世代。新規レコードは 5。
     var schemaVersion: Int = DevelopSettings.currentSchemaVersion
     /// 調整値を最後に更新した時刻。
     var updatedAt: Date = Date.now
 
     /// 新規レコードが名乗る世代。
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 5
 
     /// 中立状態のレコードを生成する。
     init(photoID: UUID) {
@@ -36,6 +41,13 @@ final class DevelopSettings {
 
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈する世代か。
     var usesRAWParameterMapping: Bool { schemaVersion >= 2 }
+
+    /// 手動レンズ補正（`DevelopParameters.lensDistortion` 等）を編集・適用できる世代か。
+    /// version 2 以降は編集時に現行世代へ自動更新されるため許可する。version 1 は据え置き。
+    var usesManualLensCorrection: Bool { schemaVersion >= 2 }
+
+    /// カラーグレーディングをトーン域マスク方式（Metal カーネル）で適用する世代か。
+    var usesToneMaskedColorGrading: Bool { schemaVersion >= 5 }
 
     /// 保持している調整値。
     ///
@@ -57,6 +69,9 @@ final class DevelopSettings {
         let encoded = try DevelopSettings.encode(newValue)
         parametersData = encoded
         updatedAt = .now
+        // version 2〜4 のレコードは編集時に現行世代へ引き上げる。追加された値は中立が既定のため
+        // 既存の見た目を変えない。version 1 は据え置き（v1→v2 は露出・WB 委譲が入るため）。
+        if (2...4).contains(schemaVersion) { schemaVersion = Self.currentSchemaVersion }
     }
 
     /// `DevelopParameters` を JSON エンコードする。NaN / Inf を含む場合など `JSONEncoder` は throw する。

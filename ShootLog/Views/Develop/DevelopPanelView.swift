@@ -11,9 +11,24 @@ struct DevelopPanelView: View {
             VStack(alignment: .leading, spacing: Spacing.large) {
                 DevelopPresetBar(developViewModel: developViewModel)
 
-                HistogramView(data: developViewModel.histogram)
+                HistogramView(
+                    data: developViewModel.histogram,
+                    showsClippingWarnings: developViewModel.showsClippingWarnings
+                )
 
-                DevelopSection("develop.section.basic") {
+                Toggle("develop.clipping.showWarnings", isOn: $developViewModel.showsClippingWarnings)
+                    .toggleStyle(.checkbox)
+
+                Button(
+                    developViewModel.isShowingBefore ? "develop.beforeAfter.showAfter" : "develop.beforeAfter.showBefore",
+                    systemImage: "rectangle.split.2x1"
+                ) {
+                    developViewModel.toggleBeforeAfter()
+                }
+                .keyboardShortcut("b", modifiers: [.command, .option])
+                .accessibilityLabel("develop.beforeAfter")
+
+                DevelopSectionCard("develop.section.basic", reset: sectionReset(.basic)) {
                     AdjustmentSlider(
                         label: "develop.exposure",
                         value: $developViewModel.parameters.exposure,
@@ -29,22 +44,14 @@ struct DevelopPanelView: View {
                     AdjustmentSlider(label: "develop.brightness", value: $developViewModel.parameters.brightness)
                 }
 
-                DevelopSection("develop.section.color") {
-                    AdjustmentSlider(
-                        label: "develop.temperature",
-                        value: $developViewModel.parameters.temperature,
-                        onEditingChanged: { developViewModel.setRAWParameterDragging($0) }
-                    )
-                    AdjustmentSlider(
-                        label: "develop.tint",
-                        value: $developViewModel.parameters.tint,
-                        onEditingChanged: { developViewModel.setRAWParameterDragging($0) }
-                    )
+                WhiteBalanceSection(developViewModel: developViewModel)
+
+                DevelopSectionCard("develop.section.color", reset: sectionReset(.color)) {
                     AdjustmentSlider(label: "develop.vibrance", value: $developViewModel.parameters.vibrance)
                     AdjustmentSlider(label: "develop.saturation", value: $developViewModel.parameters.saturation)
                 }
 
-                DevelopSection("develop.section.toneCurve") {
+                DevelopSectionCard("develop.section.toneCurve", reset: sectionReset(.toneCurve)) {
                     ToneCurveEditorView(
                         rgb: $developViewModel.parameters.toneCurveRGB,
                         red: $developViewModel.parameters.toneCurveRed,
@@ -53,7 +60,7 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                DevelopSection("develop.section.hsl") {
+                DevelopSectionCard("develop.section.hsl", reset: sectionReset(.hsl)) {
                     HSLBandEditorView(
                         hue: $developViewModel.parameters.hslHue,
                         saturation: $developViewModel.parameters.hslSaturation,
@@ -61,7 +68,11 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                DevelopSection("develop.section.detail") {
+                DevelopSectionCard("develop.section.detail", reset: sectionReset(.detail)) {
+                    AdjustmentSlider(label: "develop.clarity", value: $developViewModel.parameters.clarity)
+                    AdjustmentSlider(label: "develop.structure", value: $developViewModel.parameters.structure)
+                    AdjustmentSlider(label: "develop.dehaze", value: $developViewModel.parameters.dehaze)
+                    AdjustmentSlider(label: "develop.vignette", value: $developViewModel.parameters.vignette)
                     AdjustmentSlider(
                         label: "develop.sharpness",
                         value: $developViewModel.parameters.sharpness,
@@ -79,13 +90,60 @@ struct DevelopPanelView: View {
                     )
                 }
 
-                if developViewModel.canDelegateToRAWFilter {
-                    DevelopSection("develop.section.lens") {
-                        Toggle(
-                            "develop.lens.correction",
-                            isOn: $developViewModel.parameters.lensCorrectionEnabled
+                ColorGradingEditorView(
+                    settings: $developViewModel.parameters.colorBalance,
+                    reset: sectionReset(.colorGrading)
+                )
+
+                DevelopSectionCard("develop.section.blackAndWhite", reset: sectionReset(.blackAndWhite)) {
+                    Toggle("develop.blackAndWhite.enabled", isOn: $developViewModel.parameters.blackAndWhiteEnabled)
+                    let bandKeys = [
+                        "develop.hsl.band.red", "develop.hsl.band.orange", "develop.hsl.band.yellow",
+                        "develop.hsl.band.green", "develop.hsl.band.aqua", "develop.hsl.band.blue"
+                    ]
+                    ForEach(0..<6, id: \.self) { index in
+                        AdjustmentSlider(
+                            label: LocalizedStringKey(bandKeys[index]),
+                            value: Binding(
+                                get: { developViewModel.parameters.bwMix.indices.contains(index) ? developViewModel.parameters.bwMix[index] : 0 },
+                                set: { value in
+                                    guard developViewModel.parameters.bwMix.indices.contains(index) else { return }
+                                    developViewModel.parameters.bwMix[index] = value
+                                }
+                            )
                         )
-                        .accessibilityLabel("develop.lens.correction")
+                    }
+                }
+
+                if developViewModel.canDelegateToRAWFilter || developViewModel.canEditManualLensCorrection {
+                    DevelopSectionCard("develop.section.lens", reset: sectionReset(.lens)) {
+                        if developViewModel.canDelegateToRAWFilter {
+                            Toggle(
+                                "develop.lens.correction",
+                                isOn: $developViewModel.parameters.lensCorrectionEnabled
+                            )
+                            .accessibilityLabel("develop.lens.correction")
+                        }
+
+                        if developViewModel.canEditManualLensCorrection {
+                            AdjustmentSlider(
+                                label: "develop.lens.distortion",
+                                value: $developViewModel.parameters.lensDistortion
+                            )
+                            AdjustmentSlider(
+                                label: "develop.lens.vignette",
+                                value: $developViewModel.parameters.lensVignette
+                            )
+                            AdjustmentSlider(
+                                label: "develop.lens.chromaticAberration",
+                                value: $developViewModel.parameters.lensChromaticAberration
+                            )
+                        } else if developViewModel.canDelegateToRAWFilter
+                            && developViewModel.parameters.lensCorrectionEnabled {
+                            Text("develop.lens.handledByRAWFilter")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -106,27 +164,11 @@ struct DevelopPanelView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-}
 
-/// パネル内のセクションカード。EXIF パネルの `EXIFCard` と視覚言語を揃える。
-private struct DevelopSection<Content: View>: View {
-    let title: LocalizedStringKey
-    @ViewBuilder let content: () -> Content
-
-    init(_ title: LocalizedStringKey, @ViewBuilder content: @escaping () -> Content) {
-        self.title = title
-        self.content = content
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.small) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.medium)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+    private func sectionReset(_ section: DevelopSection) -> (isEnabled: Bool, action: () -> Void) {
+        (
+            isEnabled: developViewModel.parameters.isModified(in: section),
+            action: { developViewModel.resetSection(section) }
+        )
     }
 }

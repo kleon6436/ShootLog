@@ -21,7 +21,7 @@ struct SettingsView: View {
                 }
         }
         // 高さは「一般」タブの5セクションがスクロールなしで収まる値に合わせる
-        .frame(width: 460, height: 520)
+        .frame(width: 460, height: 600)
     }
 }
 
@@ -42,11 +42,35 @@ private struct GeneralSettingsTab: View {
     private var thumbnailQualityRaw = ThumbnailQuality.standard.rawValue
     @AppStorage(AppSettingsKeys.networkConcurrency)
     private var networkConcurrency = AppSettingsKeys.networkConcurrencyDefault
+    @AppStorage(AppSettingsKeys.previewProxyLongEdge)
+    private var previewProxyLongEdge = AppSettingsKeys.previewProxyLongEdgeDefault
+    @AppStorage(AppSettingsKeys.previewCacheMaxBytes)
+    private var previewCacheMaxBytes = AppSettingsKeys.previewCacheMaxBytesDefault
+    @AppStorage(AppSettingsKeys.developBaseCacheMaxBytes)
+    private var developBaseCacheMaxBytes = AppSettingsKeys.developBaseCacheMaxBytesDefault
     @AppStorage(AppSettingsKeys.folderHistoryLimit)
     private var folderHistoryLimit = AppSettingsKeys.folderHistoryLimitDefault
 
     @State private var showClearCacheConfirm = false
     @State private var showQualityChangeNotice = false
+
+    // プレビュー解像度の選択肢（長辺px）。24〜45MPの全画面Retina表示で劣化を感じにくい範囲。
+    private static let previewProxyOptions = [2560, 3200, 4096]
+    private static let bytesPerGB = 1024 * 1024 * 1024
+
+    // UserDefaults にはバイト数で保存し、UI では GB 単位で増減する
+    private var previewCacheLimitGB: Binding<Int> {
+        Binding(
+            get: { max(1, previewCacheMaxBytes / Self.bytesPerGB) },
+            set: { previewCacheMaxBytes = $0 * Self.bytesPerGB }
+        )
+    }
+    private var developBaseCacheLimitGB: Binding<Int> {
+        Binding(
+            get: { max(1, developBaseCacheMaxBytes / Self.bytesPerGB) },
+            set: { developBaseCacheMaxBytes = $0 * Self.bytesPerGB }
+        )
+    }
 
     var body: some View {
         Form {
@@ -85,12 +109,28 @@ private struct GeneralSettingsTab: View {
                     value: $networkConcurrency, in: 1...8
                 )
                 .accessibilityLabel("a11y.settings.networkConcurrency")
+                Picker("settings.previewResolution", selection: $previewProxyLongEdge) {
+                    ForEach(Self.previewProxyOptions, id: \.self) { edge in
+                        Text(verbatim: "\(edge) px").tag(edge)
+                    }
+                }
+                .accessibilityLabel("settings.previewResolution")
                 Text("settings.performance.note")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Section("settings.section.cache") {
+                Stepper(
+                    "settings.previewCacheLimit \(previewCacheLimitGB.wrappedValue)",
+                    value: previewCacheLimitGB, in: 1...32
+                )
+                .accessibilityLabel("a11y.settings.previewCacheLimit")
+                Stepper(
+                    "settings.developBaseCacheLimit \(developBaseCacheLimitGB.wrappedValue)",
+                    value: developBaseCacheLimitGB, in: 1...16
+                )
+                .accessibilityLabel("a11y.settings.developBaseCacheLimit")
                 Button("settings.cache.clear", role: .destructive) {
                     showClearCacheConfirm = true
                 }
@@ -105,8 +145,11 @@ private struct GeneralSettingsTab: View {
         .formStyle(.grouped)
         .alert("settings.cache.clear.confirm.title", isPresented: $showClearCacheConfirm) {
             Button("common.delete", role: .destructive) {
+                // サムネイル・プレビュープロキシ・現像ベースの3キャッシュをまとめて削除する。
                 // ファイル削除はMainActor外で実行する
                 Task.detached(priority: .utility) { ImageLoader.shared.clearDiskCache() }
+                Task { await PreviewCacheStore.shared.clearAll() }
+                Task { await ImageDevelopmentEngine.shared.clearDiskCaches() }
             }
             Button("common.cancel", role: .cancel) {}
         } message: {

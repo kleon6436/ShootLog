@@ -19,6 +19,10 @@ struct RAWDevelopMappingTests {
         wbChanged.temperature = 20
         #expect(RAWDevelopMapping.decodeHash(wbChanged) != baseHash)
 
+        var absoluteWBChanged = DevelopParameters.neutral
+        absoluteWBChanged.whiteBalance = .preset(.tungsten)
+        #expect(RAWDevelopMapping.decodeHash(absoluteWBChanged) != baseHash)
+
         var lensChanged = DevelopParameters.neutral
         lensChanged.lensCorrectionEnabled = true
         #expect(RAWDevelopMapping.decodeHash(lensChanged) != baseHash)
@@ -41,6 +45,10 @@ struct RAWDevelopMappingTests {
         var tint = DevelopParameters.neutral
         tint.tint = -15
         #expect(RAWDevelopMapping.hasEffect(tint))
+
+        var absoluteWB = DevelopParameters.neutral
+        absoluteWB.whiteBalance = .preset(.daylight)
+        #expect(RAWDevelopMapping.hasEffect(absoluteWB))
 
         var lens = DevelopParameters.neutral
         lens.lensCorrectionEnabled = true

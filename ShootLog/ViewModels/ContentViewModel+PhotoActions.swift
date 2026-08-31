@@ -95,16 +95,45 @@ extension ContentViewModel {
 
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する
     func loadEXIFIfNeeded(for photo: Photo) async {
-        guard photo.exifFetchedAt == nil else { return }
-        let url = photo.fileURL
-        do {
-            let exif = try await EXIFService.shared.readEXIF(from: url)
-            apply(exif, to: photo)
-            // バックグラウンドのEXIF取得処理。失敗しても一覧表示は継続するためAlert化しない
-            try? modelContext?.save()
-        } catch {
-            // EXIF 読み取り失敗は非致命的。無視する
+        if photo.exifFetchedAt == nil {
+            let url = photo.fileURL
+            do {
+                let exif = try await EXIFService.shared.readEXIF(from: url)
+                apply(exif, to: photo)
+                // バックグラウンドのEXIF取得処理。失敗しても一覧表示は継続するためAlert化しない
+                try? modelContext?.save()
+            } catch {
+                // EXIF 読み取り失敗は非致命的。無視する
+            }
         }
+        _ = await asShotWhiteBalance(for: photo)
+    }
+
+    /// 永続値を優先して撮影時ホワイトバランスを返し、未取得時は画像から取得して保存する。
+    func asShotWhiteBalance(for photo: Photo) async -> WhiteBalanceSample? {
+        if photo.asShotWhiteBalanceFetchedAt != nil {
+            guard let temperature = photo.asShotTemperatureKelvin,
+                  let tint = photo.asShotTint,
+                  let isEstimated = photo.asShotWhiteBalanceIsEstimated else {
+                return nil
+            }
+            return WhiteBalanceSample(
+                temperatureKelvin: temperature,
+                tint: tint,
+                isEstimated: isEstimated
+            )
+        }
+
+        let sample = await ImageDevelopmentEngine.shared.asShotNeutral(for: photo.fileURL)
+        if let sample {
+            photo.asShotTemperatureKelvin = sample.temperatureKelvin
+            photo.asShotTint = sample.tint
+            photo.asShotWhiteBalanceIsEstimated = sample.isEstimated
+        }
+        // 取得不能も記録し、ファイルが壊れている場合に選択のたび再試行しない。
+        photo.asShotWhiteBalanceFetchedAt = Date()
+        try? modelContext?.save()
+        return sample
     }
 
     // 読み取った EXIF を Photo へ反映する（保存は呼び出し側でまとめて行う）

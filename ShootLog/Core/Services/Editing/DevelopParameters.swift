@@ -47,6 +47,19 @@ enum HSLBand: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// 現像パネルのセクション区分。各セクションを中立へ戻すリセットの単位。
+enum DevelopSection: String, CaseIterable, Sendable {
+    case basic
+    case whiteBalance
+    case color
+    case toneCurve
+    case hsl
+    case detail
+    case colorGrading
+    case blackAndWhite
+    case lens
+}
+
 /// RAW 現像 / 非破壊編集の全調整値をまとめた値型。
 ///
 /// ピクセルは保持せず、この値を表示・書き出し時にパイプラインへ渡して適用する。
@@ -70,10 +83,23 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     // MARK: 色
 
     /// 色温度。as-shot（撮影時ホワイトバランス）からのオフセット（範囲目安 -100...100）。
+    /// schema v3以前の永続値を再現するため残す。新規編集は `whiteBalance` を使う。
     var temperature: Double = 0
     var tint: Double = 0
+    var whiteBalance: WhiteBalanceSettings = .neutral
     var vibrance: Double = 0
     var saturation: Double = 0
+
+    // MARK: クリエイティブ調整
+
+    var clarity: Double = 0
+    var structure: Double = 0
+    var dehaze: Double = 0
+    var vignette: Double = 0
+    var blackAndWhiteEnabled = false
+    /// red / orange / yellow / green / aqua / blue の順。B&W有効時だけ効く。
+    var bwMix: [Double] = Array(repeating: 0, count: 6)
+    var colorBalance: ColorBalanceSettings = .neutral
 
     // MARK: トーンカーブ（正規化 0...1 の制御点列。既定は恒等カーブ）
 
@@ -99,12 +125,25 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     /// `CIRAWFilter` のプロファイルベースのレンズ補正（歪曲・周辺光量・色収差）を有効にするか。
     /// RAW かつ `DevelopSettings.schemaVersion` >= 2 のときだけ効く。非 RAW では無視。
     var lensCorrectionEnabled: Bool = false
+    /// 手動の歪曲補正量（-100...100）。非 RAW / プロファイル無し RAW 向け。
+    /// `DevelopSettings.schemaVersion` >= 2 で適用。version 2 は編集時に 3 へ自動更新される。
+    /// `LensCorrectionFilter.corrected` の distortion に対応。
+    var lensDistortion: Double = 0
+    /// 手動の周辺光量補正量（-100...100）。同上。`corrected` の vignette に対応。
+    var lensVignette: Double = 0
+    /// 手動の色収差補正量（-100...100）。同上。`corrected` の chromaticAberration に対応。
+    var lensChromaticAberration: Double = 0
 
     /// すべて既定値の中立状態。
     static let neutral = DevelopParameters()
 
     /// 一切の調整が加えられていないか。
     var isNeutral: Bool { self == .neutral }
+
+    /// 手動レンズ補正のいずれかが効いているか。
+    var hasManualLensCorrection: Bool {
+        lensDistortion != 0 || lensVignette != 0 || lensChromaticAberration != 0
+    }
 
     /// 指定した帯域の HSL 調整量を取り出す。配列が不正で範囲外の場合は (0, 0, 0) を返す。
     func hslAdjustment(for band: HSLBand) -> (hue: Double, saturation: Double, luminance: Double) {
@@ -115,6 +154,220 @@ struct DevelopParameters: Codable, Equatable, Sendable {
             return (0, 0, 0)
         }
         return (hslHue[index], hslSaturation[index], hslLuminance[index])
+    }
+}
+
+// MARK: - 相対適用（プリセットの差分重ね）
+
+extension DevelopParameters {
+
+    /// 指定セクションに何らかの調整が入っているか（リセットボタンの活性判定）。
+    func isModified(in section: DevelopSection) -> Bool {
+        let neutral = Self.neutral
+        return switch section {
+        case .basic:
+            exposure != neutral.exposure || contrast != neutral.contrast || highlights != neutral.highlights
+                || shadows != neutral.shadows || whites != neutral.whites || blacks != neutral.blacks
+                || brightness != neutral.brightness
+        case .whiteBalance:
+            temperature != neutral.temperature || tint != neutral.tint || whiteBalance != neutral.whiteBalance
+        case .color:
+            vibrance != neutral.vibrance || saturation != neutral.saturation
+        case .toneCurve:
+            !ToneCurve.isIdentity(toneCurveRGB) || !ToneCurve.isIdentity(toneCurveRed)
+                || !ToneCurve.isIdentity(toneCurveGreen) || !ToneCurve.isIdentity(toneCurveBlue)
+        case .hsl:
+            hslHue != neutral.hslHue || hslSaturation != neutral.hslSaturation
+                || hslLuminance != neutral.hslLuminance
+        case .detail:
+            clarity != neutral.clarity || structure != neutral.structure || dehaze != neutral.dehaze
+                || vignette != neutral.vignette || sharpness != neutral.sharpness
+                || luminanceNoiseReduction != neutral.luminanceNoiseReduction
+                || colorNoiseReduction != neutral.colorNoiseReduction
+        case .colorGrading:
+            colorBalance != neutral.colorBalance
+        case .blackAndWhite:
+            blackAndWhiteEnabled != neutral.blackAndWhiteEnabled || bwMix != neutral.bwMix
+        case .lens:
+            lensCorrectionEnabled != neutral.lensCorrectionEnabled || lensDistortion != neutral.lensDistortion
+                || lensVignette != neutral.lensVignette || lensChromaticAberration != neutral.lensChromaticAberration
+        }
+    }
+
+    /// 指定セクションの値だけを中立へ戻す。他セクションには触れない。
+    mutating func reset(_ section: DevelopSection) {
+        switch section {
+        case .basic:
+            exposure = 0
+            contrast = 0
+            highlights = 0
+            shadows = 0
+            whites = 0
+            blacks = 0
+            brightness = 0
+        case .whiteBalance:
+            temperature = 0
+            tint = 0
+            whiteBalance = .neutral
+        case .color:
+            vibrance = 0
+            saturation = 0
+        case .toneCurve:
+            toneCurveRGB = CurvePoint.identity
+            toneCurveRed = CurvePoint.identity
+            toneCurveGreen = CurvePoint.identity
+            toneCurveBlue = CurvePoint.identity
+        case .hsl:
+            hslHue = Array(repeating: 0, count: HSLBand.allCases.count)
+            hslSaturation = Array(repeating: 0, count: HSLBand.allCases.count)
+            hslLuminance = Array(repeating: 0, count: HSLBand.allCases.count)
+        case .detail:
+            clarity = 0
+            structure = 0
+            dehaze = 0
+            vignette = 0
+            sharpness = 0
+            luminanceNoiseReduction = 0
+            colorNoiseReduction = 0
+        case .colorGrading:
+            colorBalance = .neutral
+        case .blackAndWhite:
+            blackAndWhiteEnabled = false
+            bwMix = Array(repeating: 0, count: 6)
+        case .lens:
+            lensCorrectionEnabled = false
+            lensDistortion = 0
+            lensVignette = 0
+            lensChromaticAberration = 0
+        }
+    }
+
+    /// この調整値の上に `delta` を差分として重ねた結果を返す（プリセットの相対適用）。
+    ///
+    /// - 加算系（露出・コントラスト・HSL 各帯域・シャープ・ノイズ低減 等）は加算し、
+    ///   各パラメータの実用レンジ（露出 ±3 EV、その他 ±100）へクランプする。
+    /// - トーンカーブは関数合成: `self` のカーブを適用してから `delta` のカーブを適用した合成カーブ。
+    /// - `lensCorrectionEnabled` は OR（`delta` で有効化はできるが無効化はしない）。
+    /// - `delta` が中立なら `self` をそのまま返す。加算系のみ可換（トーンカーブ合成は順序に依存）。
+    func applying(delta: DevelopParameters) -> DevelopParameters {
+        guard !delta.isNeutral else { return self }
+
+        var result = self
+        result.exposure = Self.clampExposure(exposure + delta.exposure)
+        result.contrast = Self.clampUnit(contrast + delta.contrast)
+        result.highlights = Self.clampUnit(highlights + delta.highlights)
+        result.shadows = Self.clampUnit(shadows + delta.shadows)
+        result.whites = Self.clampUnit(whites + delta.whites)
+        result.blacks = Self.clampUnit(blacks + delta.blacks)
+        result.brightness = Self.clampUnit(brightness + delta.brightness)
+
+        result.temperature = Self.clampUnit(temperature + delta.temperature)
+        result.tint = Self.clampUnit(tint + delta.tint)
+        result.whiteBalance = Self.applyingWhiteBalance(base: whiteBalance, delta: delta.whiteBalance)
+        result.vibrance = Self.clampUnit(vibrance + delta.vibrance)
+        result.saturation = Self.clampUnit(saturation + delta.saturation)
+
+        result.clarity = Self.clampUnit(clarity + delta.clarity)
+        result.structure = Self.clampUnit(structure + delta.structure)
+        result.dehaze = Self.clampUnit(dehaze + delta.dehaze)
+        result.vignette = Self.clampUnit(vignette + delta.vignette)
+        result.blackAndWhiteEnabled = blackAndWhiteEnabled || delta.blackAndWhiteEnabled
+        result.bwMix = Self.addValues(bwMix, delta.bwMix, count: 6)
+        result.colorBalance = delta.colorBalance.isNeutral ? colorBalance : colorBalance.adding(delta.colorBalance)
+
+        result.toneCurveRGB = Self.compose(base: toneCurveRGB, then: delta.toneCurveRGB)
+        result.toneCurveRed = Self.compose(base: toneCurveRed, then: delta.toneCurveRed)
+        result.toneCurveGreen = Self.compose(base: toneCurveGreen, then: delta.toneCurveGreen)
+        result.toneCurveBlue = Self.compose(base: toneCurveBlue, then: delta.toneCurveBlue)
+
+        result.hslHue = Self.addBands(hslHue, delta.hslHue)
+        result.hslSaturation = Self.addBands(hslSaturation, delta.hslSaturation)
+        result.hslLuminance = Self.addBands(hslLuminance, delta.hslLuminance)
+
+        result.sharpness = Self.clampUnit(sharpness + delta.sharpness)
+        result.luminanceNoiseReduction = Self.clampUnit(luminanceNoiseReduction + delta.luminanceNoiseReduction)
+        result.colorNoiseReduction = Self.clampUnit(colorNoiseReduction + delta.colorNoiseReduction)
+
+        result.lensCorrectionEnabled = lensCorrectionEnabled || delta.lensCorrectionEnabled
+        result.lensDistortion = Self.clampUnit(lensDistortion + delta.lensDistortion)
+        result.lensVignette = Self.clampUnit(lensVignette + delta.lensVignette)
+        result.lensChromaticAberration = Self.clampUnit(lensChromaticAberration + delta.lensChromaticAberration)
+        return result
+    }
+
+    /// 合成カーブのサンプル数。8bit 入出力に対しては 17 点の等間隔サンプルで十分。
+    private static let composeSampleCount = 17
+
+    private static func clampUnit(_ value: Double) -> Double {
+        if value.isNaN { return 0 }
+        return min(max(value, -100), 100)
+    }
+
+    private static func clampExposure(_ value: Double) -> Double {
+        if value.isNaN { return 0 }
+        return min(max(value, -3), 3)
+    }
+
+    /// 8 帯域配列を要素ごとに加算し、各要素を ±100 へクランプする。長さ不一致は 0 埋めで揃える。
+    private static func addBands(_ base: [Double], _ delta: [Double]) -> [Double] {
+        let count = HSLBand.allCases.count
+        return (0..<count).map { index in
+            let b = base.indices.contains(index) ? base[index] : 0
+            let d = delta.indices.contains(index) ? delta[index] : 0
+            return clampUnit(b + d)
+        }
+    }
+
+    private static func addValues(_ base: [Double], _ delta: [Double], count: Int) -> [Double] {
+        (0..<count).map { index in
+            let b = base.indices.contains(index) ? base[index] : 0
+            let d = delta.indices.contains(index) ? delta[index] : 0
+            return clampUnit(b + d)
+        }
+    }
+
+    private static func applyingWhiteBalance(
+        base: WhiteBalanceSettings, delta: WhiteBalanceSettings
+    ) -> WhiteBalanceSettings {
+        guard delta.mode != .asShot else { return base }
+        guard delta.mode == .auto || delta.mode == .custom else { return delta }
+        var result = delta
+        if delta.mode == .custom, base.mode == .custom {
+            result.temperatureKelvin = base.temperatureKelvin + (delta.temperatureKelvin - 6_500)
+            result.tint = base.tint + delta.tint
+            result.normalize()
+        }
+        return result
+    }
+
+    /// `base` を適用してから `then` を適用した合成カーブの制御点列を返す。
+    /// どちらかが恒等ならもう一方をそのまま返す。
+    private static func compose(base: [CurvePoint], then next: [CurvePoint]) -> [CurvePoint] {
+        if ToneCurve.isIdentity(next) { return base }
+        if ToneCurve.isIdentity(base) { return next }
+
+        let n = composeSampleCount
+        let baseSamples = ToneCurve.sampled(base, count: n)   // base(x) の等間隔サンプル
+        let nextSamples = ToneCurve.sampled(next, count: n)   // next(x) の等間隔サンプル
+        let denominator = Double(n - 1)
+
+        return (0..<n).map { index in
+            let x = Double(index) / denominator
+            let intermediate = baseSamples.indices.contains(index) ? baseSamples[index] : x
+            let y = sampleLinear(nextSamples, at: intermediate)   // next(base(x))
+            return CurvePoint(x: x, y: min(max(y, 0), 1))
+        }
+    }
+
+    /// 等間隔サンプル列を 0...1 の位置で線形補間する。
+    private static func sampleLinear(_ samples: [Double], at position: Double) -> Double {
+        guard samples.count >= 2 else { return position }
+        let clamped = min(max(position, 0), 1)
+        let scaled = clamped * Double(samples.count - 1)
+        let lower = Int(scaled.rounded(.down))
+        let upper = min(lower + 1, samples.count - 1)
+        let fraction = scaled - Double(lower)
+        return samples[lower] * (1 - fraction) + samples[upper] * fraction
     }
 }
 
@@ -133,8 +386,16 @@ extension DevelopParameters {
         case brightness
         case temperature
         case tint
+        case whiteBalance
         case vibrance
         case saturation
+        case clarity
+        case structure
+        case dehaze
+        case vignette
+        case blackAndWhiteEnabled
+        case bwMix
+        case colorBalance
         case toneCurveRGB
         case toneCurveRed
         case toneCurveGreen
@@ -146,6 +407,9 @@ extension DevelopParameters {
         case luminanceNoiseReduction
         case colorNoiseReduction
         case lensCorrectionEnabled
+        case lensDistortion
+        case lensVignette
+        case lensChromaticAberration
     }
 
     /// HSL 配列を必ず 8 要素へ揃える。不足は 0 埋め、超過は切り捨てる。
@@ -156,6 +420,12 @@ extension DevelopParameters {
         if result.count < expected {
             result.append(contentsOf: Array(repeating: 0, count: expected - result.count))
         }
+        return result
+    }
+
+    private static func normalizedValues(_ values: [Double], count: Int) -> [Double] {
+        var result = Array(values.prefix(count))
+        if result.count < count { result.append(contentsOf: repeatElement(0, count: count - result.count)) }
         return result
     }
 
@@ -191,6 +461,13 @@ extension DevelopParameters {
             return Self.normalizedBands(raw)
         }
 
+        func values(_ key: CodingKeys, count: Int) -> [Double] {
+            guard let raw = try? container.decodeIfPresent([Double].self, forKey: key) else {
+                return Array(repeating: 0, count: count)
+            }
+            return Self.normalizedValues(raw, count: count)
+        }
+
         self.init()
 
         exposure = double(.exposure)
@@ -203,8 +480,17 @@ extension DevelopParameters {
 
         temperature = double(.temperature)
         tint = double(.tint)
+        whiteBalance = (try? container.decodeIfPresent(WhiteBalanceSettings.self, forKey: .whiteBalance)) ?? .neutral
+        whiteBalance.normalize()
         vibrance = double(.vibrance)
         saturation = double(.saturation)
+        clarity = double(.clarity)
+        structure = double(.structure)
+        dehaze = double(.dehaze)
+        vignette = double(.vignette)
+        blackAndWhiteEnabled = bool(.blackAndWhiteEnabled)
+        bwMix = values(.bwMix, count: 6)
+        colorBalance = (try? container.decodeIfPresent(ColorBalanceSettings.self, forKey: .colorBalance)) ?? .neutral
 
         toneCurveRGB = curve(.toneCurveRGB)
         toneCurveRed = curve(.toneCurveRed)
@@ -219,5 +505,8 @@ extension DevelopParameters {
         luminanceNoiseReduction = double(.luminanceNoiseReduction)
         colorNoiseReduction = double(.colorNoiseReduction)
         lensCorrectionEnabled = bool(.lensCorrectionEnabled)
+        lensDistortion = double(.lensDistortion)
+        lensVignette = double(.lensVignette)
+        lensChromaticAberration = double(.lensChromaticAberration)
     }
 }

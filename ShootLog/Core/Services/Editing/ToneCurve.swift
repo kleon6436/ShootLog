@@ -12,6 +12,59 @@ enum ToneCurve {
     /// 恒等判定・制御点の重複除去・端点補完に用いる x 座標の許容誤差。
     private static let epsilon = 1e-6
 
+    /// 新しい制御点を挿入できる位置へ正規化・クランプする。
+    ///
+    /// 端点の内側に十分な余白があり、左右の既存点との最小間隔を
+    /// 確保できる場合だけ返す。
+    static func insertion(
+        for location: CurvePoint,
+        in points: [CurvePoint],
+        minimumSeparation: Double
+    ) -> (point: CurvePoint, index: Int)? {
+        guard points.count >= 2, minimumSeparation >= 0 else { return nil }
+
+        let normalized = CurvePoint(x: clamp01(location.x), y: clamp01(location.y))
+        guard let first = points.first, let last = points.last,
+              normalized.x > first.x + minimumSeparation,
+              normalized.x < last.x - minimumSeparation,
+              let index = points.firstIndex(where: { $0.x > normalized.x }),
+              index > 0,
+              index < points.count else {
+            return nil
+        }
+
+        let lowerBound = points[index - 1].x + minimumSeparation
+        let upperBound = points[index].x - minimumSeparation
+        guard lowerBound <= upperBound else { return nil }
+
+        let x = min(max(normalized.x, lowerBound), upperBound)
+        return (CurvePoint(x: x, y: normalized.y), index)
+    }
+
+    /// 指定した制御点を正規化・クランプしたドラッグ位置へ移動する。
+    ///
+    /// 端点は x を固定し、中間点は隣接点との最小間隔を維持する。
+    static func clampedPoint(
+        at index: Int,
+        location: CurvePoint,
+        in points: [CurvePoint],
+        minimumSeparation: Double
+    ) -> CurvePoint? {
+        guard points.indices.contains(index), minimumSeparation >= 0 else { return nil }
+
+        let normalized = CurvePoint(x: clamp01(location.x), y: clamp01(location.y))
+        if index == 0 || index == points.count - 1 {
+            return CurvePoint(x: points[index].x, y: normalized.y)
+        }
+
+        let lowerBound = points[index - 1].x + minimumSeparation
+        let upperBound = points[index + 1].x - minimumSeparation
+        guard lowerBound <= upperBound else { return nil }
+
+        let x = min(max(normalized.x, lowerBound), upperBound)
+        return CurvePoint(x: x, y: normalized.y)
+    }
+
     /// 制御点が実質的に恒等カーブ（`[(0,0), (1,1)]` 相当、許容誤差 `epsilon`）かどうか。
     ///
     /// `DevelopPipeline` が恒等時にカーブフィルタの挿入を省くための判定に使う。

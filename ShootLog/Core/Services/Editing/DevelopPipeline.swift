@@ -56,28 +56,75 @@ enum DevelopPipeline {
     ///   - cache: HSL cube の再計算を省くためのメモ。`nil` なら毎回計算する（テスト用の後方互換）。
     ///   - skipExposureAndWhiteBalance: RAW で露出・WB を `CIRAWFilter` 側へ委譲した場合に `true`。
     ///     このチェーンでは露出・色温度・色かぶりを適用しない（二重適用の防止）。
+    ///   - applyManualLensCorrection: schemaVersion ゲートと、RAW のプロファイル補正が有効なら手動を
+    ///     スキップする判断を呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
+    ///   - usesToneMaskedColorGrading: `true` の場合、カラー補正にトーン域マスク方式の Metal カーネルを使う。
     /// - Returns: 調整後の画像。`parameters.isNeutral` の場合は `input` をそのまま返す。
     ///   フィルタ生成に失敗したステップは黙って読み飛ばし、直前の画像を維持する。
+    ///
+    /// ## 色管理（v3 Phase 1）
+    ///
+    /// チェーンは 2 つの評価空間に分かれる。呼び出し側の `CIContext` は作業空間 linearSRGB を
+    /// 前提とする（`ImageDevelopmentEngine.sharedContext` と同じ）。
+    ///
+    /// - **リニア光**（作業空間そのまま）: ホワイトバランス・露出・ハイライト/シャドウ・シャープ・
+    ///   ノイズ低減。物理的な光量の操作なので `ev = 1` が 2 倍になるリニア空間で評価する。
+    /// - **ガンマ（sRGB）**: コントラスト・自然な彩度/彩度・白黒レベル・トーンカーブ・カラー別 HSL。
+    ///   知覚的なトーン操作は sRGB エンコード値の上で評価するのが Capture One / Lightroom と同じ定石。
+    ///   作業空間はリニアのままなので `linearToGamma` / `gammaToLinear`（`CI*ToneCurve*`）で前後を挟む。
+    ///   この区間内のトーンカーブ・HSL フィルタは追加変換を避けるため作業空間（linearSRGB）を指定する。
     static func apply(
         _ parameters: DevelopParameters,
         to input: CIImage,
         isRAW: Bool,
         cache: DevelopPipelineCache? = nil,
-        skipExposureAndWhiteBalance: Bool = false
+        skipExposureAndWhiteBalance: Bool = false,
+        applyManualLensCorrection: Bool = false,
+        usesToneMaskedColorGrading: Bool = false,
+        asShotWhiteBalance: WhiteBalanceSample? = nil
     ) -> CIImage {
         guard !parameters.isNeutral else { return input }
 
         var image = input
+
+        // --- レンズ補正（幾何変形。他の調整より前）---
+        if applyManualLensCorrection, parameters.hasManualLensCorrection {
+            image = LensCorrectionFilter.corrected(
+                image,
+                distortion: parameters.lensDistortion,
+                vignette: parameters.lensVignette,
+                chromaticAberration: parameters.lensChromaticAberration
+            )
+        }
+
+        // --- リニア光ブラケット（物理的な光の操作）---
         if !skipExposureAndWhiteBalance {
-            image = applyWhiteBalance(parameters, to: image)
+            image = applyWhiteBalance(
+                parameters, to: image, isRAW: isRAW, asShot: asShotWhiteBalance
+            )
             image = applyExposure(parameters, to: image)
         }
         image = applyHighlightShadow(parameters, to: image)
-        image = applyColorControls(parameters, to: image)
-        image = applyVibrance(parameters, to: image)
-        image = applyLevels(parameters, to: image)
-        image = applyToneCurves(parameters, to: image)
-        image = applyHSL(parameters, to: image, cache: cache)
+        image = applyLocalContrast(parameters, to: image)
+        image = applyDehaze(parameters, to: image)
+
+        // --- ガンマ（sRGB）ブラケット（知覚的なトーン操作）---
+        if hasPerceptualEffect(parameters) {
+            image = linearToGamma(image)
+            image = applyColorControls(parameters, to: image)
+            image = applyVibrance(parameters, to: image)
+            image = applyLevels(parameters, to: image)
+            image = applyToneCurves(parameters, to: image)
+            image = usesToneMaskedColorGrading
+                ? applyColorGrading(parameters, to: image)
+                : applyColorBalanceLegacy(parameters, to: image)
+            image = applyHSL(parameters, to: image, cache: cache)
+            image = applyBlackAndWhite(parameters, to: image)
+            image = applyVignette(parameters, to: image)
+            image = gammaToLinear(image)
+        }
+
+        // --- リニア光ブラケット（ディテール）---
         image = applySharpness(parameters, to: image)
         image = applyNoiseReduction(parameters, to: image, isRAW: isRAW)
 
@@ -89,6 +136,54 @@ enum DevelopPipeline {
     static func hasAnyEffect(_ parameters: DevelopParameters) -> Bool {
         !parameters.isNeutral
     }
+
+    /// ガンマ（sRGB）ブラケットで評価すべき知覚的なトーン調整が 1 つでも入っているか。
+    /// すべて中立なら変換フィルタ 2 枚を挟まず、リニア光の調整だけを通す。
+    static func hasPerceptualEffect(_ parameters: DevelopParameters) -> Bool {
+        parameters.contrast != 0
+            || parameters.brightness != 0
+            || parameters.saturation != 0
+            || parameters.vibrance != 0
+            || parameters.clarity != 0
+            || parameters.structure != 0
+            || parameters.dehaze != 0
+            || parameters.vignette != 0
+            || parameters.blackAndWhiteEnabled
+            || !parameters.colorBalance.isNeutral
+            || parameters.whites != 0
+            || parameters.blacks != 0
+            || max(parameters.highlights, 0) != 0
+            || !ToneCurve.isIdentity(parameters.toneCurveRGB)
+            || !ToneCurve.isIdentity(parameters.toneCurveRed)
+            || !ToneCurve.isIdentity(parameters.toneCurveGreen)
+            || !ToneCurve.isIdentity(parameters.toneCurveBlue)
+            || !HSLColorCube.isNeutral(
+                hue: parameters.hslHue,
+                saturation: parameters.hslSaturation,
+                luminance: parameters.hslLuminance
+            )
+    }
+
+    // MARK: - 作業空間 ↔ ガンマ空間の変換（知覚ブラケットの前後）
+
+    /// 作業空間（linearSRGB）の値を sRGB ガンマ空間へエンコードする。知覚ブラケットの入口。
+    private static func linearToGamma(_ image: CIImage) -> CIImage {
+        let filter = CIFilter.linearToSRGBToneCurve()
+        filter.inputImage = image
+        return filter.outputImage ?? image
+    }
+
+    /// sRGB ガンマ空間の値を作業空間（linearSRGB）へ戻す。知覚ブラケットの出口。
+    private static func gammaToLinear(_ image: CIImage) -> CIImage {
+        let filter = CIFilter.sRGBToneCurveToLinear()
+        filter.inputImage = image
+        return filter.outputImage ?? image
+    }
+
+    /// 知覚ブラケット内のトーンカーブ・HSL フィルタへ渡す色空間。
+    /// 画像は既にガンマエンコード済みなので、フィルタ側で再変換させず作業空間をそのまま指定する。
+    private static let perceptualBracketColorSpace: CGColorSpace =
+        CGColorSpace(name: CGColorSpace.linearSRGB) ?? CGColorSpaceCreateDeviceRGB()
 
     // MARK: - マッピング係数
 
@@ -143,7 +238,31 @@ enum DevelopPipeline {
     /// 色順応させるため、**ソース側（`neutral`）を動かす**とスライダーの直感と一致する。
     /// 例えば `neutral` のケルビンを上げる = 「元画像は今より青い光源で撮られた」と宣言することになり、
     /// 結果は赤方向（暖色）へ寄る。色かぶりも同様に、正の値でマゼンタ方向へ寄る。
-    private static func applyWhiteBalance(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+    private static func applyWhiteBalance(
+        _ parameters: DevelopParameters,
+        to image: CIImage,
+        isRAW: Bool,
+        asShot: WhiteBalanceSample?
+    ) -> CIImage {
+        if parameters.whiteBalance.hasEffect {
+            let filter = CIFilter.temperatureAndTint()
+            filter.inputImage = image
+            if isRAW {
+                filter.neutral = CIVector(
+                    x: parameters.whiteBalance.temperatureKelvin,
+                    y: parameters.whiteBalance.tint
+                )
+            } else {
+                let baseK = asShot?.temperatureKelvin ?? referenceTemperature
+                let baseTint = asShot?.tint ?? 0
+                filter.neutral = CIVector(
+                    x: referenceTemperature + (parameters.whiteBalance.temperatureKelvin - baseK),
+                    y: parameters.whiteBalance.tint - baseTint
+                )
+            }
+            filter.targetNeutral = CIVector(x: referenceTemperature, y: 0)
+            return filter.outputImage ?? image
+        }
         guard parameters.temperature != 0 || parameters.tint != 0 else { return image }
 
         let filter = CIFilter.temperatureAndTint()
@@ -192,13 +311,45 @@ enum DevelopPipeline {
         return filter.outputImage ?? image
     }
 
+    // MARK: - 3.5 ローカルコントラスト / Dehaze
+
+    private static func applyLocalContrast(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.clarity != 0 || parameters.structure != 0 else { return image }
+        var result = image
+        if parameters.clarity != 0 {
+            let filter = CIFilter.unsharpMask()
+            filter.inputImage = result
+            filter.radius = 8
+            filter.intensity = Float(parameters.clarity / 100 * 0.55)
+            result = filter.outputImage ?? result
+        }
+        if parameters.structure != 0 {
+            let filter = CIFilter.unsharpMask()
+            filter.inputImage = result
+            filter.radius = 2
+            filter.intensity = Float(parameters.structure / 100 * 0.35)
+            result = filter.outputImage ?? result
+        }
+        return result
+    }
+
+    private static func applyDehaze(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.dehaze != 0 else { return image }
+        let filter = CIFilter.colorControls()
+        filter.inputImage = image
+        let amount = clamp(parameters.dehaze / 100, -1, 1)
+        filter.contrast = Float(1 + amount * 0.35)
+        filter.saturation = Float(max(0, 1 + amount * 0.18))
+        return filter.outputImage ?? image
+    }
+
     // MARK: - 4. コントラスト / 明るさ / 彩度
 
-    /// 既知の制限: `ImageDevelopmentEngine` の CIContext は作業空間が linearSRGB のため、
-    /// `CIColorControls`（コントラスト）と `applyLevels` の `CIToneCurve` はリニア光で評価される。
-    /// コントラストの 0.5 ピボットや白黒レベルの span 定数はこの前提でチューニング済みだが、
-    /// `applyToneCurves` は `CIColorCurves.colorSpace = sRGB` を明示しており、ガンマ空間で
-    /// 評価される。この不整合の解消（ガンマ空間ブラケットへの統一）は v3 の色管理見直しで扱う。
+    /// v3 Phase 1 以降、この関数は `apply` の**ガンマ（sRGB）ブラケット内**で呼ばれる。
+    /// 入力は既に sRGB エンコード済みで、`CIColorControls` はその値の上でコントラスト・
+    /// 明るさ・彩度を評価する（白黒レベル・トーンカーブ・HSL と同じ空間）。
+    /// コントラストの 0.5 ピボットや `contrastSpan` などの span 定数は、ガンマ空間前提での
+    /// 実画像チューニングを別途行う（v3 Phase 1 の A 系統作業）。
     private static func applyColorControls(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
         guard parameters.contrast != 0 || parameters.brightness != 0 || parameters.saturation != 0 else {
             return image
@@ -312,7 +463,8 @@ enum DevelopPipeline {
         filter.inputImage = image
         filter.curvesData = interleaved.withUnsafeBufferPointer { Data(buffer: $0) }
         filter.curvesDomain = CIVector(x: 0, y: 1)
-        filter.colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        // 画像は知覚ブラケットで既にガンマエンコード済み。フィルタ側で再変換させない。
+        filter.colorSpace = perceptualBracketColorSpace
         return filter.outputImage
     }
 
@@ -350,7 +502,67 @@ enum DevelopPipeline {
         filter.inputImage = image
         filter.cubeDimension = Float(HSLColorCube.defaultDimension)
         filter.cubeData = cubeData
-        filter.colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        // 画像は知覚ブラケットで既にガンマエンコード済み。フィルタ側で再変換させない。
+        filter.colorSpace = perceptualBracketColorSpace
+        return filter.outputImage ?? image
+    }
+
+    // MARK: - 8.5 カラーグレーディング / B&W / 周辺光量
+
+    /// Core Image標準フィルターだけで実装できる安全な初期版。各トーン範囲の値は平均して効かせ、
+    /// 将来の局所調整レイヤーでは同じ設定値をLUTベースのトーン分離へ差し替えられるようにする。
+    private static func applyColorBalanceLegacy(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard !parameters.colorBalance.isNeutral else { return image }
+        let components = [
+            parameters.colorBalance.master,
+            parameters.colorBalance.shadows,
+            parameters.colorBalance.midtones,
+            parameters.colorBalance.highlights
+        ]
+        let hue = components.map(\.hue).reduce(0, +) / Double(components.count)
+        let saturation = components.map(\.saturation).reduce(0, +) / Double(components.count)
+        let lightness = components.map(\.lightness).reduce(0, +) / Double(components.count)
+        var result = image
+        if hue != 0 {
+            let hueFilter = CIFilter.hueAdjust()
+            hueFilter.inputImage = result
+            hueFilter.angle = Float(hue / 180 * .pi)
+            result = hueFilter.outputImage ?? result
+        }
+        let controls = CIFilter.colorControls()
+        controls.inputImage = result
+        controls.saturation = Float(max(0, 1 + saturation / 100))
+        controls.brightness = Float(lightness / 100 * 0.15)
+        return controls.outputImage ?? result
+    }
+
+    private static func applyColorGrading(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard !parameters.colorBalance.isNeutral else { return image }
+        return ColorGradingFilter.graded(image, settings: parameters.colorBalance)
+    }
+
+    private static func applyBlackAndWhite(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.blackAndWhiteEnabled else { return image }
+        let mix = parameters.bwMix + Array(repeating: 0, count: max(0, 6 - parameters.bwMix.count))
+        let red = clamp(0.30 + mix[0] / 100 * 0.12, 0, 1)
+        let green = clamp(0.59 + mix[3] / 100 * 0.12, 0, 1)
+        let blue = clamp(0.11 + mix[5] / 100 * 0.12, 0, 1)
+        let total = max(red + green + blue, 0.001)
+        let filter = CIFilter.colorMatrix()
+        filter.inputImage = image
+        let vector = CIVector(x: red / total, y: green / total, z: blue / total, w: 0)
+        filter.rVector = vector
+        filter.gVector = vector
+        filter.bVector = vector
+        return filter.outputImage ?? image
+    }
+
+    private static func applyVignette(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
+        guard parameters.vignette != 0 else { return image }
+        let filter = CIFilter.vignetteEffect()
+        filter.inputImage = image
+        filter.radius = Float(max(image.extent.width, image.extent.height) * 0.65)
+        filter.intensity = Float(parameters.vignette / 100 * 1.5)
         return filter.outputImage ?? image
     }
 

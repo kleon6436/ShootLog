@@ -92,6 +92,9 @@ extension ContentViewModel {
         // RAW かつ version 2（またはレコード無し）のときだけ露出・WB を CIRAWFilter へ委譲する。
         let useRAWMapping = ImageDevelopmentEngine.shared.isRAW(url: photo.fileURL)
             && (currentDevelopSettings?.usesRAWParameterMapping ?? true)
+        let usesManualLens = (currentDevelopSettings?.usesManualLensCorrection ?? true)
+            && !(useRAWMapping && parameters.lensCorrectionEnabled)
+        let usesToneMasked = (currentDevelopSettings?.usesToneMaskedColorGrading ?? true)
 
         viewModel.beginProcessing()
 
@@ -110,6 +113,9 @@ extension ContentViewModel {
         }
 
         do {
+            let asShot = usesToneMasked
+                ? await asShotWhiteBalance(for: photo)
+                : nil
             try await exporter.export(
                 source: photo.fileURL,
                 destination: destination,
@@ -120,6 +126,9 @@ extension ContentViewModel {
                 jpegQuality: viewModel.jpegQuality.rawValue,
                 outputColorSpace: viewModel.effectiveColorSpace.cgColorSpace,
                 useRAWParameterMapping: useRAWMapping,
+                usesManualLensCorrection: usesManualLens,
+                usesToneMaskedColorGrading: usesToneMasked,
+                asShotWhiteBalance: asShot,
                 superResolution: superResolution,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),
