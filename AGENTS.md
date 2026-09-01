@@ -146,7 +146,16 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - ネットワークボリュームではサムネイル同時取得数を4件に制限する。
 - キャッシュ待機中のタスクがキャンセルされた場合は待機列から取り除く。
 - フルサイズ画像はビューア用に別キャッシュへ保存し、必要なときだけデコードする。
-- キャッシュを通常操作で手動全消去しない。
+- キャッシュを通常操作で手動全消去しない。設定画面「ディスクキャッシュを削除」はサムネイル・プレビュープロキシ・現像ベースの3キャッシュをまとめて消す。
+
+### プレビュープロキシ層（RAW読み込み高速化）
+
+- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC/JPEG で `previews-v1/` へ、CGImage を `NSCache` へ永続キャッシュ。ファイル名 `sha256(url + mtime + size + proxyLongEdge)` で自動失効。上限 `previewCacheMaxBytes`（既定4GiB）で mtime 昇順 eviction。内部 `DecodeThrottle`（`max(2, コア数)`）でビューア対話要求とバックグラウンド生成がデコード枠を共有。
+- `ImageLoader.proxyImage(for:)` がラッパ。`PhotoImageViewModel.load` は サムネ → プロキシ → 表示領域超過時のみ `highResImage` の段階表示。
+- `PreviewGenerator`（actor）: フォルダ読み込み時に全プロキシを `.utility` でバックグラウンド生成（近傍優先、フォルダ切替でキャンセル）。
+- `HighResPrefetcher`: 前後の先読み枚数をボリューム別に（ローカル ±3 / ネットワーク ±1）、呼び先は `proxyImage`。
+- 現像 Stage A の中立ベース（`rawParamsHash == 0`）は PNG ロスレスで `develop-base-v1/`（上限 `developBaseCacheMaxBytes`、既定2GiB）へ永続化。書き出し（`renderFull`）は常にフル解像度 `CIRAWFilter` でこの層を通らない。**RAW の現像ベースにビューアプロキシは流用しない**（WYSIWYG 維持）。
+- ディスク入出力は `ImageFileCache` に集約。起動時に `PreviewCacheStore.warmUp()` / `ImageDevelopmentEngine.warmUpCaches()`。
 
 ## フォルダアクセスと履歴
 
@@ -170,12 +179,13 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 5）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時WBは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
 - 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo。プリセット適用は「置き換え」に加え「現在の調整に加算」（相対適用、`DevelopParameters.applying(delta:)`）を選べる。加算系は加算＋クランプ、トーンカーブは関数合成、`lensCorrectionEnabled` は OR
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）。出力カラースペースはsRGB / Display P3を選択可。書き出し時に超解像を続けて適用する現像→超解像チェーンにも対応（回転は現像段で焼き込み済みのため超解像へは `rotation:0` を渡す）
+- プレビュープロキシの永続キャッシュ（`PreviewCacheStore`、`previews-v1`）とフォルダ読み込み時のバックグラウンド生成（`PreviewGenerator`）、現像 Stage A 中立ベースの永続化（`develop-base-v1`）。設定画面でプレビュー解像度・キャッシュ上限を変更可。詳細は「画像ロード戦略 > プレビュープロキシ層」
 
 ## SwiftDataモデル
 
 主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`FolderHistory`。
 
-- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`
+- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` ほか optional 4 プロパティ、`loadEXIFIfNeeded` が EXIF と独立に取得・保存）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
 - `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5。2〜4 は編集時に 5 へ自動バンプ、1 は据え置き。5=トーン域マスク カラーグレーディング）、更新日時。`EditInfo` とは独立
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
@@ -225,7 +235,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW向け手動レンズ補正、`schemaVersion` 5）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW向け手動レンズ補正、`schemaVersion` 5）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、WYSIWYG 維持）。
 
 ### 制限付き・検証継続中
 
