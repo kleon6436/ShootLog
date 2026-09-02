@@ -30,7 +30,7 @@ actor PreviewGenerator {
         let orderedURLs = Self.prioritizedURLs(urls, around: selectedIndex)
         let store = store
         generationTask = Task.detached(priority: .utility) { [weak self] in
-            await Self.generate(
+            _ = await Self.generate(
                 orderedURLs,
                 store: store,
                 progress: progress
