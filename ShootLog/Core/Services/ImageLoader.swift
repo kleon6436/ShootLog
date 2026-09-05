@@ -52,8 +52,8 @@ final class ImageLoader: Sendable {
         return ThumbnailThrottle(maxConcurrent: stored > 0 ? stored : AppSettingsKeys.networkConcurrencyDefault)
     }()
 
-    // ローカルボリューム向け：RAWデコードはCPU負荷が高く、コア数を超える同時実行は
-    // コンテキストスイッチで逆に遅くなるため、コア数を上限としてスロットを設ける
+    // ローカルボリューム向け：JPEGデコーダが同時に確保できるIOSurface数はCPUコア数より少ないため、
+    // ハードウェア側の資源枯渇を避ける共有スロットを使う
     private let localThrottle = ImageDecodeThrottle.shared
 
     // 指定URLのボリューム種別に応じたスロットを返す
@@ -107,17 +107,7 @@ final class ImageLoader: Sendable {
         // 1. メモリキャッシュ
         if let img = memoryCache.object(forKey: key) { return img }
 
-        // 2. ディスクキャッシュ（再起動後もネットワーク読み込みを回避できる）
-        // このメソッドは ImageLoader が @MainActor を持たないため nonisolated async として実行され、
-        // 呼び出し元が @MainActor（PhotoThumbnailViewModel / PhotoImageViewModel）でも
-        // 本体はMainActorを離れて動く。同期I/OがMainActorを塞ぐ経路は無い
-        let diskURL = Self.diskCacheURL(for: url)
-        if let img = NSImage(contentsOf: diskURL) {
-            memoryCache.setObject(img, forKey: key, cost: Self.estimatedCost(of: img))
-            return img
-        }
-
-        // 3. 同時デコード数を制限するスロットを確保する（ネットワーク／ローカルで別スロット）
+        // 2. ディスクキャッシュ読み込みとImageIOデコードで共有するスロットを確保する
         let activeThrottle = throttle(for: url)
         do {
             try await activeThrottle.acquire()
@@ -132,6 +122,16 @@ final class ImageLoader: Sendable {
             return nil
         }
 
+        let diskURL = Self.diskCacheURL(for: url)
+        let diskImage = await Task.detached(priority: .utility) {
+            NSImage(contentsOf: diskURL)
+        }.value
+        if let diskImage {
+            await activeThrottle.release()
+            memoryCache.setObject(diskImage, forKey: key, cost: Self.estimatedCost(of: diskImage))
+            return diskImage
+        }
+
         let cgImage = await Task.detached(priority: .utility) {
             self.loadCGThumbnail(from: url)
         }.value
@@ -143,7 +143,7 @@ final class ImageLoader: Sendable {
         let image = NSImage(cgImage: cgImage, size: .zero)
         memoryCache.setObject(image, forKey: key, cost: cgImage.width * cgImage.height * 4)
 
-        // 4. ディスクキャッシュへ書き込む（バックグラウンドで非同期）
+        // 3. ディスクキャッシュへ書き込む（バックグラウンドで非同期）
         Task.detached(priority: .background) {
             Self.writeDiskCache(cgImage: cgImage, to: diskURL)
         }
@@ -355,7 +355,7 @@ private protocol ImageThrottle: Sendable {
 // IOSurfaceプールを枯渇させるため、ローカルボリュームでは共有インスタンスを使う。
 actor ImageDecodeThrottle: ImageThrottle {
     static let shared = ImageDecodeThrottle(
-        maxConcurrent: max(2, ProcessInfo.processInfo.activeProcessorCount)
+        maxConcurrent: max(2, min(4, ProcessInfo.processInfo.activeProcessorCount))
     )
 
     private let maxConcurrent: Int
