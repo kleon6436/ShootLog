@@ -64,12 +64,8 @@ final class Photo {
         self.note = ""
     }
 
-    init(id: UUID = UUID(), fileURL: URL, phAssetLocalIdentifier: String) {
-        self.id = id
-        self.fileURL = fileURL
-        self.shootingDate = Date()
-        self.isFavorite = false
-        self.note = ""
+    convenience init(id: UUID = UUID(), fileURL: URL, phAssetLocalIdentifier: String) {
+        self.init(id: id, fileURL: fileURL)
         self.phAssetLocalIdentifier = phAssetLocalIdentifier
     }
 }

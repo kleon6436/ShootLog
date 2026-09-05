@@ -41,34 +41,36 @@ enum ImageFileCache {
         properties: CFDictionary? = nil,
         to url: URL
     ) -> Bool {
-        let temporaryURL = url.deletingPathExtension()
-            .appendingPathExtension("\(UUID().uuidString).\(url.pathExtension)")
-        guard let destination = CGImageDestinationCreateWithURL(temporaryURL as CFURL, type, 1, nil) else {
-            return false
-        }
-        CGImageDestinationAddImage(destination, image, properties)
-        guard CGImageDestinationFinalize(destination) else {
-            try? FileManager.default.removeItem(at: temporaryURL)
-            return false
-        }
-
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: url.path) {
-            if (try? fileManager.replaceItemAt(url, withItemAt: temporaryURL)) != nil {
-                return true
+        writeAtomically(to: url) { temporaryURL in
+            guard let destination = CGImageDestinationCreateWithURL(temporaryURL as CFURL, type, 1, nil) else {
+                return false
             }
-        } else if (try? fileManager.moveItem(at: temporaryURL, to: url)) != nil {
-            return true
+            CGImageDestinationAddImage(destination, image, properties)
+            return CGImageDestinationFinalize(destination)
         }
-
-        try? fileManager.removeItem(at: temporaryURL)
-        // 同一キーを並行生成した別タスクが先に置換していれば、その完成済み画像を採用する。
-        return fileManager.fileExists(atPath: url.path)
     }
 
-    static func prepare(directory: URL, extensions: Set<String>) {
+    static func writeData(_ data: Data, to url: URL) -> Bool {
+        writeAtomically(to: url) { temporaryURL in
+            do {
+                try data.write(to: temporaryURL)
+                return true
+            } catch {
+                return false
+            }
+        }
+    }
+
+    static func prepare(
+        directory: URL,
+        extensions: Set<String>,
+        isTemporaryFile: (@Sendable (URL) -> Bool)? = nil
+    ) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        removeInterruptedWriteFiles(in: directory, extensions: extensions)
+        let isTemporaryFile = isTemporaryFile ?? { fileURL in
+            isInterruptedWriteFile(fileURL, extensions: extensions)
+        }
+        removeInterruptedWriteFiles(in: directory, isTemporaryFile: isTemporaryFile)
     }
 
     static func remove(forKey key: String, extensions: [String], in directory: URL) {
@@ -108,13 +110,38 @@ enum ImageFileCache {
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
     }
 
-    private static func removeInterruptedWriteFiles(in directory: URL, extensions: Set<String>) {
+    private static func writeAtomically(to url: URL, write: (URL) -> Bool) -> Bool {
+        let temporaryURL = url.deletingPathExtension()
+            .appendingPathExtension("\(UUID().uuidString).\(url.pathExtension)")
+        guard write(temporaryURL) else {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            return false
+        }
+
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: url.path) {
+            if (try? fileManager.replaceItemAt(url, withItemAt: temporaryURL)) != nil {
+                return true
+            }
+        } else if (try? fileManager.moveItem(at: temporaryURL, to: url)) != nil {
+            return true
+        }
+
+        try? fileManager.removeItem(at: temporaryURL)
+        // 同一キーを並行生成した別タスクが先に置換していれば、その完成済み画像を採用する。
+        return fileManager.fileExists(atPath: url.path)
+    }
+
+    private static func removeInterruptedWriteFiles(
+        in directory: URL,
+        isTemporaryFile: (URL) -> Bool
+    ) {
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil
         ) else { return }
 
-        for fileURL in files where isInterruptedWriteFile(fileURL, extensions: extensions) {
+        for fileURL in files where isTemporaryFile(fileURL) {
             try? FileManager.default.removeItem(at: fileURL)
         }
     }

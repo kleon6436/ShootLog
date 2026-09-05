@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import Photos
 
 /// PHAssetのサムネイル要求をSwift concurrencyへ橋渡しするプロバイダ。
@@ -14,7 +15,7 @@ actor PhotosLibraryThumbnailProvider {
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
 
-        let state = RequestState()
+        let state = PHImageManagerRequestState<NSImage>()
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 state.setContinuation(continuation)
@@ -39,13 +40,13 @@ actor PhotosLibraryThumbnailProvider {
     }
 }
 
-private final class RequestState: @unchecked Sendable {
+final class PHImageManagerRequestState<Result: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var isFinished = false
     private(set) var requestID: PHImageRequestID?
-    private var continuation: CheckedContinuation<NSImage?, Never>?
+    private var continuation: CheckedContinuation<Result?, Never>?
 
-    func setContinuation(_ continuation: CheckedContinuation<NSImage?, Never>) {
+    func setContinuation(_ continuation: CheckedContinuation<Result?, Never>) {
         lock.lock()
         self.continuation = continuation
         let shouldCancel = isFinished
@@ -61,7 +62,7 @@ private final class RequestState: @unchecked Sendable {
         if shouldCancel { PHImageManager.default().cancelImageRequest(requestID) }
     }
 
-    func finish(_ image: NSImage?) -> Bool {
+    func finish(_ result: Result?) -> Bool {
         lock.lock()
         guard !isFinished, let continuation else {
             lock.unlock()
@@ -70,7 +71,7 @@ private final class RequestState: @unchecked Sendable {
         isFinished = true
         self.continuation = nil
         lock.unlock()
-        continuation.resume(returning: image)
+        continuation.resume(returning: result)
         return true
     }
 

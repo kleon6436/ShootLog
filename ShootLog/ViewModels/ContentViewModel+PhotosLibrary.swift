@@ -43,7 +43,9 @@ extension ContentViewModel {
         }.value
         let cacheDirectory = PhotosLibraryAssetExporter.defaultDirectory
         do {
-            try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+            try await Task.detached(priority: .utility) {
+                try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+            }.value
         } catch {
             self.error = error
             isLoading = false
