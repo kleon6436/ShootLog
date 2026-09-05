@@ -6,6 +6,7 @@ struct EditorToolbarView: View {
     let isCropMode: Bool
     let isFavorite: Bool
     let isDevelopActive: Bool
+    let isPhotosLibraryPhoto: Bool
     let onRotate: () -> Void
     let onToggleCrop: () -> Void
     let onToggleFavorite: () -> Void
@@ -21,6 +22,7 @@ struct EditorToolbarView: View {
                 isActive: isDevelopActive,
                 action: onEditDevelop
             )
+            .disabled(isPhotosLibraryPhoto)
             EditorButton(symbolName: "rotate.right", help: "editor.rotate", action: onRotate)
             EditorButton(symbolName: "crop", help: "editor.crop", isActive: isCropMode, action: onToggleCrop)
             EditorButton(
@@ -30,6 +32,7 @@ struct EditorToolbarView: View {
                 action: onToggleFavorite
             )
             EditorButton(symbolName: "wand.and.sparkles", help: "editor.upscale", action: onUpscale)
+                .disabled(isPhotosLibraryPhoto)
 
             if editInfo != nil {
                 Divider().frame(height: 16).padding(.horizontal, 2)

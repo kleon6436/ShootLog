@@ -111,6 +111,7 @@ struct SidebarModeView: View {
                     isCropMode: vm.isCropMode,
                     isFavorite: vm.isSelectedPhotoFavorite,
                     isDevelopActive: vm.isEXIFPanelVisible && vm.inspectorTab == .develop,
+                    isPhotosLibraryPhoto: vm.selectedPhoto?.phAssetLocalIdentifier != nil,
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
                     onToggleFavorite: { vm.toggleFavorite() },

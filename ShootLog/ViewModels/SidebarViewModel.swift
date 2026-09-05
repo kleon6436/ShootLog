@@ -72,6 +72,7 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     // ツールバーの「編集」ボタン用。編集タブを開いてインスペクタを表示する
     func showDevelopPanel() {
+        guard content.selectedPhoto?.phAssetLocalIdentifier == nil else { return }
         inspectorTab = .develop
         isEXIFPanelVisible = true
     }

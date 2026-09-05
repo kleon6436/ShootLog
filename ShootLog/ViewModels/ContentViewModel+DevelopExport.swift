@@ -12,6 +12,7 @@ extension ContentViewModel {
 
     func presentDevelopExport() {
         guard let photo = selectedPhoto else { return }
+        guard photo.phAssetLocalIdentifier == nil else { return }
         let inputSize = Self.readDevelopInputPixelSize(of: photo.fileURL)
         developExportViewModel = DevelopExportViewModel(
             inputPixelSize: inputSize,
