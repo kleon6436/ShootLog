@@ -41,9 +41,7 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     let proxyLongEdge: Int
     private let directory: URL
     private let maxDiskBytes: Int
-    private let decodeThrottle = DecodeThrottle(
-        maxConcurrent: max(2, ProcessInfo.processInfo.activeProcessorCount)
-    )
+    private let decodeThrottle = ImageDecodeThrottle.shared
 
     init(
         directory: URL = PreviewCacheStore.defaultDirectory,
@@ -307,47 +305,6 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
 
     private func estimatedCost(of image: CGImage) -> Int {
         max(1, image.width * image.height * 4)
-    }
-}
-
-// プロキシ生成はビューアの対話要求とバックグラウンド生成で同じ枠を共有する。
-private actor DecodeThrottle {
-    private let maxConcurrent: Int
-    private var active = 0
-    private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
-
-    init(maxConcurrent: Int) {
-        self.maxConcurrent = maxConcurrent
-    }
-
-    func acquire() async throws {
-        guard active >= maxConcurrent else {
-            active += 1
-            return
-        }
-
-        let id = UUID()
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                waiters[id] = continuation
-            }
-        } onCancel: {
-            Task { await self.cancelWaiter(id) }
-        }
-    }
-
-    private func cancelWaiter(_ id: UUID) {
-        guard let continuation = waiters.removeValue(forKey: id) else { return }
-        continuation.resume(throwing: CancellationError())
-    }
-
-    func release() {
-        if let (id, continuation) = waiters.first {
-            waiters.removeValue(forKey: id)
-            continuation.resume()
-        } else {
-            active -= 1
-        }
     }
 }
 
