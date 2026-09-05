@@ -1,7 +1,5 @@
-import AppKit
 import Foundation
 import Photos
-import UniformTypeIdentifiers
 
 /// Photos Libraryのアセットを既存のURLベース処理へ渡すためのエクスポーター。
 actor PhotosLibraryAssetExporter {
@@ -92,14 +90,13 @@ actor PhotosLibraryAssetExporter {
         ).firstObject else { return }
 
         let options = PHImageRequestOptions()
+        options.version = .current
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
-        options.resizeMode = .none
 
-        guard let image = await requestImage(for: asset, options: options),
-              !Task.isCancelled,
-              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        guard let data = await requestImageData(for: asset, options: options),
+              !Task.isCancelled else {
             return
         }
 
@@ -113,37 +110,54 @@ actor PhotosLibraryAssetExporter {
             return
         }
 
-        let didWrite = ImageFileCache.write(
-            cgImage,
-            type: UTType.jpeg.identifier as CFString,
-            to: fileURL
-        )
+        let didWrite = Self.writeDataAtomically(data, to: fileURL)
         if didWrite {
             await evictToLimit()
         }
     }
 
-    private func requestImage(
+    private func requestImageData(
         for asset: PHAsset,
         options: PHImageRequestOptions
-    ) async -> NSImage? {
+    ) async -> Data? {
         let state = PhotosLibraryExportRequestState()
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 state.setContinuation(continuation)
-                let requestID = PHImageManager.default().requestImage(
+                let requestID = PHImageManager.default().requestImageDataAndOrientation(
                     for: asset,
-                    targetSize: PHImageManagerMaximumSize,
-                    contentMode: .default,
                     options: options
-                ) { image, _ in
-                    _ = state.finish(image)
+                ) { data, _, _, _ in
+                    _ = state.finish(data)
                 }
                 state.setRequestID(requestID)
             }
         } onCancel: {
             state.cancel()
         }
+    }
+
+    private static func writeDataAtomically(_ data: Data, to url: URL) -> Bool {
+        let temporaryURL = url.deletingPathExtension()
+            .appendingPathExtension("\(UUID().uuidString).\(url.pathExtension)")
+        do {
+            try data.write(to: temporaryURL)
+        } catch {
+            return false
+        }
+
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: url.path) {
+            if (try? fileManager.replaceItemAt(url, withItemAt: temporaryURL)) != nil {
+                return true
+            }
+        } else if (try? fileManager.moveItem(at: temporaryURL, to: url)) != nil {
+            return true
+        }
+
+        try? fileManager.removeItem(at: temporaryURL)
+        // 同一アセットの別タスクが先に書き込んでいれば、その完成済みデータを採用する。
+        return fileManager.fileExists(atPath: url.path)
     }
 }
 
@@ -161,9 +175,9 @@ private final class PhotosLibraryExportRequestState: @unchecked Sendable {
     private let lock = NSLock()
     private var isFinished = false
     private(set) var requestID: PHImageRequestID?
-    private var continuation: CheckedContinuation<NSImage?, Never>?
+    private var continuation: CheckedContinuation<Data?, Never>?
 
-    func setContinuation(_ continuation: CheckedContinuation<NSImage?, Never>) {
+    func setContinuation(_ continuation: CheckedContinuation<Data?, Never>) {
         lock.lock()
         self.continuation = continuation
         let shouldCancel = isFinished
@@ -179,7 +193,7 @@ private final class PhotosLibraryExportRequestState: @unchecked Sendable {
         if shouldCancel { PHImageManager.default().cancelImageRequest(requestID) }
     }
 
-    func finish(_ image: NSImage?) -> Bool {
+    func finish(_ data: Data?) -> Bool {
         lock.lock()
         guard !isFinished, let continuation else {
             lock.unlock()
@@ -188,7 +202,7 @@ private final class PhotosLibraryExportRequestState: @unchecked Sendable {
         isFinished = true
         self.continuation = nil
         lock.unlock()
-        continuation.resume(returning: image)
+        continuation.resume(returning: data)
         return true
     }
 
