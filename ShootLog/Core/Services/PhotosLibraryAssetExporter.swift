@@ -7,7 +7,34 @@ import UniformTypeIdentifiers
 actor PhotosLibraryAssetExporter {
     static let shared = PhotosLibraryAssetExporter()
 
+    nonisolated static let defaultDirectory: URL = {
+        let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Caches", isDirectory: true)
+        return cachesDirectory.appendingPathComponent(
+            "com.shootlog.app/icloud-import-v1",
+            isDirectory: true
+        )
+    }()
+
+    nonisolated static let defaultMaxDiskBytes = 2 * 1024 * 1024 * 1024
+
     private var inFlightTasks: [String: Task<Void, Never>] = [:]
+
+    private let directory: URL
+    private let maxDiskBytes: Int
+
+    init(
+        directory: URL = PhotosLibraryAssetExporter.defaultDirectory,
+        maxDiskBytes: Int = PhotosLibraryAssetExporter.defaultMaxDiskBytes
+    ) {
+        self.directory = directory
+        self.maxDiskBytes = max(0, maxDiskBytes)
+    }
+
+    nonisolated static func fileURL(forLocalIdentifier localIdentifier: String) -> URL {
+        defaultDirectory.appendingPathComponent(sanitizedAssetFileName(localIdentifier))
+    }
 
     // 同じアセットへの要求をまとめ、PhotoImageViewModelとEXIF取得の二重取得を防ぐ。
     func ensureExported(localIdentifier: String, fileURL: URL) async {
@@ -24,6 +51,38 @@ actor PhotosLibraryAssetExporter {
         inFlightTasks[localIdentifier] = task
         await task.value
         inFlightTasks[localIdentifier] = nil
+    }
+
+    /// 起動時にエクスポートキャッシュを準備し、古いファイルを上限内へ整理する。
+    func warmUp() async {
+        let directory = directory
+        await Task.detached(priority: .utility) {
+            ImageFileCache.prepare(directory: directory, extensions: ["jpg"])
+        }.value
+        await evictToLimit()
+    }
+
+    /// エクスポートキャッシュを最終更新日時の古い順に上限まで削除する。
+    func evictToLimit() async {
+        let directory = directory
+        let maxDiskBytes = maxDiskBytes
+        await Task.detached(priority: .utility) {
+            ImageFileCache.evict(in: directory, maxBytes: maxDiskBytes)
+        }.value
+    }
+
+    /// 設定画面のキャッシュ削除操作でエクスポート済みファイルをすべて削除する。
+    func clearAll() async {
+        let directory = directory
+        await Task.detached(priority: .utility) {
+            guard let files = try? FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil
+            ) else { return }
+            for file in files {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }.value
     }
 
     private func exportAsset(localIdentifier: String, to fileURL: URL) async {
@@ -54,11 +113,14 @@ actor PhotosLibraryAssetExporter {
             return
         }
 
-        _ = ImageFileCache.write(
+        let didWrite = ImageFileCache.write(
             cgImage,
             type: UTType.jpeg.identifier as CFString,
             to: fileURL
         )
+        if didWrite {
+            await evictToLimit()
+        }
     }
 
     private func requestImage(
@@ -82,6 +144,16 @@ actor PhotosLibraryAssetExporter {
         } onCancel: {
             state.cancel()
         }
+    }
+}
+
+private extension PhotosLibraryAssetExporter {
+    static func sanitizedAssetFileName(_ localIdentifier: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
+        let sanitized = localIdentifier.unicodeScalars.map {
+            allowed.contains($0) ? Character(String($0)) : "_"
+        }
+        return String(sanitized) + ".jpg"
     }
 }
 

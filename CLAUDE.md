@@ -133,6 +133,19 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - フォルダはOpen PanelまたはFinderからのドラッグ＆ドロップで開く。
 - 同時に表示するフォルダは1つだけ。
 
+## iCloud写真ライブラリの読み込み
+
+macOS純正「写真」Appと同様に、Photosライブラリの写真を読み込んで閲覧できる（フォルダ読み込みとは別導線、詳細は `.omc/plans/icloud-photo-library-integration.md`）。
+
+- 空状態画面の「写真ライブラリを開く」から`PhotosLibraryPermissionService`が権限確認・リクエストを行う。フルアクセス以外（限定・拒否・未決定）は案内Alertのみで機能を提供しない。
+- フルアクセス時、`PhotosLibraryRepository.fetchAssets()`が画像アセット（`.image`のみ、動画は対象外）を撮影日時昇順で取得し、`ContentViewModel.currentPhotoSource`（`.folder(URL)` / `.photosLibrary`）で「写真ソースが開かれているか」の判定をフォルダ機能と共通化する。
+- 重複防止キーは`Photo.phAssetLocalIdentifier`（フォルダ写真は`nil`）。
+- **エクスポートキャッシュ方式**を採用: `Photo.fileURL`は`PhotosLibraryAssetExporter.defaultDirectory`（`~/Library/Caches/com.shootlog.app/icloud-import-v1/`）配下の、サニタイズしたlocalIdentifierをファイル名にしたプレースホルダーパス。実ファイルは未生成の状態で`Photo`が作られ、写真選択時（`PhotoImageViewModel.load` / `loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter.ensureExported(localIdentifier:fileURL:)`がPHAssetから高品質JPEGをこのパスへ書き込む（同一アセットへの同時要求はin-flight Taskで1本化）。これにより`ImageLoader`/`PreviewCacheStore`/`PhotoImageViewModel`/`EXIFService`/お気に入り・メモ・分析画面をほぼ無改修で再利用できる。
+- グリッドのサムネイルは`ImageLoader`のディスクキャッシュを経由せず、`PhotosLibraryThumbnailProvider`（PHImageManager直結の軽量パス）を使う専用経路（`PhotoThumbnailViewModel.load(photo:)`が`phAssetLocalIdentifier`の有無で分岐）。
+- `icloud-import-v1/`は上限2GiB（`PhotosLibraryAssetExporter.defaultMaxDiskBytes`）でmtime昇順eviction。起動時`warmUp()`とエクスポート成功のたびに整理し、設定画面「ディスクキャッシュを削除」の対象にも含まれる。
+- 分析画面はエクスポート未了（EXIF未取得）のiCloud写真を強制エクスポートしない。大量写真の一括ネットワークダウンロードを避けるため、既存の欠損データ処理（EXIFがnilのまま集計対象に含まれる）に委ねる。
+- RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIはスコープ外。
+
 ## 画像ロード戦略
 
 現行実装は以下の順で読み込む。
@@ -255,7 +268,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 - 単体の超解像書き出し（`UpscaleExporter`）も `EditInfo.cropRect` を適用する（v3 Phase 2）。回転前の原本を表示画像基準の矩形へ逆変換して切り抜いてから回転・拡大するため、現像→超解像チェーンと同じ構図・寸法になる。上限判定・所要時間見積り（`UpscaleExportViewModel.croppedInputPixelSize`）も切り抜き後の画素数で行う。
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
-- iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A（権限基盤）・Phase B（一覧取得とサムネイル表示）・Phase C（フルサイズ表示・EXIF統合）まで実装済み。フルアクセス許可時、`PhotosLibraryRepository`が`PHAsset`（画像のみ、撮影日時昇順）を取得し、`ContentViewModel.currentPhotoSource`（`.folder`/`.photosLibrary`）経由でグリッドに反映する。サムネイルは`PhotosLibraryThumbnailProvider`（PHImageManager、`ImageLoader`のディスクキャッシュ経由にしない専用軽量パス）。`Photo.phAssetLocalIdentifier`で重複防止し、`fileURL`は`~/Library/Caches/com.shootlog.app/icloud-import-v1/`配下のプレースホルダーパス。写真選択時（`PhotoImageViewModel.load`・`loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter`がPHAssetから高品質JPEGをこのパスへエクスポートし（同一アセットの同時エクスポートは1本化、`ImageFileCache`で原子的書き込み）、以降は既存のフォルダ写真と同じ`ImageLoader.proxyImage`/`highResImage`/`EXIFService`パスへ合流する。お気に入り・メモは`Photo.id`ベースで変更不要。分析画面はエクスポート未了（EXIF未取得）のiCloud写真を強制エクスポートせず、既存の欠損データ処理に委ねる（全件事前エクスポートはしない設計）。`icloud-import-v1/`キャッシュのeviction・設定画面「ディスクキャッシュを削除」への統合（Phase D）は未実装。
+- iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A〜D（権限基盤・一覧取得とサムネイル表示・フルサイズ表示とEXIF統合・キャッシュeviction）まで実装済み。詳細は「iCloud写真ライブラリの読み込み」章を参照。実機でのiCloud上のRAW写真表示、「Optimize Mac Storage」有効時のネットワーク経由ダウンロード体感、お気に入り・メモ・分析画面の実動作、キャッシュ削除の動作確認は未実施（実機・iCloud写真ライブラリが必要なため継続）。RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIは引き続きスコープ外。
 
 ### 未着手・スコープ外
 

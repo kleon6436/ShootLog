@@ -41,8 +41,7 @@ extension ContentViewModel {
         let assets = await Task.detached(priority: .utility) {
             PhotosLibraryRepository.fetchAssets()
         }.value
-        let cacheDirectory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Caches/com.shootlog.app/icloud-import-v1", isDirectory: true)
+        let cacheDirectory = PhotosLibraryAssetExporter.defaultDirectory
         do {
             try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         } catch {
@@ -51,14 +50,13 @@ extension ContentViewModel {
             return
         }
 
-        syncPhotosLibrary(assets: assets, cacheDirectory: cacheDirectory, context: context)
+        syncPhotosLibrary(assets: assets, context: context)
         selectPhoto(photos.first)
         isLoading = false
     }
 
     private func syncPhotosLibrary(
         assets: [PHAsset],
-        cacheDirectory: URL,
         context: ModelContext
     ) {
         let all = (try? context.fetch(FetchDescriptor<Photo>())) ?? []
@@ -72,7 +70,6 @@ extension ContentViewModel {
         photos = assets[..<firstBatchCount].map {
             resolvePhotosLibraryPhoto(
                 for: $0,
-                cacheDirectory: cacheDirectory,
                 existing: byIdentifier,
                 context: context
             )
@@ -85,7 +82,6 @@ extension ContentViewModel {
         photoStagingTask = Task {
             await stagePhotosLibraryPhotos(
                 assets: remaining,
-                cacheDirectory: cacheDirectory,
                 existing: byIdentifier,
                 context: context,
                 generation: generation
@@ -95,7 +91,6 @@ extension ContentViewModel {
 
     private func stagePhotosLibraryPhotos(
         assets: [PHAsset],
-        cacheDirectory: URL,
         existing byIdentifier: [String: Photo],
         context: ModelContext,
         generation: Int
@@ -107,7 +102,6 @@ extension ContentViewModel {
             let chunk = assets[index..<end].map {
                 resolvePhotosLibraryPhoto(
                     for: $0,
-                    cacheDirectory: cacheDirectory,
                     existing: byIdentifier,
                     context: context
                 )
@@ -122,23 +116,15 @@ extension ContentViewModel {
 
     private func resolvePhotosLibraryPhoto(
         for asset: PHAsset,
-        cacheDirectory: URL,
         existing byIdentifier: [String: Photo],
         context: ModelContext
     ) -> Photo {
         if let photo = byIdentifier[asset.localIdentifier] { return photo }
-        let fileURL = cacheDirectory.appendingPathComponent(Self.sanitizedAssetFileName(asset.localIdentifier))
+        let fileURL = PhotosLibraryAssetExporter.fileURL(forLocalIdentifier: asset.localIdentifier)
         let photo = Photo(fileURL: fileURL, phAssetLocalIdentifier: asset.localIdentifier)
         photo.shootingDate = asset.creationDate ?? Date()
         context.insert(photo)
         return photo
     }
 
-    private static func sanitizedAssetFileName(_ localIdentifier: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
-        let sanitized = localIdentifier.unicodeScalars.map {
-            allowed.contains($0) ? Character(String($0)) : "_"
-        }
-        return String(sanitized) + ".jpg"
-    }
 }

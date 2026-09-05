@@ -27,6 +27,7 @@ struct ShootLogApp: App {
                         _ = ImageLoader.shared
                         await PreviewCacheStore.shared.warmUp()
                         await ImageDevelopmentEngine.shared.warmUpCaches()
+                        await PhotosLibraryAssetExporter.shared.warmUp()
                     }
                 }
         }
