@@ -211,4 +211,40 @@ struct PreviewCacheStoreTests {
         await store.clearAll()
         #expect(try cachedFiles(in: cacheDirectory).isEmpty)
     }
+
+    @Test func dataWriteAtomicallyCreatesAndReplacesDestination() throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let destination = sandbox.appendingPathComponent("asset.jpg")
+
+        #expect(ImageFileCache.writeData(Data([1, 2, 3]), to: destination))
+        #expect(try Data(contentsOf: destination) == Data([1, 2, 3]))
+        #expect(ImageFileCache.writeData(Data([4, 5, 6]), to: destination))
+        #expect(try Data(contentsOf: destination) == Data([4, 5, 6]))
+        #expect(try cachedFiles(in: sandbox).count == 1)
+    }
+
+    @Test func prepareSupportsCustomTemporaryFileNames() throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let hashTemporary = sandbox.appendingPathComponent(
+            "\(String(repeating: "a", count: 64)).\(UUID().uuidString).jpg"
+        )
+        let assetTemporary = sandbox.appendingPathComponent(
+            "asset.identifier.\(UUID().uuidString).jpg"
+        )
+        try Data().write(to: hashTemporary)
+        try Data().write(to: assetTemporary)
+
+        ImageFileCache.prepare(directory: sandbox, extensions: ["jpg"])
+        #expect(FileManager.default.fileExists(atPath: hashTemporary.path) == false)
+        #expect(FileManager.default.fileExists(atPath: assetTemporary.path))
+
+        ImageFileCache.prepare(
+            directory: sandbox,
+            extensions: ["jpg"],
+            isTemporaryFile: { url in url.lastPathComponent == assetTemporary.lastPathComponent }
+        )
+        #expect(FileManager.default.fileExists(atPath: assetTemporary.path) == false)
+    }
 }

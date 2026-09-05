@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 actor PhotosLibraryAssetExporter {
     static let shared = PhotosLibraryAssetExporter()
 
+    private static let evictionInterval = 100
+
     nonisolated static let defaultDirectory: URL = {
         let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
@@ -19,7 +21,8 @@ actor PhotosLibraryAssetExporter {
 
     nonisolated static let defaultMaxDiskBytes = 2 * 1024 * 1024 * 1024
 
-    private var inFlightTasks: [String: Task<Void, Never>] = [:]
+    private var inFlightTasks: [String: (fileURL: URL, task: Task<Void, Never>)] = [:]
+    private var exportsSinceEviction = 0
 
     private let directory: URL
     private let maxDiskBytes: Int
@@ -40,24 +43,31 @@ actor PhotosLibraryAssetExporter {
     func ensureExported(localIdentifier: String, fileURL: URL) async {
         guard !FileManager.default.fileExists(atPath: fileURL.path) else { return }
 
-        if let task = inFlightTasks[localIdentifier] {
-            await task.value
+        if let inFlightTask = inFlightTasks[localIdentifier], inFlightTask.fileURL == fileURL {
+            await inFlightTask.task.value
             return
         }
 
         let task = Task { [localIdentifier, fileURL] in
             await self.exportAsset(localIdentifier: localIdentifier, to: fileURL)
         }
-        inFlightTasks[localIdentifier] = task
+        inFlightTasks[localIdentifier] = (fileURL: fileURL, task: task)
         await task.value
-        inFlightTasks[localIdentifier] = nil
+        if inFlightTasks[localIdentifier]?.fileURL == fileURL {
+            inFlightTasks[localIdentifier] = nil
+        }
     }
 
     /// 起動時にエクスポートキャッシュを準備し、古いファイルを上限内へ整理する。
     func warmUp() async {
         let directory = directory
+        exportsSinceEviction = 0
         await Task.detached(priority: .utility) {
-            ImageFileCache.prepare(directory: directory, extensions: ["jpg"])
+            ImageFileCache.prepare(
+                directory: directory,
+                extensions: ["jpg"],
+                isTemporaryFile: Self.isTemporaryExportFile
+            )
         }.value
         await evictToLimit()
     }
@@ -114,8 +124,11 @@ actor PhotosLibraryAssetExporter {
 
         let maxPixelSize = PreviewCacheStore.shared.proxyLongEdge
         let exportData = Self.resizedJPEGData(from: data, maxPixelSize: maxPixelSize) ?? data
-        let didWrite = Self.writeDataAtomically(exportData, to: fileURL)
-        if didWrite {
+        guard ImageFileCache.writeData(exportData, to: fileURL) else { return }
+
+        exportsSinceEviction += 1
+        if exportsSinceEviction.isMultiple(of: Self.evictionInterval) {
+            exportsSinceEviction = 0
             await evictToLimit()
         }
     }
@@ -124,7 +137,7 @@ actor PhotosLibraryAssetExporter {
         for asset: PHAsset,
         options: PHImageRequestOptions
     ) async -> Data? {
-        let state = PhotosLibraryExportRequestState()
+        let state = PHImageManagerRequestState<Data>()
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 state.setContinuation(continuation)
@@ -141,32 +154,12 @@ actor PhotosLibraryAssetExporter {
         }
     }
 
-    private static func writeDataAtomically(_ data: Data, to url: URL) -> Bool {
-        let temporaryURL = url.deletingPathExtension()
-            .appendingPathExtension("\(UUID().uuidString).\(url.pathExtension)")
-        do {
-            try data.write(to: temporaryURL)
-        } catch {
-            return false
-        }
-
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: url.path) {
-            if (try? fileManager.replaceItemAt(url, withItemAt: temporaryURL)) != nil {
-                return true
-            }
-        } else if (try? fileManager.moveItem(at: temporaryURL, to: url)) != nil {
-            return true
-        }
-
-        try? fileManager.removeItem(at: temporaryURL)
-        // 同一アセットの別タスクが先に書き込んでいれば、その完成済みデータを採用する。
-        return fileManager.fileExists(atPath: url.path)
-    }
-
     private static func resizedJPEGData(from data: Data, maxPixelSize: Int) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        // kCGImageSourceCreateThumbnailWithTransformでピクセルを正立化するため、
+        // 元のorientationタグを引き継ぐと二重回転扱いになる。書き出す側は除去する。
+        var properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        properties?[kCGImagePropertyOrientation] = nil
         let thumbnailOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixelSize),
@@ -203,51 +196,12 @@ private extension PhotosLibraryAssetExporter {
         }
         return String(sanitized) + ".jpg"
     }
-}
 
-private final class PhotosLibraryExportRequestState: @unchecked Sendable {
-    private let lock = NSLock()
-    private var isFinished = false
-    private(set) var requestID: PHImageRequestID?
-    private var continuation: CheckedContinuation<Data?, Never>?
-
-    func setContinuation(_ continuation: CheckedContinuation<Data?, Never>) {
-        lock.lock()
-        self.continuation = continuation
-        let shouldCancel = isFinished
-        lock.unlock()
-        if shouldCancel { continuation.resume(returning: nil) }
-    }
-
-    func setRequestID(_ requestID: PHImageRequestID) {
-        lock.lock()
-        self.requestID = requestID
-        let shouldCancel = isFinished
-        lock.unlock()
-        if shouldCancel { PHImageManager.default().cancelImageRequest(requestID) }
-    }
-
-    func finish(_ data: Data?) -> Bool {
-        lock.lock()
-        guard !isFinished, let continuation else {
-            lock.unlock()
-            return false
-        }
-        isFinished = true
-        self.continuation = nil
-        lock.unlock()
-        continuation.resume(returning: data)
-        return true
-    }
-
-    func cancel() {
-        lock.lock()
-        let requestID = self.requestID
-        let continuation = self.continuation
-        self.continuation = nil
-        isFinished = true
-        lock.unlock()
-        if let requestID { PHImageManager.default().cancelImageRequest(requestID) }
-        continuation?.resume(returning: nil)
+    static let isTemporaryExportFile: @Sendable (URL) -> Bool = { url in
+        guard url.pathExtension.caseInsensitiveCompare("jpg") == .orderedSame else { return false }
+        let name = url.deletingPathExtension().lastPathComponent
+        guard let separator = name.lastIndex(of: "."), separator != name.startIndex else { return false }
+        let uuid = name[name.index(after: separator)...]
+        return UUID(uuidString: String(uuid)) != nil
     }
 }
