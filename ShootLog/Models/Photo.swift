@@ -48,6 +48,7 @@ final class Photo {
     var asShotTint: Double? = nil
     var asShotWhiteBalanceIsEstimated: Bool? = nil
     var asShotWhiteBalanceFetchedAt: Date? = nil
+    var phAssetLocalIdentifier: String? = nil
 
     /// 成功要因タグの読み書きアクセサ。未知のraw valueは無視し、他のタグの読み取りに影響させない
     var successTags: [SuccessTagCategory] {
@@ -61,5 +62,14 @@ final class Photo {
         self.shootingDate = Date()
         self.isFavorite = false
         self.note = ""
+    }
+
+    init(id: UUID = UUID(), fileURL: URL, phAssetLocalIdentifier: String) {
+        self.id = id
+        self.fileURL = fileURL
+        self.shootingDate = Date()
+        self.isFavorite = false
+        self.note = ""
+        self.phAssetLocalIdentifier = phAssetLocalIdentifier
     }
 }

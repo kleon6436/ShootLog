@@ -4,6 +4,7 @@ import SwiftUI
 // フォルダ未選択時の空状態ビュー。フォルダ履歴があれば一覧も表示する
 struct EmptyStateView: View {
     var onOpenFolder: () -> Void
+    var onOpenPhotosLibrary: () -> Void = {}
     var folderHistories: [FolderHistory] = []
     var onRestoreHistory: (FolderHistory) -> Void = { _ in }
     var onDeleteHistory: (FolderHistory) -> Void = { _ in }
@@ -24,9 +25,14 @@ struct EmptyStateView: View {
                     .font(.title3).fontWeight(.medium)
                 Text("empty.subtitle")
                     .font(.subheadline).foregroundStyle(.secondary)
-                Button("empty.openFolder.button", action: onOpenFolder)
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("common.openFolder")
+                HStack(spacing: 8) {
+                    Button("empty.openFolder.button", action: onOpenFolder)
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel("common.openFolder")
+                    Button("photosLibrary.openButton", action: onOpenPhotosLibrary)
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel("photosLibrary.openButton")
+                }
             }
 
             // フォルダ履歴リスト

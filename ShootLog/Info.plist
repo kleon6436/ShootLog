@@ -16,6 +16,8 @@
     <string>1</string>
     <key>CFBundleDisplayName</key>
     <string>ShootLog</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>写真ライブラリの写真を読み込んで表示するために使用します。</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>ja</string>
     <key>CFBundleLocalizations</key>

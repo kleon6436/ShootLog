@@ -1,0 +1,2 @@
+/* Photo library permission prompt. */
+"NSPhotoLibraryUsageDescription" = "Used to read and display photos from your Photos library.";

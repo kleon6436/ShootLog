@@ -95,6 +95,13 @@ extension ContentViewModel {
 
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する
     func loadEXIFIfNeeded(for photo: Photo) async {
+        if let localIdentifier = photo.phAssetLocalIdentifier {
+            let fileURL = photo.fileURL
+            await PhotosLibraryAssetExporter.shared.ensureExported(
+                localIdentifier: localIdentifier,
+                fileURL: fileURL
+            )
+        }
         if photo.exifFetchedAt == nil {
             let url = photo.fileURL
             do {

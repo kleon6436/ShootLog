@@ -2542,35 +2542,6 @@
         }
       }
     },
-    "develop.previewGeneration.progress" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Generating previews: %lld"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Generating previews: %lld"
-                }
-              }
-            }
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "プレビュー生成中 %lld枚"
-          }
-        }
-      }
-    },
     "develop.preset.apply" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2771,6 +2742,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プリセットを保存"
+          }
+        }
+      }
+    },
+    "develop.previewGeneration.progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Generating previews: %lld"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Generating previews: %lld"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プレビュー生成中 %lld枚"
           }
         }
       }
@@ -4647,6 +4647,73 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "タイミング"
+          }
+        }
+      }
+    },
+    "photosLibrary.openButton" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Photos Library"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真ライブラリを開く"
+          }
+        }
+      }
+    },
+    "photosLibrary.permissionDenied.alert.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow full access to your Photos library in System Settings."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "システム設定で写真ライブラリへのフルアクセスを許可してください。"
+          }
+        }
+      }
+    },
+    "photosLibrary.permissionDenied.alert.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos Library Access Required"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真ライブラリへのアクセスが必要です"
+          }
+        }
+      }
+    },
+    "photosLibrary.permissionGranted.toast" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access to your Photos library was granted (photo listing will be implemented later)."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真ライブラリへのアクセスが許可されました（一覧表示は今後実装予定です）。"
           }
         }
       }

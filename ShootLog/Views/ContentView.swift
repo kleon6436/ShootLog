@@ -96,10 +96,11 @@ struct ContentView: View {
             .background { WindowChromeConfigurator(isToolbarVisible: vm.isToolbarVisible) }
     }
 
-    // フォルダ未選択時の画面。mainContent の型検査を軽く保つため切り出している
+    // 写真ソース未選択時の画面。mainContent の型検査を軽く保つため切り出している
     private var emptyState: some View {
         EmptyStateView(
             onOpenFolder: vm.openFolder,
+            onOpenPhotosLibrary: vm.openPhotosLibrary,
             folderHistories: vm.availableFolderHistories,
             onRestoreHistory: { history in
                 Task { await vm.restoreFolder(history) }
@@ -113,7 +114,7 @@ struct ContentView: View {
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている
     private var mainContent: some View {
         Group {
-            if vm.currentFolderURL == nil {
+            if vm.currentPhotoSource == nil {
                 emptyState
             } else {
                 // 表示モードに応じてビューを切り替える。VM取得はレジストリのキャッシュ経由
@@ -144,6 +145,14 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
         }
+        .overlay(alignment: .bottom) {
+            if vm.currentPhotoSource == nil, let toast = vm.toastMessage {
+                ToastView(message: toast)
+                    .padding(.bottom, 20)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: vm.toastMessage)
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
             guard let provider = providers.first else { return false }
             Task { await vm.handleProviderDrop(provider: provider) }
@@ -186,6 +195,14 @@ struct ContentView: View {
         } message: {
             let message: String = vm.error?.localizedDescription ?? ""
             Text(message)
+        }
+        .alert("photosLibrary.permissionDenied.alert.title", isPresented: Binding(
+            get: { vm.isPhotosLibraryPermissionAlertPresented },
+            set: { vm.isPhotosLibraryPermissionAlertPresented = $0 }
+        )) {
+            Button("common.ok") { vm.isPhotosLibraryPermissionAlertPresented = false }
+        } message: {
+            Text("photosLibrary.permissionDenied.alert.message")
         }
     }
 
