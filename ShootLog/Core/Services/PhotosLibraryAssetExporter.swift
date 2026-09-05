@@ -1,5 +1,7 @@
 import Foundation
+import ImageIO
 import Photos
+import UniformTypeIdentifiers
 
 /// Photos Libraryのアセットを既存のURLベース処理へ渡すためのエクスポーター。
 actor PhotosLibraryAssetExporter {
@@ -10,7 +12,7 @@ actor PhotosLibraryAssetExporter {
             ?? FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent("Library/Caches", isDirectory: true)
         return cachesDirectory.appendingPathComponent(
-            "com.shootlog.app/icloud-import-v1",
+            "com.shootlog.app/icloud-import-v2",
             isDirectory: true
         )
     }()
@@ -110,7 +112,9 @@ actor PhotosLibraryAssetExporter {
             return
         }
 
-        let didWrite = Self.writeDataAtomically(data, to: fileURL)
+        let maxPixelSize = PreviewCacheStore.shared.proxyLongEdge
+        let exportData = Self.resizedJPEGData(from: data, maxPixelSize: maxPixelSize) ?? data
+        let didWrite = Self.writeDataAtomically(exportData, to: fileURL)
         if didWrite {
             await evictToLimit()
         }
@@ -158,6 +162,36 @@ actor PhotosLibraryAssetExporter {
         try? fileManager.removeItem(at: temporaryURL)
         // 同一アセットの別タスクが先に書き込んでいれば、その完成済みデータを採用する。
         return fileManager.fileExists(atPath: url.path)
+    }
+
+    private static func resizedJPEGData(from data: Data, maxPixelSize: Int) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixelSize),
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+            source,
+            0,
+            thumbnailOptions as CFDictionary
+        ) else {
+            return nil
+        }
+
+        let mutableData = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            mutableData,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ) else {
+            return nil
+        }
+        CGImageDestinationAddImage(destination, thumbnail, properties as CFDictionary?)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return mutableData as Data
     }
 }
 

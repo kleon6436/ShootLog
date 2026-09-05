@@ -119,8 +119,16 @@ extension ContentViewModel {
         existing byIdentifier: [String: Photo],
         context: ModelContext
     ) -> Photo {
-        if let photo = byIdentifier[asset.localIdentifier] { return photo }
         let fileURL = PhotosLibraryAssetExporter.fileURL(forLocalIdentifier: asset.localIdentifier)
+        if let photo = byIdentifier[asset.localIdentifier] {
+            if photo.fileURL != fileURL {
+                // 新しいエクスポート先の中身は未確認のため、保存済みの読み取り結果を無効化する。
+                photo.fileURL = fileURL
+                photo.exifFetchedAt = nil
+                photo.asShotWhiteBalanceFetchedAt = nil
+            }
+            return photo
+        }
         let photo = Photo(fileURL: fileURL, phAssetLocalIdentifier: asset.localIdentifier)
         photo.shootingDate = asset.creationDate ?? Date()
         context.insert(photo)
