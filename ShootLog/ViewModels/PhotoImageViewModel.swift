@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 // PhotoViewerView / EditablePhotoView共通のサムネイル→プレビュープロキシ2段階ロードを担うViewModel
-// Step1: サムネイル(768px)を即時表示 → Step2: 固定解像度プロキシに差し替え
+// Step1: サムネイルを即時表示 → Step2: 固定解像度プロキシに差し替え
 @Observable
 @MainActor
 final class PhotoImageViewModel {
@@ -27,21 +27,38 @@ final class PhotoImageViewModel {
         highRes = nil
         isLoadingHighRes = false
         guard let photo else { return }
-        let loadedThumbnail = await ImageLoader.shared.thumbnail(for: photo.fileURL)
-        // サムネイル取得中に写真が切り替わっていたら代入も高解像度ロードもスキップする
-        // （旧タスクが後から再開して前の写真のサムネイルを上書きするのを防ぐ）
-        guard !Task.isCancelled else { return }
-        thumbnail = loadedThumbnail
-        isLoadingHighRes = true
+        let fileURL = photo.fileURL
+
+        if let localIdentifier = photo.phAssetLocalIdentifier {
+            thumbnail = await PhotosLibraryThumbnailProvider.shared.thumbnail(
+                forLocalIdentifier: localIdentifier,
+                targetSize: CGSize(width: 480, height: 480)
+            )
+            guard !Task.isCancelled else { return }
+            isLoadingHighRes = true
+            await PhotosLibraryAssetExporter.shared.ensureExported(
+                localIdentifier: localIdentifier,
+                fileURL: fileURL
+            )
+            guard !Task.isCancelled else { return }
+        } else {
+            let loadedThumbnail = await ImageLoader.shared.thumbnail(for: fileURL)
+            // サムネイル取得中に写真が切り替わっていたら代入も高解像度ロードもスキップする
+            // （旧タスクが後から再開して前の写真のサムネイルを上書きするのを防ぐ）
+            guard !Task.isCancelled else { return }
+            thumbnail = loadedThumbnail
+            isLoadingHighRes = true
+        }
+
         if useFullResolution {
             let loadedHighRes = await ImageLoader.shared.highResImage(
-                for: photo.fileURL,
+                for: fileURL,
                 targetMaxPixelSize: ImageLoader.fullSizePixelTarget
             )
             guard !Task.isCancelled else { return }
             highRes = loadedHighRes
         } else {
-            let proxy = await ImageLoader.shared.proxyImage(for: photo.fileURL)
+            let proxy = await ImageLoader.shared.proxyImage(for: fileURL)
             guard !Task.isCancelled else { return }
             if let proxy {
                 highRes = proxy
@@ -51,7 +68,7 @@ final class PhotoImageViewModel {
             let proxyEdge = CGFloat(PreviewCacheStore.shared.proxyLongEdge)
             if displayNeed > proxyEdge * 1.1 {
                 let bigger = await ImageLoader.shared.highResImage(
-                    for: photo.fileURL,
+                    for: fileURL,
                     targetMaxPixelSize: displayNeed
                 )
                 guard !Task.isCancelled else { return }

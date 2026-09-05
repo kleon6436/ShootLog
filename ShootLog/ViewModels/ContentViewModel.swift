@@ -1,10 +1,18 @@
 import SwiftData
 import Foundation
 
+enum PhotoSourceKind: Equatable {
+    case folder(URL)
+    case photosLibrary
+}
+
 // アプリ全体の単一真実源。フォルダ管理・写真データ・表示モードをすべて管理する
 @Observable
 @MainActor
 final class ContentViewModel {
+    // 権限不足時の案内Alertを表示する状態。
+    var isPhotosLibraryPermissionAlertPresented = false
+
     // フォルダ
     // 超解像書き出しジョブは「フォルダを閉じる」タイミングでのみ中断する必要があるため、
     // フォルダURLの変更（新規選択・履歴からの復元）を検知してここで打ち切る
@@ -28,6 +36,7 @@ final class ContentViewModel {
 
     // 写真
     var photos: [Photo] = []
+    var currentPhotoSource: PhotoSourceKind?
     var selectedPhoto: Photo?
     var isLoading = false
     /// バックグラウンドのプレビュープロキシ生成の残件数。0 のとき表示しない。
@@ -199,10 +208,10 @@ final class ContentViewModel {
         isSidebarVisible = isVisible
     }
 
-    // サイドバー/インスペクタの表示切替・可視性表示が有効な条件（sidebarモード表示中かつフォルダ選択済み）
+    // サイドバー/インスペクタの表示切替・可視性表示が有効な条件（sidebarモード表示中かつ写真ソース選択済み）
     // ContentView の FocusedValues 判定で共通利用する
     var isSidebarModeActive: Bool {
-        currentModeID == "sidebar" && currentFolderURL != nil
+        currentModeID == "sidebar" && currentPhotoSource != nil
     }
 
     // MARK: - Toolbar (ModeToolbarComponents向け)

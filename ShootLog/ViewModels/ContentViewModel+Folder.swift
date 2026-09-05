@@ -55,6 +55,7 @@ extension ContentViewModel {
             saveOrReportError(context)
             loadHistories()
             currentFolderURL = url
+            currentPhotoSource = .folder(url)
             await loadFolderPhotos(url)
         } catch {
             self.error = ShootLogError.bookmarkRestorationFailed
@@ -122,6 +123,7 @@ extension ContentViewModel {
             )
             addToHistory(url: url, bookmark: bookmark, context: context)
             currentFolderURL = url
+            currentPhotoSource = .folder(url)
             await loadFolderPhotos(url)
         } catch {
             self.error = ShootLogError.folderAccessDenied
@@ -207,7 +209,7 @@ extension ContentViewModel {
     }
 
     // 進行中の段階挿入を打ち切る。フォルダ切替の直前に呼び、古いTaskが photos を汚さないようにする
-    private func cancelPhotoStaging() async {
+    func cancelPhotoStaging() async {
         photoStagingTask?.cancel()
         photoStagingTask = nil
         pendingSelectNextTask?.cancel()
@@ -254,7 +256,7 @@ extension ContentViewModel {
         targets.prefix(count).forEach { context.delete($0) }
     }
 
-    private func releaseBookmarkAccess() {
+    func releaseBookmarkAccess() {
         bookmarkScopedURL?.stopAccessingSecurityScopedResource()
         bookmarkScopedURL = nil
     }

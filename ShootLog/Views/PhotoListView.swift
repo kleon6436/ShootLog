@@ -75,7 +75,7 @@ private struct PhotoGridCell: View {
         .onTapGesture { onSelect() } // Listの暗黙選択動作の代替
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityAddTraits(.isButton)
-        .task { await vm.load(url: photo.fileURL) }
+        .task { await vm.load(photo: photo) }
     }
 
     private var accessibilityLabelText: String {

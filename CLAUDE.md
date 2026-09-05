@@ -25,7 +25,10 @@ macOS向けの写真管理・閲覧アプリ。ユーザーが選択したフォ
 <key>com.apple.security.app-sandbox</key><true/>
 <key>com.apple.security.files.user-selected.read-write</key><true/>
 <key>com.apple.security.files.bookmarks.app-scope</key><true/>
+<key>com.apple.security.personal-information.photos-library</key><true/>
 ```
+
+`personal-information.photos-library` はiCloud写真ライブラリ統合（`PhotosLibraryPermissionService`）向け。Info.plistの `NSPhotoLibraryUsageDescription` とセットで必要（無いと権限ダイアログ自体が出ず `.denied` になる）。
 
 ## 現在のディレクトリ構成
 
@@ -80,7 +83,7 @@ UIに表示する文字列は、日本語をコードに直接書かず、ASCII�
 
 キーは `<スコープ>.<要素>[.<用途>]` 形式とし、`common.` `error.` `toolbar.` `menu.` `exif.` `analysis.` `settings.`
 `empty.` `viewMode.` `photo.tag.` `a11y.` `viewer.` `inspector.` `openPanel.` `sidebar.` `editor.` `externalApp.`
-`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` のいずれかで始める。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
+`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` `photosLibrary.` のいずれかで始める。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
 
 補間を含む文字列は位置指定プレースホルダ（`%1$@` 形式）を使い、語順が言語で変わってもよいようにする。
 「〜枚」「〜件」のような数を伴う表現は、String Catalog の複数形（plural variation）を必ず設定する。
@@ -252,12 +255,12 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 - 単体の超解像書き出し（`UpscaleExporter`）も `EditInfo.cropRect` を適用する（v3 Phase 2）。回転前の原本を表示画像基準の矩形へ逆変換して切り抜いてから回転・拡大するため、現像→超解像チェーンと同じ構図・寸法になる。上限判定・所要時間見積り（`UpscaleExportViewModel.croppedInputPixelSize`）も切り抜き後の画素数で行う。
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
+- iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A（権限基盤）・Phase B（一覧取得とサムネイル表示）・Phase C（フルサイズ表示・EXIF統合）まで実装済み。フルアクセス許可時、`PhotosLibraryRepository`が`PHAsset`（画像のみ、撮影日時昇順）を取得し、`ContentViewModel.currentPhotoSource`（`.folder`/`.photosLibrary`）経由でグリッドに反映する。サムネイルは`PhotosLibraryThumbnailProvider`（PHImageManager、`ImageLoader`のディスクキャッシュ経由にしない専用軽量パス）。`Photo.phAssetLocalIdentifier`で重複防止し、`fileURL`は`~/Library/Caches/com.shootlog.app/icloud-import-v1/`配下のプレースホルダーパス。写真選択時（`PhotoImageViewModel.load`・`loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter`がPHAssetから高品質JPEGをこのパスへエクスポートし（同一アセットの同時エクスポートは1本化、`ImageFileCache`で原子的書き込み）、以降は既存のフォルダ写真と同じ`ImageLoader.proxyImage`/`highResImage`/`EXIFService`パスへ合流する。お気に入り・メモは`Photo.id`ベースで変更不要。分析画面はエクスポート未了（EXIF未取得）のiCloud写真を強制エクスポートせず、既存の欠損データ処理に委ねる（全件事前エクスポートはしない設計）。`icloud-import-v1/`キャッシュのeviction・設定画面「ディスクキャッシュを削除」への統合（Phase D）は未実装。
 
 ### 未着手・スコープ外
 
 - ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
 - 複数フォルダの同時表示
-- iCloud写真ライブラリ連携
 - 外部アプリとの双方向同期
 - GPS地図表示、顔検出、比較ビュー
 
