@@ -37,9 +37,13 @@ extension ContentViewModelProxy {
     // 「3 / 12」形式のカウンタ表示。選択中写真が絞り込みで一覧から外れている間は
     // 位置を偽らずダッシュを表示する
     var visibleCounterText: String {
+        let visiblePhotos = self.visiblePhotos
         let total = visiblePhotos.count
         guard total > 0 else { return "0 / 0" }
-        guard let index = visibleIndex else { return "— / \(total)" }
+        guard let selectedPhoto else { return "— / \(total)" }
+        guard let index = visiblePhotos.firstIndex(where: { $0.id == selectedPhoto.id }) else {
+            return "— / \(total)"
+        }
         return "\(index + 1) / \(total)"
     }
 

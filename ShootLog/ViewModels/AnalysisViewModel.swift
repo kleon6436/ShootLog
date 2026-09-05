@@ -71,48 +71,76 @@ final class AnalysisViewModel {
     }
 
     let photos: [Photo]
-    var selectedPage: AnalysisPage = .aperture
-    var selectedCamera: String? = nil       // nil = すべてのカメラ
-    var showFavoritesOverlay: Bool = false
+    var selectedPage: AnalysisPage = .aperture {
+        didSet {
+            guard oldValue != selectedPage else { return }
+            updateCurrentData()
+        }
+    }
+    var selectedCamera: String? = nil {      // nil = すべてのカメラ
+        didSet {
+            guard oldValue != selectedCamera else { return }
+            updateFilteredPhotos()
+        }
+    }
+    var showFavoritesOverlay: Bool = false {
+        didSet {
+            guard oldValue != showFavoritesOverlay else { return }
+            updateCurrentData()
+        }
+    }
 
     var totalCount: Int { photos.count }
 
     // EXIF取得済み（絞り・SS・ISO・焦点距離 のいずれかがある）写真の枚数
-    var exifCount: Int {
-        photos.filter { $0.aperture != nil || $0.shutterSpeed != nil || $0.iso != nil || $0.focalLength != nil }.count
-    }
+    let exifCount: Int
 
     // EXIFから取得できたカメラモデルの重複なし一覧（ソート済み）
-    var availableCameras: [String] {
-        Array(Set(photos.compactMap(\.cameraModel))).sorted()
-    }
+    let availableCameras: [String]
 
     // カメラフィルター適用後の写真
-    var filteredPhotos: [Photo] {
-        guard let camera = selectedCamera else { return photos }
-        return photos.filter { $0.cameraModel == camera }
-    }
+    private(set) var filteredPhotos: [Photo] = []
 
     // カメラフィルター適用後のお気に入り写真
-    var favoriteFilteredPhotos: [Photo] {
-        filteredPhotos.filter(\.isFavorite)
-    }
+    private(set) var favoriteFilteredPhotos: [Photo] = []
 
     // タブと選択状態に応じたチャートデータ（オーバーレイ時は2系列）
-    var currentData: [DataPoint] {
-        guard let tab = selectedPage.chartTab else { return [] }
-        let base = filteredPhotos
-        let fav: [Photo]? = showFavoritesOverlay ? favoriteFilteredPhotos : nil
-        switch tab {
-        case .aperture:     return computeAperture(base: base, overlay: fav)
-        case .shutterSpeed: return computeShutterSpeed(base: base, overlay: fav)
-        case .iso:          return computeISO(base: base, overlay: fav)
-        case .focalLength:  return computeFocalLength(base: base, overlay: fav)
-        }
-    }
+    private(set) var currentData: [DataPoint] = []
 
     init(photos: [Photo]) {
         self.photos = photos
+        self.exifCount = photos.filter {
+            $0.aperture != nil || $0.shutterSpeed != nil || $0.iso != nil || $0.focalLength != nil
+        }.count
+        self.availableCameras = Array(Set(photos.compactMap(\.cameraModel))).sorted()
+        updateFilteredPhotos()
+    }
+
+    private func updateFilteredPhotos() {
+        guard let camera = selectedCamera else {
+            filteredPhotos = photos
+            favoriteFilteredPhotos = photos.filter(\.isFavorite)
+            updateCurrentData()
+            return
+        }
+        filteredPhotos = photos.filter { $0.cameraModel == camera }
+        favoriteFilteredPhotos = filteredPhotos.filter(\.isFavorite)
+        updateCurrentData()
+    }
+
+    private func updateCurrentData() {
+        guard let tab = selectedPage.chartTab else {
+            currentData = []
+            return
+        }
+        let base = filteredPhotos
+        let fav: [Photo]? = showFavoritesOverlay ? favoriteFilteredPhotos : nil
+        switch tab {
+        case .aperture:     currentData = computeAperture(base: base, overlay: fav)
+        case .shutterSpeed: currentData = computeShutterSpeed(base: base, overlay: fav)
+        case .iso:          currentData = computeISO(base: base, overlay: fav)
+        case .focalLength:  currentData = computeFocalLength(base: base, overlay: fav)
+        }
     }
 
     // MARK: - 絞り（全段バケット）
