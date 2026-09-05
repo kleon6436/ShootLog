@@ -140,9 +140,9 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 - 空状態画面の「写真ライブラリを開く」から`PhotosLibraryPermissionService`が権限確認・リクエストを行う。フルアクセス以外（限定・拒否・未決定）は案内Alertのみで機能を提供しない。
 - フルアクセス時、`PhotosLibraryRepository.fetchAssets()`が画像アセット（`.image`のみ、動画は対象外）を撮影日時昇順で取得し、`ContentViewModel.currentPhotoSource`（`.folder(URL)` / `.photosLibrary`）で「写真ソースが開かれているか」の判定をフォルダ機能と共通化する。
 - 重複防止キーは`Photo.phAssetLocalIdentifier`（フォルダ写真は`nil`）。
-- **エクスポートキャッシュ方式**を採用: `Photo.fileURL`は`PhotosLibraryAssetExporter.defaultDirectory`（`~/Library/Caches/com.shootlog.app/icloud-import-v1/`）配下の、サニタイズしたlocalIdentifierをファイル名にしたプレースホルダーパス。実ファイルは未生成の状態で`Photo`が作られ、写真選択時（`PhotoImageViewModel.load` / `loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter.ensureExported(localIdentifier:fileURL:)`がPHAssetから高品質JPEGをこのパスへ書き込む（同一アセットへの同時要求はin-flight Taskで1本化）。これにより`ImageLoader`/`PreviewCacheStore`/`PhotoImageViewModel`/`EXIFService`/お気に入り・メモ・分析画面をほぼ無改修で再利用できる。
+- **エクスポートキャッシュ方式**を採用: `Photo.fileURL`は`PhotosLibraryAssetExporter.defaultDirectory`（`~/Library/Caches/com.shootlog.app/icloud-import-v2/`）配下の、サニタイズしたlocalIdentifierをファイル名にしたプレースホルダーパス。実ファイルは未生成の状態で`Photo`が作られ、写真選択時（`PhotoImageViewModel.load` / `loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter.ensureExported(localIdentifier:fileURL:)`がPHAssetから高品質JPEGをこのパスへ書き込む（同一アセットへの同時要求はin-flight Taskで1本化）。これにより`ImageLoader`/`PreviewCacheStore`/`PhotoImageViewModel`/`EXIFService`/お気に入り・メモ・分析画面をほぼ無改修で再利用できる。
 - グリッドのサムネイルは`ImageLoader`のディスクキャッシュを経由せず、`PhotosLibraryThumbnailProvider`（PHImageManager直結の軽量パス）を使う専用経路（`PhotoThumbnailViewModel.load(photo:)`が`phAssetLocalIdentifier`の有無で分岐）。
-- `icloud-import-v1/`は上限2GiB（`PhotosLibraryAssetExporter.defaultMaxDiskBytes`）でmtime昇順eviction。起動時`warmUp()`とエクスポート成功のたびに整理し、設定画面「ディスクキャッシュを削除」の対象にも含まれる。
+- `icloud-import-v2/`は上限2GiB（`PhotosLibraryAssetExporter.defaultMaxDiskBytes`）でmtime昇順eviction。起動時`warmUp()`とエクスポート成功のたびに整理し、設定画面「ディスクキャッシュを削除」の対象にも含まれる。
 - 分析画面はエクスポート未了（EXIF未取得）のiCloud写真を強制エクスポートしない。大量写真の一括ネットワークダウンロードを避けるため、既存の欠損データ処理（EXIFがnilのまま集計対象に含まれる）に委ねる。
 - RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIはスコープ外。
 
