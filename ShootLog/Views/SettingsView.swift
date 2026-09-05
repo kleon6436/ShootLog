@@ -150,6 +150,7 @@ private struct GeneralSettingsTab: View {
                 Task.detached(priority: .utility) { ImageLoader.shared.clearDiskCache() }
                 Task { await PreviewCacheStore.shared.clearAll() }
                 Task { await ImageDevelopmentEngine.shared.clearDiskCaches() }
+                Task { await PhotosLibraryAssetExporter.shared.clearAll() }
             }
             Button("common.cancel", role: .cancel) {}
         } message: {
