@@ -11,6 +11,7 @@ extension ContentViewModel {
     // 選択中写真を対象に設定画面を表示する
     func presentUpscaleExport() {
         guard let photo = selectedPhoto else { return }
+        guard photo.phAssetLocalIdentifier == nil else { return }
         let pixelSize = Self.readPixelSize(of: photo.fileURL)
         upscaleExportViewModel = UpscaleExportViewModel(
             inputPixelSize: pixelSize,
