@@ -7,6 +7,10 @@ import SwiftUI
 // （「サイドバー表示中は信号機とサイドバートグルがサイドバー内、非表示時はツールバー左端」
 // という Xcode 同様の macOS 標準挙動がそのまま働く）。
 struct WindowChromeConfigurator: NSViewRepresentable {
+    // メインウィンドウのフレームをmacOSの標準autosaveへ預ける。アプリの
+    // UserDefaults内でメインウィンドウを識別できる、安定した名前を使う。
+    private static let frameAutosaveName = "ShootLog.mainWindow"
+
     // ツールバーの可視性を呼び出し元が明示的に指定するための入力。デフォルトはtrueで既存動作を維持する。
     // フルスクリーンのHUD自動隠れ機能（isHUDVisibleと連動予定）から利用する
     var isToolbarVisible: Bool = true
@@ -71,6 +75,11 @@ struct WindowChromeConfigurator: NSViewRepresentable {
             // 頻繁に呼ばれるため、ウィンドウ自身の設定は対象が変わった時だけ行う。
             if configuredWindow !== window {
                 configuredWindow = window
+
+                // setFrameAutosaveName(_:) は登録時に保存済みフレームを復元し、以後の
+                // 移動・リサイズを自動保存する。configuredWindow のガード内に置くことで、
+                // SwiftUIの再描画やlayout()のたびにフレームを再適用しない。
+                window.setFrameAutosaveName(WindowChromeConfigurator.frameAutosaveName)
 
                 // タイトル文字は非表示（ツールバーのみの Xcode 風の見た目）
                 window.titleVisibility = .hidden
