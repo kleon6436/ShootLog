@@ -9,7 +9,7 @@ actor PhotosLibraryThumbnailProvider {
         guard let asset = fetchAsset(localIdentifier: assetLocalIdentifier) else { return nil }
 
         let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
+        options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
