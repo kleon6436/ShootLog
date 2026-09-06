@@ -28,6 +28,16 @@ struct DevelopPanelView: View {
                 .keyboardShortcut("b", modifiers: [.command, .option])
                 .accessibilityLabel("develop.beforeAfter")
 
+                Button(
+                    developViewModel.isComparingSplit ? "develop.splitCompare.hide" : "develop.splitCompare.show",
+                    systemImage: "rectangle.split.2x1.fill"
+                ) {
+                    developViewModel.toggleSplitCompare()
+                }
+                .keyboardShortcut("y", modifiers: [.command, .shift])
+                .accessibilityLabel("develop.splitCompare")
+                .disabled(developViewModel.previewImage == nil)
+
                 DevelopSectionCard("develop.section.basic", reset: sectionReset(.basic)) {
                     AdjustmentSlider(
                         label: "develop.exposure",

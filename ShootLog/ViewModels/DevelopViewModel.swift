@@ -21,6 +21,8 @@ final class DevelopViewModel {
 
     /// 現像適用済みのプレビュー。`nil` の間はベース画像（`PhotoImageViewModel`）を表示する。
     private(set) var previewImage: NSImage?
+    /// 回転・トリミングだけを適用した比較用の編集前プレビュー。
+    private(set) var beforeImage: NSImage?
     /// レンダリング中フラグ（スピナー表示用）。
     private(set) var isRendering = false
     /// 直近プレビューのヒストグラム。
@@ -38,7 +40,33 @@ final class DevelopViewModel {
     /// 撮影時ホワイトバランスが推定値か。
     var asShotWhiteBalanceIsEstimated: Bool { asShotWhiteBalance?.isEstimated ?? false }
     /// true の間は現像前（回転・トリミングのみ反映）のベース画像を表示する。
-    var isShowingBefore = false
+    var isShowingBefore = false {
+        didSet {
+            guard isShowingBefore != oldValue else { return }
+            if isShowingBefore {
+                isComparingSplit = false
+            }
+        }
+    }
+    /// 現像編集の Before/After スプリット比較モード。
+    var isComparingSplit = false {
+        didSet {
+            guard isComparingSplit != oldValue else { return }
+            if isComparingSplit {
+                guard previewImage != nil else {
+                    isComparingSplit = false
+                    return
+                }
+                isShowingBefore = false
+                ensureBeforeImage()
+            } else {
+                beforeImageTask?.cancel()
+                beforeImageTask = nil
+            }
+        }
+    }
+    /// スプリット境界の位置。表示中画像矩形内の 0...1（左端=0、右端=1）。
+    var splitPosition: CGFloat = 0.5
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
     private(set) var whiteBalanceStatusMessage: String?
     /// プレビュー上のクリッピング状態をビューア帯・ヒストグラム凡例に表示するか。
@@ -112,6 +140,8 @@ final class DevelopViewModel {
     private var renderTask: Task<Void, Never>?
     private var histogramTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
+    private var beforeImageTask: Task<Void, Never>?
+    private var beforeImageToken = 0
     /// レンダー要求の世代。await 明けにこれと一致しない結果は破棄し、`isRendering` の後始末も
     /// 最新世代のみが行う（キャンセル・supersede でスピナーが残らないようにする）。
     private var renderGeneration = 0
@@ -150,6 +180,7 @@ final class DevelopViewModel {
         flushPendingPersist()
         renderTask?.cancel()
         histogramTask?.cancel()
+        invalidateBeforeImage()
         _ = nextRenderGeneration()
         if displaySize.width > 0, displaySize.height > 0 { self.displaySize = displaySize }
         currentPhoto = photo
@@ -163,9 +194,11 @@ final class DevelopViewModel {
         undoParameters = nil
         canUndo = false
         canPaste = Self.clipboard != nil
-        previewImage = nil
+        clearPreview()
         histogram = nil
         isRendering = false
+        isShowingBefore = false
+        splitPosition = 0.5
         isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
         asShotWhiteBalance = nil
@@ -332,19 +365,33 @@ final class DevelopViewModel {
         isShowingBefore.toggle()
     }
 
+    /// 現像済みプレビューと編集前プレビューの左右分割表示を切り替える。
+    func toggleSplitCompare() {
+        guard previewImage != nil else {
+            isComparingSplit = false
+            return
+        }
+        isComparingSplit.toggle()
+    }
+
     /// 回転・トリミングの変更を受けて再レンダーする。調整も幾何変換も無くなればプレビューを解除する。
     func updateEditGeometry(rotation: Int, cropRect: CGRect?) {
         guard rotation != self.rotation || cropRect != self.cropRect else { return }
         self.rotation = rotation
         self.cropRect = cropRect
         guard currentPhoto != nil else { return }
+        let wasComparingSplit = isComparingSplit
+        invalidateBeforeImage()
         if shouldRender {
             scheduleRender()
+            if wasComparingSplit {
+                ensureBeforeImage()
+            }
         } else {
             renderTask?.cancel()
             histogramTask?.cancel()
             _ = nextRenderGeneration()
-            previewImage = nil
+            clearPreview()
             scheduleHistogramOnly(generation: renderGeneration)
             isRendering = false
         }
@@ -354,9 +401,16 @@ final class DevelopViewModel {
     /// プレビューが P3 書き出しの見えと一致する。`nil` で sRGB。変化があれば再描画する。
     func setPreviewColorSpace(_ colorSpace: CGColorSpace?) {
         guard !Self.sameColorSpace(colorSpace, previewColorSpace) else { return }
+        let wasComparingSplit = isComparingSplit
         previewColorSpace = colorSpace
+        invalidateBeforeImage()
         if currentPhoto != nil, shouldRender {
             scheduleRender()
+            if wasComparingSplit {
+                ensureBeforeImage()
+            }
+        } else {
+            clearPreview()
         }
     }
 
@@ -375,9 +429,16 @@ final class DevelopViewModel {
         let changed = abs(size.width - displaySize.width) > Self.displaySizeChangeThreshold
             || abs(size.height - displaySize.height) > Self.displaySizeChangeThreshold
         displaySize = size
+        guard changed else { return }
+        let wasComparingSplit = isComparingSplit
+        invalidateBeforeImage()
         if changed, currentPhoto != nil, shouldRender {
             scheduleRender()
+            if wasComparingSplit {
+                ensureBeforeImage()
+            }
         } else if changed, currentPhoto != nil {
+            clearPreview()
             scheduleHistogramOnly(generation: renderGeneration)
         }
     }
@@ -390,11 +451,12 @@ final class DevelopViewModel {
         // resetDevelop がレコードを消すので、保留中の保存はフラッシュせず破棄する。
         persistTask?.cancel()
         pendingPersist = nil
+        invalidateBeforeImage()
         _ = nextRenderGeneration()
         isApplyingLoadedState = true
         parameters = .neutral
         isApplyingLoadedState = false
-        previewImage = nil
+        clearPreview()
         histogram = nil
         isRendering = false
         content?.resetDevelop()
@@ -475,7 +537,7 @@ final class DevelopViewModel {
         histogramTask?.cancel()
         guard let photo = currentPhoto else {
             _ = nextRenderGeneration()
-            previewImage = nil
+            clearPreview()
             histogram = nil
             isRendering = false
             return
@@ -549,7 +611,7 @@ final class DevelopViewModel {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
         guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) else {
             if generation == renderGeneration {
-                previewImage = nil
+                clearPreview()
                 scheduleHistogramOnly(generation: generation)
                 isRendering = false
             }
@@ -585,6 +647,66 @@ final class DevelopViewModel {
         let computed = await HistogramData.make(from: rendered)
         guard generation == renderGeneration else { return }
         histogram = computed
+    }
+
+    /// 編集前プレビューを比較モードが必要になった時だけ遅延生成する。
+    private func ensureBeforeImage() {
+        guard beforeImage == nil, beforeImageTask == nil,
+              let photo = currentPhoto else { return }
+
+        beforeImageToken &+= 1
+        let token = beforeImageToken
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        let rot = rotation
+        let crop = cropRect
+        let colorSpace = previewColorSpace
+        let usesToneMaskedColorGrading = toneMaskedColorGradingActive
+        // After と同じ RAW デコード経路（CIRAWFilter）を通す。false にすると CIRAWFilter が
+        // 既定でレンズ・色収差補正を掛けてしまい、mapping 経由の After（lensCorrectionEnabled
+        // の中立値 = 補正なし）と見えが食い違う。
+        let useRAWParameterMapping = rawMappingActive
+        beforeImageTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: self.renderDebounce)
+            guard !Task.isCancelled else { return }
+            guard self.beforeImageToken == token,
+                  self.currentPhoto?.id == photo.id else { return }
+            let rendered = await self.engine.renderPreview(
+                url: photo.fileURL,
+                parameters: .neutral,
+                targetMaxPixelSize: target,
+                rotation: rot,
+                cropRect: crop,
+                previewColorSpace: colorSpace,
+                useRAWParameterMapping: useRAWParameterMapping,
+                usesManualLensCorrection: false,
+                usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+                asShotWhiteBalance: nil
+            )
+            guard self.beforeImageToken == token,
+                  self.currentPhoto?.id == photo.id else { return }
+            self.beforeImageTask = nil
+            guard !Task.isCancelled else { return }
+            guard let rendered else {
+                self.isComparingSplit = false
+                return
+            }
+            self.beforeImage = NSImage(cgImage: rendered, size: .zero)
+        }
+    }
+
+    /// 写真・表示ジオメトリに依存する編集前プレビューを無効化する。
+    private func invalidateBeforeImage() {
+        beforeImageToken &+= 1
+        beforeImageTask?.cancel()
+        beforeImageTask = nil
+        beforeImage = nil
+    }
+
+    /// 現像プレビューを消し、分割比較も終了する。
+    private func clearPreview() {
+        previewImage = nil
+        isComparingSplit = false
     }
 
     /// パイプラインへ渡す手動レンズ補正の適用可否。schemaVersion ゲート + RAW のプロファイル補正が

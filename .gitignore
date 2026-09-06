@@ -65,6 +65,7 @@ fastlane/test_output
 # omc, claude
 .omc/
 .claude/
+.serena/
 
 # Python (Scripts/xcodegen-postprocess.sh)
 __pycache__/
