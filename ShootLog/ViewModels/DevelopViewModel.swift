@@ -661,6 +661,10 @@ final class DevelopViewModel {
         let crop = cropRect
         let colorSpace = previewColorSpace
         let usesToneMaskedColorGrading = toneMaskedColorGradingActive
+        // After と同じ RAW デコード経路（CIRAWFilter）を通す。false にすると CIRAWFilter が
+        // 既定でレンズ・色収差補正を掛けてしまい、mapping 経由の After（lensCorrectionEnabled
+        // の中立値 = 補正なし）と見えが食い違う。
+        let useRAWParameterMapping = rawMappingActive
         beforeImageTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: self.renderDebounce)
@@ -674,7 +678,7 @@ final class DevelopViewModel {
                 rotation: rot,
                 cropRect: crop,
                 previewColorSpace: colorSpace,
-                useRAWParameterMapping: false,
+                useRAWParameterMapping: useRAWParameterMapping,
                 usesManualLensCorrection: false,
                 usesToneMaskedColorGrading: usesToneMaskedColorGrading,
                 asShotWhiteBalance: nil
