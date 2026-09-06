@@ -65,12 +65,20 @@ struct EditablePhotoView: View {
             if let displayImage = developPreview ?? baseImage {
                 ZStack(alignment: .bottomTrailing) {
                     if developPreview != nil {
-                        // 焼き込み済み。二重回転を避けてそのまま aspect-fit で表示する
-                        Image(nsImage: displayImage)
-                            .resizable()
-                            .interpolation(.high)
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        if developViewModel.isComparingSplit, !isCropMode {
+                            BeforeAfterSplitView(
+                                afterImage: displayImage,
+                                beforeImage: developViewModel.beforeImage,
+                                splitPosition: Bindable(developViewModel).splitPosition
+                            )
+                        } else {
+                            // 焼き込み済み。二重回転を避けてそのまま aspect-fit で表示する
+                            Image(nsImage: displayImage)
+                                .resizable()
+                                .interpolation(.high)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     } else {
                         // ベース画像は EditInfo の回転を rotationEffect で適用する
                         rotatedImage(displayImage)
@@ -100,7 +108,7 @@ struct EditablePhotoView: View {
                     )
                 }
 
-                if developViewModel.showsClippingWarnings, !isCropMode {
+                if developViewModel.showsClippingWarnings, !isCropMode, !developViewModel.isComparingSplit {
                     ExposureWarningOverlay(data: developViewModel.histogram)
                         .allowsHitTesting(false)
                 }
@@ -116,6 +124,7 @@ struct EditablePhotoView: View {
     // 現像レンダリング中、またはサムネイル表示中で高解像度ロード待ちのときスピナーを出す
     private var spinnerVisible: Bool {
         developViewModel.isRendering
+            || (developViewModel.isComparingSplit && developViewModel.beforeImage == nil)
             || (developViewModel.previewImage == nil && vm.highRes == nil && vm.isLoadingHighRes)
     }
 
