@@ -125,6 +125,7 @@
 		CBDAF543CB2081160C2A7E55 /* DevelopPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3742747134D20679C14E4098 /* DevelopPanelView.swift */; };
 		CD3FD57C1002536E3960BD4D /* SuperResolutionModelCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F0AB35DF7B72D28764D10A0 /* SuperResolutionModelCatalogTests.swift */; };
 		CE5127348A69A655113E97D3 /* URL+Volume.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF24E8239C713890AF34C144 /* URL+Volume.swift */; };
+		CF708EBB7636E1B36D41EB7A /* BeforeAfterSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9D0C5A0EBD8E53502FE1DC /* BeforeAfterSplitView.swift */; };
 		D01EE381A52CE998F5939B62 /* LightroomAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2843453D7ECC555E294521C4 /* LightroomAdapter.swift */; };
 		D28DB6E2AD582B366940AA5B /* EditablePhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84404E85187227393FC4CA60 /* EditablePhotoView.swift */; };
 		DA4D0DF31B3247533A360159 /* UpscaleOutputDestinationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9FFCCED2E889F08B17BD94 /* UpscaleOutputDestinationTests.swift */; };
@@ -237,6 +238,7 @@
 		585C20D3702C08AF79A814DC /* ColorGrading.ci.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ColorGrading.ci.metal; sourceTree = "<group>"; };
 		58B6B8619E38F249A43D8526 /* IntegrationSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationSettingsTab.swift; sourceTree = "<group>"; };
 		5AA8B9351D4D2F28C376679E /* UpscaleExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpscaleExportSheet.swift; sourceTree = "<group>"; };
+		5B9D0C5A0EBD8E53502FE1DC /* BeforeAfterSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeforeAfterSplitView.swift; sourceTree = "<group>"; };
 		5C9D1EBBB3403BB25B259476 /* DevelopExportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopExportViewModel.swift; sourceTree = "<group>"; };
 		5CABB7CD3C68C18851FE609E /* ContentViewModel+Edit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentViewModel+Edit.swift"; sourceTree = "<group>"; };
 		5D0F0789C7956A9C35808B80 /* ViewModeRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModeRegistry.swift; sourceTree = "<group>"; };
@@ -589,6 +591,7 @@
 			isa = PBXGroup;
 			children = (
 				69B8D04628A418D474B0AAB6 /* AdjustmentSlider.swift */,
+				5B9D0C5A0EBD8E53502FE1DC /* BeforeAfterSplitView.swift */,
 				D74617F3004077626293F7D6 /* ColorWheelView.swift */,
 				3742747134D20679C14E4098 /* DevelopPanelView.swift */,
 				97DE986569CCC3B2BDC8D6B7 /* DevelopPresetBar.swift */,
@@ -714,6 +717,7 @@
 				DA668B81B4CF5A47C0840CEA /* AnalysisViewModel+Session.swift in Sources */,
 				8D600D298E40F827F112364B /* AnalysisViewModel.swift in Sources */,
 				E040C0A60AEA8A9771A3BEF7 /* AppSettingsKeys.swift in Sources */,
+				CF708EBB7636E1B36D41EB7A /* BeforeAfterSplitView.swift in Sources */,
 				494F66A99111027E1AC5EFA7 /* CaptureOneAdapter.swift in Sources */,
 				1CCAF9A56B5ECD63CA862545 /* ColorGrading.ci.metal in Sources */,
 				641FF383BDAA3292FCE50388 /* ColorGradingFilter.swift in Sources */,
