@@ -80,6 +80,7 @@ struct BeforeAfterSplitView: View {
                     }
             )
             .focusable()
+            .focusEffectDisabled() // システムのフォーカスリング（青枠）を消す。フォーカス表示はハンドルの円で行う
             .focused($isFocused)
             .onAppear { isFocused = true }
             .onKeyPress(keys: [.leftArrow, .rightArrow]) { press in
