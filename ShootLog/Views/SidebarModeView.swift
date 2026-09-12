@@ -43,8 +43,9 @@ struct SidebarModeView: View {
         .onChange(of: vm.inspectorToggleRequestID) { _, _ in
             toggleInspector()
         }
-        // selectedPhotoのsetter（SidebarViewModel経由でContentViewModel.selectPhoto）が
-        // EditInfo/EXIF遅延ロードを既に行うため、ここでの再ロードは不要（二重実行防止）
+        // selectedPhotoのsetterが次のMainActorサイクルで
+        // ContentViewModel.selectPhotoを呼び、EditInfo/EXIF遅延ロードも行うため、
+        // ここでの再ロードは不要（二重実行防止）
     }
 
     // MARK: - Columns
