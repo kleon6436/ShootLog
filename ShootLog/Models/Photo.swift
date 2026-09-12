@@ -44,6 +44,11 @@ final class Photo {
     var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）
     // 軽量マイグレーションのため宣言時デフォルト値が必須（既存行にはinitが走らない）
     var successTagRawValues: [String] = []
+    var aiCategoryRawValues: [String] = []
+    var aiRawIdentifiers: [String] = []
+    var aiLabelingFetchedAt: Date? = nil
+    var aiCaptionText: String? = nil
+    var aiCaptionFetchedAt: Date? = nil
     var asShotTemperatureKelvin: Double? = nil
     var asShotTint: Double? = nil
     var asShotWhiteBalanceIsEstimated: Bool? = nil

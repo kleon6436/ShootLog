@@ -56,6 +56,11 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     // 検索テキスト
     var searchText: String = ""
+    // ツールバーのAIカテゴリフィルタで選択中のカテゴリ
+    var selectedAICategories: Set<AISubjectCategory> {
+        get { content.selectedAICategories }
+        set { content.selectedAICategories = newValue }
+    }
     // EXIFパネル可視性フラグ
     var isEXIFPanelVisible: Bool {
         get { content.isInspectorVisible }
@@ -97,14 +102,28 @@ final class SidebarViewModel: ContentViewModelProxy {
         self.inspectorTab = storedTab.flatMap(InspectorTab.init(rawValue:)) ?? .exif
     }
 
-    // searchText（ファイル名・カメラ名の部分一致）と showFavoritesOnly の AND 条件で photos を絞り込む
+    // 写真内で実際に検出されたカテゴリのみを、安定した宣言順で返す
+    var availableAICategories: [AISubjectCategory] {
+        return AISubjectCategory.allCases.filter {
+            $0 != .unknown && content.detectedAICategories.contains($0)
+        }
+    }
+
+    // searchText（ファイル名・カメラ名の部分一致）、showFavoritesOnly、AIカテゴリのAND条件で絞り込む
     var displayedPhotos: [Photo] {
         content.photos.filter { photo in
-            let matchesSearch = searchText.isEmpty
+            var matchesSearch = searchText.isEmpty
                 || photo.fileURL.lastPathComponent.localizedCaseInsensitiveContains(searchText)
                 || (photo.cameraModel?.localizedCaseInsensitiveContains(searchText) ?? false)
+            if #available(macOS 27, *), !matchesSearch, !searchText.isEmpty {
+                matchesSearch = photo.aiCaptionText?.localizedCaseInsensitiveContains(searchText) ?? false
+            }
             let matchesFavorite = !showFavoritesOnly || photo.isFavorite
-            return matchesSearch && matchesFavorite
+            let matchesAICategory = selectedAICategories.isEmpty
+                || !selectedAICategories.isDisjoint(
+                    with: Set(photo.aiCategoryRawValues.compactMap(AISubjectCategory.init(rawValue:)))
+                )
+            return matchesSearch && matchesFavorite && matchesAICategory
         }
     }
 
@@ -128,6 +147,7 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     var isLoading: Bool { content.isLoading }
     var previewGenerationRemaining: Int { content.previewGenerationRemaining }
+    var aiLabelingRemaining: Int { content.aiLabelingRemaining }
     var toastMessage: String? { content.toastMessage }
     var isSelectedPhotoFavorite: Bool { content.selectedPhoto?.isFavorite ?? false }
 
