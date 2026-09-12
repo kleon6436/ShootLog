@@ -154,6 +154,88 @@ extension ContentViewModel {
                     self.updatePreviewGenerationProgress(done: done, total: total)
                 }
             }
+            let aiLabelingToken = beginAILabeling()
+            let photoCaptionToken = beginPhotoCaption()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let staging = self.photoStagingTask {
+                    await staging.value
+                }
+                guard aiLabelingToken == self.aiLabelingToken else { return }
+
+                self.resetDetectedAICategories(from: self.photos)
+                let targetPhotos = self.photos
+                    .filter { $0.aiLabelingFetchedAt == nil }
+                let photoIndex = Dictionary(
+                    uniqueKeysWithValues: self.photos.enumerated().map { ($1.fileURL, $0) }
+                )
+                let aiTargets = targetPhotos.map {
+                    AILabelingTarget(url: $0.fileURL, localIdentifier: $0.phAssetLocalIdentifier)
+                }
+                let aiTotal = aiTargets.count
+                await AILabelingGenerator.shared.start(
+                    targets: aiTargets,
+                    around: 0,
+                    progress: { [weak self] done, total in
+                        Task { @MainActor in
+                            guard let self else { return }
+                            guard aiLabelingToken == self.aiLabelingToken else { return }
+                            self.updateAILabelingProgress(done: done, total: total)
+                        }
+                    },
+                    onResult: { [weak self] url, result in
+                        Task { @MainActor in
+                            guard let self else { return }
+                            guard aiLabelingToken == self.aiLabelingToken else { return }
+                            if let result,
+                               let index = photoIndex[url], self.photos.indices.contains(index) {
+                                let photo = self.photos[index]
+                                photo.aiCategoryRawValues = result.categories.map(\.rawValue)
+                                photo.aiRawIdentifiers = result.rawIdentifiers
+                                photo.aiLabelingFetchedAt = Date()
+                                self.addDetectedAICategories(result.categories)
+                            }
+                            self.aiLabelingCompletedCount += 1
+                            // 書き込み後に保存し、数百〜数千枚の分類ではチャンク単位にI/Oする。
+                            if aiTotal > 0,
+                               self.aiLabelingCompletedCount == aiTotal
+                                || self.aiLabelingCompletedCount.isMultiple(of: Self.photoStagingChunkSize) {
+                                try? self.modelContext?.save()
+                            }
+                        }
+                    }
+                )
+                if #available(macOS 27, *) {
+                    let captionURLs = self.photos
+                        .filter { $0.aiCaptionFetchedAt == nil }
+                        .map(\.fileURL)
+                    await PhotoCaptionGenerator.shared.start(
+                        urls: captionURLs,
+                        around: 0,
+                        progress: { [weak self] done, total in
+                            Task { @MainActor in
+                                guard let self else { return }
+                                guard photoCaptionToken == self.photoCaptionToken else { return }
+                                // 生成は遅いため、進捗コールバックを保存の区切りにも利用する。
+                                if total > 0,
+                                   done == total || done.isMultiple(of: Self.photoStagingChunkSize) {
+                                    try? self.modelContext?.save()
+                                }
+                            }
+                        },
+                        onResult: { [weak self] url, caption in
+                            Task { @MainActor in
+                                guard let self else { return }
+                                guard photoCaptionToken == self.photoCaptionToken else { return }
+                                guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
+                                let photo = self.photos[index]
+                                photo.aiCaptionText = caption
+                                photo.aiCaptionFetchedAt = Date()
+                            }
+                        }
+                    )
+                }
+            }
         } catch {
             self.error = error
         }
@@ -216,7 +298,15 @@ extension ContentViewModel {
         pendingSelectNextTask = nil
         photoStagingGeneration &+= 1
         cancelPreviewGeneration()
+        cancelAILabeling()
+        cancelPhotoCaption()
+        clearDetectedAICategories()
+        selectedAICategories.removeAll()
         await PreviewGenerator.shared.cancel()
+        await AILabelingGenerator.shared.cancel()
+        if #available(macOS 27, *) {
+            await PhotoCaptionGenerator.shared.cancel()
+        }
     }
 
     private func addToHistory(url: URL, bookmark: Data, context: ModelContext) {

@@ -22,6 +22,7 @@ struct SidebarModeView: View {
         } detail: {
             viewerColumn
         }
+        .searchable(text: $vm.searchText, placement: .sidebar, prompt: Text(searchPrompt))
         .toolbar { toolbarItems }
         .overlay(alignment: .bottom) {
             // トースト（お気に入り登録など）
@@ -78,16 +79,31 @@ struct SidebarModeView: View {
                         .padding(Spacing.medium)
                         .glassOrMaterial(cornerRadius: CornerRadius.medium)
                         .padding(.bottom, Spacing.medium)
-                } else if vm.previewGenerationRemaining > 0 {
-                    ProgressView(
-                        String(
-                            format: String(localized: "develop.previewGeneration.progress"),
-                            Int64(vm.previewGenerationRemaining)
-                        )
-                    )
-                    .padding(Spacing.medium)
-                    .glassOrMaterial(cornerRadius: CornerRadius.medium)
-                    .padding(.bottom, Spacing.medium)
+                } else {
+                    let messages = [
+                        vm.previewGenerationRemaining > 0
+                            ? String(
+                                format: String(localized: "develop.previewGeneration.progress"),
+                                Int64(vm.previewGenerationRemaining)
+                            )
+                            : nil,
+                        vm.aiLabelingRemaining > 0
+                            ? String(
+                                format: String(localized: "sidebar.aiLabelingProgress"),
+                                Int64(vm.aiLabelingRemaining)
+                            )
+                            : nil
+                    ].compactMap { $0 }
+                    if !messages.isEmpty {
+                        VStack(alignment: .leading, spacing: Spacing.small) {
+                            ForEach(messages, id: \.self) { message in
+                                ProgressView(message)
+                            }
+                        }
+                        .padding(Spacing.medium)
+                        .glassOrMaterial(cornerRadius: CornerRadius.medium)
+                        .padding(.bottom, Spacing.medium)
+                    }
                 }
             }
     }
@@ -152,6 +168,14 @@ struct SidebarModeView: View {
         columnVisibility != .detailOnly
     }
 
+    private var searchPrompt: LocalizedStringResource {
+        if #available(macOS 27, *) {
+            "sidebar.search.prompt.aiEnabled"
+        } else {
+            "sidebar.search.prompt.fileNameOnly"
+        }
+    }
+
     // 標準ツールバーの中身。
     // サイドバートグルは OS 標準ボタンを外して独自ボタン1つに統一しているため常時表示する。
     // 配置は Xcode 同様の位置連動を得るため .navigation（サイドバー領域の先頭）とし、
@@ -179,6 +203,12 @@ struct SidebarModeView: View {
 
             FavoritesOnlyToggleButton(
                 showFavoritesOnly: $vm.showFavoritesOnly,
+                isDisabled: vm.photos.isEmpty
+            )
+
+            AICategoryFilterMenu(
+                selectedCategories: $vm.selectedAICategories,
+                availableCategories: vm.availableAICategories,
                 isDisabled: vm.photos.isEmpty
             )
         }
