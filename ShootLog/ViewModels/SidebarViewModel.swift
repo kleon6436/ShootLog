@@ -133,10 +133,16 @@ final class SidebarViewModel: ContentViewModelProxy {
     // 以下はサイドバー固有のセマンティクスを持つため独自に定義する
 
     // PhotoListViewのselectionバインディングに使うため get/set 両方必要。
-    // set時はContentViewModel.selectPhoto(_:)相当のロジック（EditInfo/EXIF遅延ロード）を必ず経由させる
+    // set時はContentViewModel.selectPhoto(_:)相当のロジック（EditInfo/EXIF遅延ロード）を必ず経由させる。
+    // 選択バインディングの確定処理とContentViewModelの複数状態更新が同じフレームで競合しないよう、
+    // 選択処理は次のMainActorサイクルへ送る。
     var selectedPhoto: Photo? {
         get { content.selectedPhoto }
-        set { content.selectPhoto(newValue) }
+        set {
+            Task { @MainActor in
+                content.selectPhoto(newValue)
+            }
+        }
     }
 
     // onCropCancelから直接falseを代入するためget/set両方必要
