@@ -749,6 +749,34 @@
         }
       }
     },
+    "analysis.aiCategory.unclassifiedCount %lld": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photo is unclassified"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photos are unclassified"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld枚は未分類"
+          }
+        }
+      }
+    },
     "analysis.metric.aperture": {
       "extractionState": "stale",
       "localizations": {
@@ -813,6 +841,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "絞り"
+          }
+        }
+      }
+    },
+    "analysis.page.aiCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "被写体"
           }
         }
       }
