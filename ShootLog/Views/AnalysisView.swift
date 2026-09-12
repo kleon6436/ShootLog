@@ -127,10 +127,41 @@ struct AnalysisView: View {
 
     @ViewBuilder
     private var contentArea: some View {
-        if vm.selectedPage == .session {
+        switch vm.selectedPage {
+        case .session:
             sessionArea
-        } else {
+        case .aiCategory:
+            aiCategoryChartArea
+        default:
             chartArea
+        }
+    }
+
+    // MARK: - AI被写体カテゴリチャート
+
+    @ViewBuilder
+    private var aiCategoryChartArea: some View {
+        let data = vm.currentData
+        VStack(spacing: 0) {
+            if data.isEmpty {
+                emptyState
+            } else {
+                barChart(data: data)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+            }
+            if vm.unclassifiedAICount > 0 {
+                HStack(spacing: Spacing.small) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                    Text(String(localized: "analysis.aiCategory.unclassifiedCount \(vm.unclassifiedAICount)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+            }
         }
     }
 
@@ -210,10 +241,18 @@ struct AnalysisView: View {
             }
         }
         .chartXAxis {
-            AxisMarks { _ in
+            AxisMarks { value in
                 AxisTick()
-                AxisValueLabel(orientation: .verticalReversed)
-                    .font(.caption2)
+                AxisValueLabel(orientation: .verticalReversed) {
+                    if let label = value.as(String.self),
+                       let category = AISubjectCategory(rawValue: label) {
+                        Text(category.displayName)
+                            .font(.caption2)
+                    } else if let label = value.as(String.self) {
+                        Text(label)
+                            .font(.caption2)
+                    }
+                }
             }
         }
         .frame(height: 320)
