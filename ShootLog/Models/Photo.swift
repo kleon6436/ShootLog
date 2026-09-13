@@ -54,6 +54,12 @@ final class Photo {
     var asShotWhiteBalanceIsEstimated: Bool? = nil
     var asShotWhiteBalanceFetchedAt: Date? = nil
     var phAssetLocalIdentifier: String? = nil
+    var originalFileName: String? = nil
+
+    /// 表示・検索に使うファイル名。iCloud写真はオリジナルファイル名、フォルダ写真はfileURLのファイル名を使う
+    var displayFileName: String {
+        originalFileName ?? fileURL.lastPathComponent
+    }
 
     /// 成功要因タグの読み書きアクセサ。未知のraw valueは無視し、他のタグの読み取りに影響させない
     var successTags: [SuccessTagCategory] {

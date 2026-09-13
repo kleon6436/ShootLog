@@ -155,6 +155,7 @@ extension ContentViewModel {
                 }
             }
             let aiLabelingToken = beginAILabeling()
+            let exifPrefetchToken = beginEXIFPrefetch()
             let photoCaptionToken = beginPhotoCaption()
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -168,6 +169,33 @@ extension ContentViewModel {
                     .filter { $0.aiLabelingFetchedAt == nil }
                 let photoIndex = Dictionary(
                     uniqueKeysWithValues: self.photos.enumerated().map { ($1.fileURL, $0) }
+                )
+                let exifURLs = self.photos
+                    .filter { $0.phAssetLocalIdentifier == nil && $0.exifFetchedAt == nil }
+                    .map(\.fileURL)
+                let exifTotal = exifURLs.count
+                await EXIFPrefetcher.shared.start(
+                    urls: exifURLs,
+                    progress: { [weak self] done, total in
+                        Task { @MainActor in
+                            guard let self else { return }
+                            guard exifPrefetchToken == self.exifPrefetchToken else { return }
+                            self.updateEXIFPrefetchProgress(done: done, total: total)
+                            // チャンク完了後に結果反映済みのEXIFをまとめて保存する。
+                            if exifTotal > 0,
+                               done == total || done.isMultiple(of: Self.photoStagingChunkSize) {
+                                try? self.modelContext?.save()
+                            }
+                        }
+                    },
+                    onResult: { [weak self] url, exif in
+                        Task { @MainActor in
+                            guard let self else { return }
+                            guard exifPrefetchToken == self.exifPrefetchToken else { return }
+                            guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
+                            self.apply(exif, to: self.photos[index])
+                        }
+                    }
                 )
                 let aiTargets = targetPhotos.map {
                     AILabelingTarget(url: $0.fileURL, localIdentifier: $0.phAssetLocalIdentifier)
@@ -299,11 +327,13 @@ extension ContentViewModel {
         photoStagingGeneration &+= 1
         cancelPreviewGeneration()
         cancelAILabeling()
+        cancelEXIFPrefetch()
         cancelPhotoCaption()
         clearDetectedAICategories()
         selectedAICategories.removeAll()
         await PreviewGenerator.shared.cancel()
         await AILabelingGenerator.shared.cancel()
+        await EXIFPrefetcher.shared.cancel()
         if #available(macOS 27, *) {
             await PhotoCaptionGenerator.shared.cancel()
         }

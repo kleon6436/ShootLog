@@ -93,6 +93,12 @@ struct SidebarModeView: View {
                                 format: String(localized: "sidebar.aiLabelingProgress"),
                                 Int64(vm.aiLabelingRemaining)
                             )
+                            : nil,
+                        vm.exifPrefetchRemaining > 0
+                            ? String(
+                                format: String(localized: "sidebar.exifPrefetchProgress"),
+                                Int64(vm.exifPrefetchRemaining)
+                            )
                             : nil
                     ].compactMap { $0 }
                     if !messages.isEmpty {

@@ -145,7 +145,8 @@ extension ContentViewModel {
     }
 
     // 読み取った EXIF を Photo へ反映する（保存は呼び出し側でまとめて行う）
-    private func apply(_ exif: EXIFInfo, to photo: Photo) {
+    // フォルダのEXIF先読み結果を別extensionから共通利用するためinternalにする。
+    func apply(_ exif: EXIFInfo, to photo: Photo) {
         photo.cameraMake   = exif.cameraMake
         photo.cameraModel  = exif.cameraModel
         photo.lensModel    = exif.lensModel

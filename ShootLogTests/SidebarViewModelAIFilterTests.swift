@@ -81,6 +81,50 @@ struct SidebarViewModelAIFilterTests {
         #expect(vm.displayedPhotos.map(\.id) == [matching.id])
     }
 
+    @Test func cameraNameSearchFindsMatchingPhoto() throws {
+        let vm = try makeViewModel()
+        let matching = makePhoto(name: "camera-photo.jpg", categories: [])
+        matching.cameraModel = "Nikon Z8"
+        let withoutCameraModel = makePhoto(name: "other-photo.jpg", categories: [])
+        let photos = [matching, withoutCameraModel]
+        vm.content.photos = photos
+        vm.searchText = "Z8"
+
+        #expect(vm.displayedPhotos.map(\.id) == [matching.id])
+    }
+
+    @Test func iCloudPhotoSearchUsesOriginalFileName() throws {
+        let vm = try makeViewModel()
+        let photo = makePhoto(name: "placeholder-file.jpg", categories: [])
+        photo.originalFileName = "icloud-camera-roll-photo.jpg"
+        vm.content.photos = [photo]
+
+        vm.searchText = "camera-roll"
+        #expect(vm.displayedPhotos.map(\.id) == [photo.id])
+
+        vm.searchText = "placeholder-file"
+        #expect(vm.displayedPhotos.isEmpty)
+    }
+
+    @Test func photoWithoutOriginalFileNameSearchesByFileURLName() throws {
+        let vm = try makeViewModel()
+        let photo = makePhoto(name: "ordinary-photo.jpg", categories: [])
+        vm.content.photos = [photo]
+        vm.searchText = "ordinary-photo"
+
+        #expect(vm.displayedPhotos.map(\.id) == [photo.id])
+    }
+
+    @Test func searchTextTrimsLeadingAndTrailingWhitespace() throws {
+        let vm = try makeViewModel()
+        let matching = makePhoto(name: "favorite-person.jpg", categories: [])
+        let other = makePhoto(name: "other-photo.jpg", categories: [])
+        vm.content.photos = [matching, other]
+        vm.searchText = "  favorite-person  "
+
+        #expect(vm.displayedPhotos.map(\.id) == [matching.id])
+    }
+
     private func makeViewModel() throws -> SidebarViewModel {
         let container = try ModelContainer(
             for: Photo.self, EditInfo.self, DevelopSettings.self, DevelopPreset.self,
