@@ -62,6 +62,46 @@ struct PreviewCacheStoreTests {
         try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
     }
 
+    @Test func folderScanCapturesFileAttributesSnapshot() throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 64, height: 48, in: sandbox)
+
+        let result = try PhotoRepository.scanImageURLs(in: sandbox)
+        let scannedSource = try #require(result.urls.first)
+        let snapshot = try #require(result.snapshots[scannedSource])
+        let fileSize = try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber
+        let snapshotSize = try #require(snapshot.size)
+        let modificationDate = try #require(snapshot.modificationDate)
+        let creationDate = try #require(snapshot.creationDate)
+
+        #expect(scannedSource.resolvingSymlinksInPath().path == source.resolvingSymlinksInPath().path)
+        #expect(snapshotSize == fileSize?.int64Value)
+        #expect(modificationDate > .distantPast)
+        #expect(creationDate > .distantPast)
+    }
+
+    @Test func incompleteSnapshotFallsBackToFileAttributes() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 64, height: 48, in: sandbox)
+        let cacheDirectory = sandbox.appendingPathComponent("cache", isDirectory: true)
+        let store = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
+        let snapshot = FileAttributesSnapshot(size: nil, modificationDate: nil, creationDate: nil)
+        let actualSize = try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber
+
+        let exif = try await EXIFService.shared.readEXIF(from: source, snapshot: snapshot)
+        #expect(exif.fileSizeBytes == actualSize?.int64Value)
+
+        _ = try #require(await store.proxy(for: source, snapshot: snapshot))
+        try writePNG(makeColorImage(width: 128, height: 48), to: source)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: 5)],
+            ofItemAtPath: source.path
+        )
+        #expect(await store.cachedProxy(for: source, snapshot: snapshot) == nil)
+    }
+
     @Test func proxyGenerationDownsamplesAndCachesInMemory() async throws {
         let sandbox = try makeSandbox()
         defer { try? FileManager.default.removeItem(at: sandbox) }
@@ -134,6 +174,33 @@ struct PreviewCacheStoreTests {
 
         #expect(await store.cachedProxy(for: source) == nil)
         let regenerated = try #require(await store.proxy(for: source))
+        #expect(max(regenerated.width, regenerated.height) <= 256)
+    }
+
+    @Test func rescannedSnapshotInvalidatesPreviousProxyKey() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 640, height: 400, in: sandbox)
+        let cacheDirectory = sandbox.appendingPathComponent("cache", isDirectory: true)
+        let store = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
+        let initialScan = try PhotoRepository.scanImageURLs(in: sandbox)
+        let initialURL = try #require(initialScan.urls.first)
+        let initialSnapshot = try #require(initialScan.snapshots[initialURL])
+        _ = try #require(await store.proxy(for: initialURL, snapshot: initialSnapshot))
+
+        try writePNG(try makeColorImage(width: 800, height: 400), to: source)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: 5)],
+            ofItemAtPath: source.path
+        )
+        let rescanned = try PhotoRepository.scanImageURLs(in: sandbox)
+        let rescannedURL = try #require(rescanned.urls.first)
+        let rescannedSnapshot = try #require(rescanned.snapshots[rescannedURL])
+
+        #expect(await store.cachedProxy(for: rescannedURL, snapshot: rescannedSnapshot) == nil)
+        let regenerated = try #require(
+            await store.proxy(for: rescannedURL, snapshot: rescannedSnapshot)
+        )
         #expect(max(regenerated.width, regenerated.height) <= 256)
     }
 

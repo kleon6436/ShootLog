@@ -142,10 +142,11 @@ final class SlideshowViewModel: ContentViewModelProxy {
         // MainActor 上で URL（Sendable）だけを取り出してから detached タスクへ渡す
         let urls = HighResPrefetcher.neighborURLs(in: list, around: index, wrapsAround: true)
         guard !urls.isEmpty else { return }
+        let snapshots = content.fileAttributesSnapshots
 
         prefetchTask?.cancel()
         prefetchTask = Task.detached(priority: .utility) {
-            await HighResPrefetcher.prefetch(urls: urls)
+            await HighResPrefetcher.prefetch(urls: urls, snapshots: snapshots)
         }
     }
 }

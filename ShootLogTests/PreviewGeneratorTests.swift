@@ -152,7 +152,7 @@ private actor RecordingPreviewStore: PreviewProxyProviding {
         self.cachedURLs = cachedURLs
     }
 
-    func generate(for url: URL) async -> Bool {
+    func generate(for url: URL, snapshot: FileAttributesSnapshot?) async -> Bool {
         if cachedURLs.contains(url) { return true }
         generated.append(url)
         if let delay {
@@ -163,7 +163,7 @@ private actor RecordingPreviewStore: PreviewProxyProviding {
         return true
     }
 
-    func cachedProxy(for url: URL) async -> CGImage? {
+    func cachedProxy(for url: URL, snapshot: FileAttributesSnapshot?) async -> CGImage? {
         nil
     }
 

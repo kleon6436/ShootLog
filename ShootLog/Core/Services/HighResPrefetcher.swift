@@ -37,12 +37,15 @@ enum HighResPrefetcher {
     // キャンセルで打ち切れるのは「まだ開始していないURL」までである点に注意する。
     // ImageLoader.proxyImage 内部のデコードは Task.detached で走りキャンセルを継承しないため、
     // 開始済みの1枚分は最後まで実行される
-    static func prefetch(urls: [URL]) async {
+    static func prefetch(
+        urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot] = [:]
+    ) async {
         guard !urls.isEmpty else { return }
         try? await Task.sleep(for: startDelay)
         for url in urls {
             guard !Task.isCancelled else { return }
-            _ = await ImageLoader.shared.proxyImage(for: url)
+            _ = await ImageLoader.shared.proxyImage(for: url, snapshot: snapshots[url])
         }
     }
 

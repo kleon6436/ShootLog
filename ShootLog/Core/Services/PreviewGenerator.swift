@@ -19,6 +19,7 @@ actor PreviewGenerator {
     /// 既存の実行中バッチはキャンセルして置き換える。
     func start(
         urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot] = [:],
         around selectedIndex: Int?,
         progress: @escaping @Sendable (Int, Int) -> Void
     ) {
@@ -32,6 +33,7 @@ actor PreviewGenerator {
         generationTask = Task.detached(priority: .utility) { [weak self] in
             _ = await Self.generate(
                 orderedURLs,
+                snapshots: snapshots,
                 store: store,
                 progress: progress
             )
@@ -78,6 +80,7 @@ actor PreviewGenerator {
 
     private static func generate(
         _ urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot],
         store: any PreviewProxyProviding,
         progress: @escaping @Sendable (Int, Int) -> Void
     ) async -> Bool {
@@ -88,7 +91,7 @@ actor PreviewGenerator {
         }
 
         guard !Task.isCancelled else { return false }
-        _ = await store.generate(for: urls[0])
+        _ = await store.generate(for: urls[0], snapshot: snapshots[urls[0]])
         guard !Task.isCancelled else { return false }
 
         var completed = 1
@@ -110,7 +113,7 @@ actor PreviewGenerator {
                 nextIndex += 1
                 group.addTask(priority: .utility) {
                     guard !Task.isCancelled else { return false }
-                    let didGenerate = await store.generate(for: url)
+                    let didGenerate = await store.generate(for: url, snapshot: snapshots[url])
                     await Task.yield()
                     return didGenerate
                 }
@@ -133,7 +136,7 @@ actor PreviewGenerator {
                     nextIndex += 1
                     group.addTask(priority: .utility) {
                         guard !Task.isCancelled else { return false }
-                        let didGenerate = await store.generate(for: url)
+                        let didGenerate = await store.generate(for: url, snapshot: snapshots[url])
                         await Task.yield()
                         return didGenerate
                     }

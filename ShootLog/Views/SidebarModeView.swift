@@ -123,6 +123,7 @@ struct SidebarModeView: View {
             isCropMode: vm.isCropMode,
             developViewModel: vm.developViewModel,
             neighborPrefetchURLs: neighborPrefetchURLs,
+            fileAttributesSnapshots: vm.content.fileAttributesSnapshots,
             onCropApply: { rect in vm.setCropRect(rect) },
             onCropCancel: { vm.isCropMode = false }
         )

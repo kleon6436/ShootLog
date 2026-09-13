@@ -32,14 +32,15 @@ actor EXIFService {
     }()
 
     // 指定 URL の写真から EXIF を読み取る。バックグラウンドスレッドで呼ぶこと
-    func readEXIF(from url: URL) throws -> EXIFInfo {
-        try Self.parseEXIF(from: url)
+    func readEXIF(from url: URL, snapshot: FileAttributesSnapshot? = nil) throws -> EXIFInfo {
+        try Self.parseEXIF(from: url, snapshot: snapshot)
     }
 
     // 複数 URL の EXIF を並列に読み取る。actor のシリアル実行を避けるため nonisolated とし、
     // 同時実行数は maxConcurrency で制限する。読み取りに失敗した URL は結果に含めない
     nonisolated func readEXIFBatch(
         from urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot] = [:],
         maxConcurrency: Int = EXIFService.defaultBatchConcurrency
     ) async -> [URL: EXIFInfo] {
         guard !urls.isEmpty else { return [:] }
@@ -53,7 +54,10 @@ actor EXIFService {
             func addTask(for url: URL) {
                 group.addTask(priority: .utility) {
                     // 実行開始前にキャンセルを検査し、cancelAll() 後に未着手の子タスクが走らないようにする
-                    guard !Task.isCancelled, let exif = try? Self.parseEXIF(from: url) else { return nil }
+                    guard !Task.isCancelled,
+                          let exif = try? Self.parseEXIF(from: url, snapshot: snapshots[url]) else {
+                        return nil
+                    }
                     return (url, exif)
                 }
             }
@@ -80,7 +84,10 @@ actor EXIFService {
     // MARK: - Parsing
 
     // ImageIO による EXIF 読み取り本体。並列実行できるよう actor 分離から切り離している
-    nonisolated private static func parseEXIF(from url: URL) throws -> EXIFInfo {
+    nonisolated private static func parseEXIF(
+        from url: URL,
+        snapshot: FileAttributesSnapshot? = nil
+    ) throws -> EXIFInfo {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             throw ShootLogError.exifReadFailed
         }
@@ -100,12 +107,16 @@ actor EXIFService {
             colorMode:     extractColorMode(from: props),
             pixelWidth:    props[kCGImagePropertyPixelWidth]           as? Int,
             pixelHeight:   props[kCGImagePropertyPixelHeight]          as? Int,
-            fileSizeBytes: fileSize(at: url)
+            fileSizeBytes: fileSize(at: url, snapshot: snapshot)
         )
     }
 
     // ファイルサイズをバイト単位で取得する。取得失敗（アクセス不可等）は非致命的なためnilを返す
-    nonisolated private static func fileSize(at url: URL) -> Int64? {
+    nonisolated private static func fileSize(
+        at url: URL,
+        snapshot: FileAttributesSnapshot?
+    ) -> Int64? {
+        if let size = snapshot?.size { return size }
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
         return (attributes?[.size] as? NSNumber)?.int64Value
     }

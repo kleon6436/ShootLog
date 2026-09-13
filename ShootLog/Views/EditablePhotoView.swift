@@ -12,6 +12,7 @@ struct EditablePhotoView: View {
     let developViewModel: DevelopViewModel
     // 前後1枚の先読み対象URL。URLの決定（先頭・末尾の境界処理を含む）は呼び出し元の責務とする
     var neighborPrefetchURLs: [URL] = []
+    var fileAttributesSnapshots: [URL: FileAttributesSnapshot] = [:]
     let onCropApply: (CGRect) -> Void
     let onCropCancel: () -> Void
     @State private var vm = PhotoImageViewModel()
@@ -27,7 +28,11 @@ struct EditablePhotoView: View {
                     DisplayColorSpaceReader { developViewModel.setPreviewColorSpace($0) }
                 )
                 .task(id: photo?.id) {
-                    await vm.load(photo: photo, displaySize: geometry.size)
+                    await vm.load(
+                        photo: photo,
+                        displaySize: geometry.size,
+                        snapshot: photo.flatMap { fileAttributesSnapshots[$0.fileURL] }
+                    )
                     // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）。
                     // 回転・トリミングもプレビューへ焼き込むため EditInfo を渡す
                     developViewModel.load(
@@ -49,7 +54,10 @@ struct EditablePhotoView: View {
                 // 先読みは表示中写真のロードとは別タスクにする。写真IDをキーに共有すると、
                 // お気に入り絞り込みの切替で前後URLだけが変わった場合に古いURLのまま確定してしまう
                 .task(id: neighborPrefetchURLs) {
-                    await HighResPrefetcher.prefetch(urls: neighborPrefetchURLs)
+                    await HighResPrefetcher.prefetch(
+                        urls: neighborPrefetchURLs,
+                        snapshots: fileAttributesSnapshots
+                    )
                 }
         }
     }
