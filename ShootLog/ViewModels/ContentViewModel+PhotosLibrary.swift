@@ -31,6 +31,8 @@ extension ContentViewModel {
         releaseBookmarkAccess()
         currentFolderURL = nil
         currentPhotoSource = .photosLibrary
+        let generation = photoStagingGeneration
+        guard applyFileAttributesSnapshots([:], generation: generation) else { return }
         isLoading = true
         photos = []
         selectedPhoto = nil

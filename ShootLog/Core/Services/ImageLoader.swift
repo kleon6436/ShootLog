@@ -95,8 +95,10 @@ final class ImageLoader: Sendable {
     // MARK: - Public
 
     // ビューア用の固定解像度プレビュープロキシを返す。ディスク常駐キャッシュは PreviewCacheStore が管理する。
-    func proxyImage(for url: URL) async -> NSImage? {
-        guard let cgImage = await PreviewCacheStore.shared.proxy(for: url) else { return nil }
+    func proxyImage(for url: URL, snapshot: FileAttributesSnapshot? = nil) async -> NSImage? {
+        guard let cgImage = await PreviewCacheStore.shared.proxy(for: url, snapshot: snapshot) else {
+            return nil
+        }
         return NSImage(cgImage: cgImage, size: .zero)
     }
 

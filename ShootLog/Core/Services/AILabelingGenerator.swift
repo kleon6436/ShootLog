@@ -4,6 +4,18 @@ import Foundation
 struct AILabelingTarget: Sendable {
     let url: URL
     let localIdentifier: String?
+
+    let snapshot: FileAttributesSnapshot?
+
+    init(
+        url: URL,
+        localIdentifier: String?,
+        snapshot: FileAttributesSnapshot? = nil
+    ) {
+        self.url = url
+        self.localIdentifier = localIdentifier
+        self.snapshot = snapshot
+    }
 }
 
 protocol AILabelingImageProviding: Sendable {
@@ -11,14 +23,18 @@ protocol AILabelingImageProviding: Sendable {
 }
 
 struct DefaultAILabelingImageProvider: AILabelingImageProviding {
-    static let shared = DefaultAILabelingImageProvider()
+    static let shared = DefaultAILabelingImageProvider(
+        snapshotAwareProxyImageLoader: { url, snapshot in
+            await ImageLoader.shared.proxyImage(for: url, snapshot: snapshot)
+        }
+    )
 
-    private let proxyImageLoader: @Sendable (URL) async -> NSImage?
+    private let proxyImageLoader: @Sendable (URL, FileAttributesSnapshot?) async -> NSImage?
     private let photosLibraryThumbnailLoader: @Sendable (String, CGSize) async -> NSImage?
 
     init(
         proxyImageLoader: @escaping @Sendable (URL) async -> NSImage? = { url in
-            await ImageLoader.shared.proxyImage(for: url)
+            await ImageLoader.shared.proxyImage(for: url, snapshot: nil)
         },
         photosLibraryThumbnailLoader: @escaping @Sendable (
             String, CGSize
@@ -29,16 +45,31 @@ struct DefaultAILabelingImageProvider: AILabelingImageProviding {
             )
         }
     ) {
-        self.proxyImageLoader = proxyImageLoader
+        self.proxyImageLoader = { url, _ in await proxyImageLoader(url) }
+        self.photosLibraryThumbnailLoader = photosLibraryThumbnailLoader
+    }
+
+    private init(
+        snapshotAwareProxyImageLoader: @escaping @Sendable (URL, FileAttributesSnapshot?) async -> NSImage?,
+        photosLibraryThumbnailLoader: @escaping @Sendable (
+            String, CGSize
+        ) async -> NSImage? = { localIdentifier, targetSize in
+            await PhotosLibraryThumbnailProvider.shared.thumbnail(
+                forLocalIdentifier: localIdentifier,
+                targetSize: targetSize
+            )
+        }
+    ) {
+        self.proxyImageLoader = snapshotAwareProxyImageLoader
         self.photosLibraryThumbnailLoader = photosLibraryThumbnailLoader
     }
 
     func thumbnail(for target: AILabelingTarget) async -> NSImage? {
         guard let localIdentifier = target.localIdentifier else {
-            return await proxyImageLoader(target.url)
+            return await proxyImageLoader(target.url, target.snapshot)
         }
         if FileManager.default.fileExists(atPath: target.url.path) {
-            return await proxyImageLoader(target.url)
+            return await proxyImageLoader(target.url, nil)
         }
         return await photosLibraryThumbnailLoader(
             localIdentifier,

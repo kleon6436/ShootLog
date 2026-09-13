@@ -88,4 +88,18 @@ struct ContentViewModelDevelopPresetTests {
         content.loadDevelopPresets()
         #expect(content.developPresets.map(\.name) == ["External"])
     }
+
+    @Test func fileAttributeSnapshotsIgnoreStaleGeneration() throws {
+        let content = ContentViewModel()
+        let url = URL(fileURLWithPath: "/tmp/photo.jpg")
+        let snapshot = FileAttributesSnapshot(size: 10, modificationDate: nil, creationDate: nil)
+        let staleGeneration = content.photoStagingGeneration
+
+        #expect(content.applyFileAttributesSnapshots([url: snapshot], generation: staleGeneration))
+        content.photoStagingGeneration &+= 1
+
+        let staleSnapshot = FileAttributesSnapshot(size: 20, modificationDate: nil, creationDate: nil)
+        #expect(!content.applyFileAttributesSnapshots([url: staleSnapshot], generation: staleGeneration))
+        #expect(content.fileAttributesSnapshots[url] == snapshot)
+    }
 }

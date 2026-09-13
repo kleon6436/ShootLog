@@ -4,8 +4,8 @@ import Foundation
 import ImageIO
 
 protocol PreviewProxyProviding: Sendable {
-    func generate(for url: URL) async -> Bool
-    func cachedProxy(for url: URL) async -> CGImage?
+    func generate(for url: URL, snapshot: FileAttributesSnapshot?) async -> Bool
+    func cachedProxy(for url: URL, snapshot: FileAttributesSnapshot?) async -> CGImage?
     func evictToLimit() async
 }
 
@@ -54,14 +54,14 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     }
 
     /// メモリ、次にディスクから既存のプロキシを読み込む。キャッシュミス時は生成しない。
-    func cachedProxy(for url: URL) async -> CGImage? {
-        let key = await cacheKey(for: url)
+    func cachedProxy(for url: URL, snapshot: FileAttributesSnapshot? = nil) async -> CGImage? {
+        let key = await cacheKey(for: url, snapshot: snapshot)
         return await cachedProxy(forKey: key)
     }
 
     /// 既存プロキシを返し、無い場合は固定解像度へダウンサンプルして保存する。
-    func proxy(for url: URL) async -> CGImage? {
-        let key = await cacheKey(for: url)
+    func proxy(for url: URL, snapshot: FileAttributesSnapshot? = nil) async -> CGImage? {
+        let key = await cacheKey(for: url, snapshot: snapshot)
         if let cached = await cachedProxy(forKey: key) {
             return cached
         }
@@ -77,8 +77,8 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     }
 
     /// バックグラウンド生成用。既存プロキシを再デコードせず、バッチ側でまとめてevictionできるようにする。
-    func generate(for url: URL) async -> Bool {
-        let key = await cacheKey(for: url)
+    func generate(for url: URL, snapshot: FileAttributesSnapshot? = nil) async -> Bool {
+        let key = await cacheKey(for: url, snapshot: snapshot)
         if await cachedProxy(forKey: key) != nil { return true }
         guard !Task.isCancelled,
               let image = await decodeProxy(for: url),
@@ -90,8 +90,8 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     }
 
     /// 後続のバックグラウンド生成処理からも使えるよう、生成済み画像を保存する。
-    func store(_ image: CGImage, for url: URL) async {
-        let key = await cacheKey(for: url)
+    func store(_ image: CGImage, for url: URL, snapshot: FileAttributesSnapshot? = nil) async {
+        let key = await cacheKey(for: url, snapshot: snapshot)
         _ = await store(image, forKey: key, evictAfter: true)
     }
 
@@ -110,8 +110,8 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     }
 
     /// 指定原本の現在のバージョンに対応するプロキシを削除する。
-    func invalidate(_ url: URL) async {
-        let key = await cacheKey(for: url)
+    func invalidate(_ url: URL, snapshot: FileAttributesSnapshot? = nil) async {
+        let key = await cacheKey(for: url, snapshot: snapshot)
         memoryCache.removeObject(forKey: key as NSString)
         await removeDiskFiles(forKey: key)
     }
@@ -158,14 +158,20 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
         return true
     }
 
-    private func cacheKey(for url: URL) async -> String {
+    private func cacheKey(for url: URL, snapshot: FileAttributesSnapshot?) async -> String {
         // proxyLongEdge を混ぜることで、設定でプロキシ解像度を変えても
         // 旧解像度のファイルが誤ってヒットしない（旧ファイルは孤児となり eviction で消える）。
         let proxyLongEdge = proxyLongEdge
         return await Task.detached(priority: .utility) {
-            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
-            let modificationDate = (attributes?[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0
-            let fileSize = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+            let fallbackAttributes = snapshot?.size == nil || snapshot?.modificationDate == nil
+                ? try? FileManager.default.attributesOfItem(atPath: url.path)
+                : nil
+            let modificationDate = snapshot?.modificationDate?.timeIntervalSinceReferenceDate
+                ?? (fallbackAttributes?[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate
+                ?? 0
+            let fileSize = snapshot?.size
+                ?? (fallbackAttributes?[.size] as? NSNumber)?.int64Value
+                ?? 0
             let source = "\(url.absoluteString)|\(modificationDate)|\(fileSize)|\(proxyLongEdge)"
             return SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
         }.value
