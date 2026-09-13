@@ -56,7 +56,7 @@ private struct PhotoGridCell: View {
                 }
 
             HStack(spacing: 4) {
-                Text(photo.fileURL.lastPathComponent)
+                Text(photo.displayFileName)
                     .font(.caption2)
                     .lineLimit(1)
                     .foregroundStyle(.primary)
@@ -80,8 +80,8 @@ private struct PhotoGridCell: View {
 
     private var accessibilityLabelText: String {
         photo.isFavorite
-            ? String(localized: "a11y.photo.favorite \(photo.fileURL.lastPathComponent)")
-            : photo.fileURL.lastPathComponent
+            ? String(localized: "a11y.photo.favorite \(photo.displayFileName)")
+            : photo.displayFileName
     }
 
     @ViewBuilder
