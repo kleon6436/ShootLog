@@ -45,7 +45,7 @@ actor PhotosLibraryAssetExporter {
         guard !FileManager.default.fileExists(atPath: fileURL.path) else { return true }
 
         if let inFlightTask = inFlightTasks[localIdentifier], inFlightTask.fileURL == fileURL {
-            await inFlightTask.task.value
+            _ = await inFlightTask.task.value
             return FileManager.default.fileExists(atPath: fileURL.path)
         }
 
