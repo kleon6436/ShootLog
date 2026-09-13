@@ -60,6 +60,47 @@ struct FavoritesOnlyToggleButton: View {
     }
 }
 
+// AI検出カテゴリによる複数選択フィルタ。メニューの表示・選択状態はOS標準のUIに委ねる
+struct AICategoryFilterMenu: View {
+    @Binding var selectedCategories: Set<AISubjectCategory>
+    let availableCategories: [AISubjectCategory]
+    let isDisabled: Bool
+
+    var body: some View {
+        Menu {
+            ForEach(availableCategories, id: \.self) { category in
+                Toggle(isOn: binding(for: category)) {
+                    Text(category.displayName)
+                }
+            }
+            if !selectedCategories.isEmpty {
+                Divider()
+                Button("sidebar.aiCategoryFilter.clear") {
+                    selectedCategories.removeAll()
+                }
+            }
+        } label: {
+            Image(systemName: selectedCategories.isEmpty ? "tag" : "tag.fill")
+        }
+        .help("toolbar.aiCategoryFilter.help")
+        .accessibilityLabel("toolbar.aiCategoryFilter.help")
+        .disabled(isDisabled || (availableCategories.isEmpty && selectedCategories.isEmpty))
+    }
+
+    private func binding(for category: AISubjectCategory) -> Binding<Bool> {
+        Binding(
+            get: { selectedCategories.contains(category) },
+            set: { isOn in
+                if isOn {
+                    selectedCategories.insert(category)
+                } else {
+                    selectedCategories.remove(category)
+                }
+            }
+        )
+    }
+}
+
 // 3モード共通のツールバー末尾グループ（分析・外部アプリ・設定）。
 // fullscreen/slideshowモードでは同じグループの先頭に「フォルダを開く」が並ぶため
 // openFolderを任意で受け取る。sidebarモードは同ボタンを.navigation配置に持つのでnilで呼ぶ

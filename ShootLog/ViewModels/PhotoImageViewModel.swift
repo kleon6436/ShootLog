@@ -36,11 +36,15 @@ final class PhotoImageViewModel {
             )
             guard !Task.isCancelled else { return }
             isLoadingHighRes = true
-            await PhotosLibraryAssetExporter.shared.ensureExported(
+            let didExport = await PhotosLibraryAssetExporter.shared.ensureExported(
                 localIdentifier: localIdentifier,
                 fileURL: fileURL
             )
             guard !Task.isCancelled else { return }
+            guard didExport else {
+                isLoadingHighRes = false
+                return
+            }
         } else {
             let loadedThumbnail = await ImageLoader.shared.thumbnail(for: fileURL)
             // サムネイル取得中に写真が切り替わっていたら代入も高解像度ロードもスキップする

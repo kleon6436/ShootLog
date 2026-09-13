@@ -43,6 +43,22 @@ final class ContentViewModel {
     private(set) var previewGenerationRemaining = 0
     // キャンセル済みバッチから遅れて届く進捗コールバックを無視するための世代番号。
     var previewGenerationToken = 0
+    /// バックグラウンドのAIラベリングの残件数。0 のとき表示しない。
+    private(set) var aiLabelingRemaining = 0
+    /// バックグラウンドのEXIF先読みの残件数。0 のとき表示しない。
+    private(set) var exifPrefetchRemaining = 0
+    // AIラベリング結果の保存チャンクを決めるための完了件数。
+    var aiLabelingCompletedCount = 0
+    // 現在の写真ソースで検出済みのAIカテゴリ。進捗更新ごとの全件走査を避けるため差分更新する。
+    private(set) var detectedAICategories: Set<AISubjectCategory> = []
+    // ツールバーのAIカテゴリフィルタ。写真ソース切替時にリセットする共有状態。
+    var selectedAICategories: Set<AISubjectCategory> = []
+    // キャンセル済みバッチから遅れて届くAIラベリング結果・進捗を無視するための世代番号。
+    var aiLabelingToken = 0
+    // キャンセル済みバッチから遅れて届くEXIF先読み結果・進捗を無視するための世代番号。
+    var exifPrefetchToken = 0
+    // キャンセル済みバッチから遅れて届くキャプション結果・進捗を無視するための世代番号。
+    var photoCaptionToken = 0
     var error: (any Error)?
     var toastMessage: String?
 
@@ -161,8 +177,72 @@ final class ContentViewModel {
         clearPreviewGenerationProgress()
     }
 
+    func updateAILabelingProgress(done: Int, total: Int) {
+        aiLabelingRemaining = max(0, total - done)
+    }
+
+    func resetDetectedAICategories(from photos: [Photo]) {
+        detectedAICategories = Set(
+            photos.flatMap { photo in
+                photo.aiCategoryRawValues.compactMap(AISubjectCategory.init(rawValue:))
+            }
+        )
+    }
+
+    func addDetectedAICategories(_ categories: [AISubjectCategory]) {
+        detectedAICategories.formUnion(categories)
+    }
+
+    func clearDetectedAICategories() {
+        detectedAICategories.removeAll()
+    }
+
+    func beginAILabeling() -> Int {
+        aiLabelingToken &+= 1
+        aiLabelingCompletedCount = 0
+        clearAILabelingProgress()
+        return aiLabelingToken
+    }
+
+    func clearAILabelingProgress() {
+        aiLabelingRemaining = 0
+    }
+
+    func cancelAILabeling() {
+        aiLabelingToken &+= 1
+        clearAILabelingProgress()
+    }
+
+    func updateEXIFPrefetchProgress(done: Int, total: Int) {
+        exifPrefetchRemaining = max(0, total - done)
+    }
+
+    func beginEXIFPrefetch() -> Int {
+        exifPrefetchToken &+= 1
+        clearEXIFPrefetchProgress()
+        return exifPrefetchToken
+    }
+
+    func clearEXIFPrefetchProgress() {
+        exifPrefetchRemaining = 0
+    }
+
+    func cancelEXIFPrefetch() {
+        exifPrefetchToken &+= 1
+        clearEXIFPrefetchProgress()
+    }
+
+    func beginPhotoCaption() -> Int {
+        photoCaptionToken &+= 1
+        return photoCaptionToken
+    }
+
+    func cancelPhotoCaption() {
+        photoCaptionToken &+= 1
+    }
+
     // 段階挿入の2回目以降で1度に処理する件数
-    static let photoStagingChunkSize = 100
+    nonisolated static let photoStagingChunkSize = 100
 
     // MARK: - Setup
 

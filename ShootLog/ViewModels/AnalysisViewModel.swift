@@ -21,6 +21,7 @@ final class AnalysisViewModel {
         case shutterSpeed
         case iso
         case focalLength
+        case aiCategory
         case session
 
         // セグメントピッカーに表示するページ名
@@ -30,17 +31,19 @@ final class AnalysisViewModel {
             case .shutterSpeed: "analysis.page.shutterSpeed"
             case .iso:          "analysis.page.iso"
             case .focalLength:  "analysis.page.focalLength"
+            case .aiCategory:   "analysis.page.aiCategory"
             case .session:      "analysis.page.session"
             }
         }
 
-        // 対応するチャート系列。セッションページはチャートを持たないためnil
+        // 数値チャートに対応する系列。被写体カテゴリとセッションは個別処理のためnil
         var chartTab: ChartTab? {
             switch self {
             case .aperture:     .aperture
             case .shutterSpeed: .shutterSpeed
             case .iso:          .iso
             case .focalLength:  .focalLength
+            case .aiCategory:   nil
             case .session:      nil
             }
         }
@@ -104,6 +107,11 @@ final class AnalysisViewModel {
     // カメラフィルター適用後のお気に入り写真
     private(set) var favoriteFilteredPhotos: [Photo] = []
 
+    // カメラフィルター適用後にAI分類が未完了の写真の枚数
+    var unclassifiedAICount: Int {
+        filteredPhotos.count(where: { $0.aiLabelingFetchedAt == nil })
+    }
+
     // タブと選択状態に応じたチャートデータ（オーバーレイ時は2系列）
     private(set) var currentData: [DataPoint] = []
 
@@ -129,6 +137,12 @@ final class AnalysisViewModel {
     }
 
     private func updateCurrentData() {
+        if selectedPage == .aiCategory {
+            let base = filteredPhotos
+            let fav: [Photo]? = showFavoritesOverlay ? favoriteFilteredPhotos : nil
+            currentData = computeAICategory(base: base, overlay: fav)
+            return
+        }
         guard let tab = selectedPage.chartTab else {
             currentData = []
             return
@@ -140,6 +154,40 @@ final class AnalysisViewModel {
         case .shutterSpeed: currentData = computeShutterSpeed(base: base, overlay: fav)
         case .iso:          currentData = computeISO(base: base, overlay: fav)
         case .focalLength:  currentData = computeFocalLength(base: base, overlay: fav)
+        }
+    }
+
+    // MARK: - AI被写体カテゴリ
+
+    private func computeAICategory(base: [Photo], overlay: [Photo]?) -> [DataPoint] {
+        let basePoints = countAICategories(in: base, series: .all)
+        guard let overlay else { return basePoints }
+        let overlayPoints = countAICategories(in: overlay, series: .favorites)
+        return mergePoints(base: basePoints, overlay: overlayPoints)
+    }
+
+    // 1枚の写真に複数カテゴリがある場合は、それぞれを1件として延べ数を数える
+    private func countAICategories(in photos: [Photo], series: ChartSeries) -> [DataPoint] {
+        var counts: [AISubjectCategory: Int] = [:]
+        for photo in photos {
+            let categories = Set(
+                photo.aiCategoryRawValues
+                    .compactMap(AISubjectCategory.init(rawValue:))
+                    .filter { $0 != .unknown }
+            )
+            for category in categories {
+                counts[category, default: 0] += 1
+            }
+        }
+
+        return AISubjectCategory.allCases.enumerated().compactMap { index, category in
+            guard let count = counts[category] else { return nil }
+            return DataPoint(
+                label: category.rawValue,
+                count: count,
+                sortKey: Double(index),
+                series: series
+            )
         }
     }
 
