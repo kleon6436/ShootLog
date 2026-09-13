@@ -111,12 +111,13 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     // searchText（ファイル名・カメラ名の部分一致）、showFavoritesOnly、AIカテゴリのAND条件で絞り込む
     var displayedPhotos: [Photo] {
-        content.photos.filter { photo in
-            var matchesSearch = searchText.isEmpty
-                || photo.fileURL.lastPathComponent.localizedCaseInsensitiveContains(searchText)
-                || (photo.cameraModel?.localizedCaseInsensitiveContains(searchText) ?? false)
-            if #available(macOS 27, *), !matchesSearch, !searchText.isEmpty {
-                matchesSearch = photo.aiCaptionText?.localizedCaseInsensitiveContains(searchText) ?? false
+        let trimmedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return content.photos.filter { photo in
+            var matchesSearch = trimmedSearchText.isEmpty
+                || photo.displayFileName.localizedCaseInsensitiveContains(trimmedSearchText)
+                || (photo.cameraModel?.localizedCaseInsensitiveContains(trimmedSearchText) ?? false)
+            if #available(macOS 27, *), !matchesSearch, !trimmedSearchText.isEmpty {
+                matchesSearch = photo.aiCaptionText?.localizedCaseInsensitiveContains(trimmedSearchText) ?? false
             }
             let matchesFavorite = !showFavoritesOnly || photo.isFavorite
             let matchesAICategory = selectedAICategories.isEmpty
@@ -154,6 +155,7 @@ final class SidebarViewModel: ContentViewModelProxy {
     var isLoading: Bool { content.isLoading }
     var previewGenerationRemaining: Int { content.previewGenerationRemaining }
     var aiLabelingRemaining: Int { content.aiLabelingRemaining }
+    var exifPrefetchRemaining: Int { content.exifPrefetchRemaining }
     var toastMessage: String? { content.toastMessage }
     var isSelectedPhotoFavorite: Bool { content.selectedPhoto?.isFavorite ?? false }
 

@@ -72,7 +72,7 @@ struct PhotoViewerView: View {
         if let displayImage {
             ZStack(alignment: .bottomTrailing) {
                 rotatedImage(displayImage)
-                    .accessibilityLabel(photo?.fileURL.lastPathComponent ?? "")
+                    .accessibilityLabel(photo?.displayFileName ?? "")
                 // サムネイル表示中かつ高解像度ロード待ちのときスピナーを右下に表示
                 if vm.highRes == nil && vm.isLoadingHighRes {
                     ProgressView()

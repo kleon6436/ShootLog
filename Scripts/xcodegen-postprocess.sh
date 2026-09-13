@@ -42,6 +42,12 @@ def patch_pbxproj() -> None:
         'isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = realesrgan.mlpackage;',
         "project.pbxproj: realesrgan.mlpackage",
     )
+    text = replace_or_skip(
+        text,
+        'isa = PBXFileReference; path = realesrgan_x2plus.mlpackage;',
+        'isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = realesrgan_x2plus.mlpackage;',
+        "project.pbxproj: realesrgan_x2plus.mlpackage",
+    )
 
     # DEVELOPMENT_TEAM を buildSettings に書くと、xcodegen は
     # PBXProject.attributes.TargetAttributes にも DevelopmentTeam を
