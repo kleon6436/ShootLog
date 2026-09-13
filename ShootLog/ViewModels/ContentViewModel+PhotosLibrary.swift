@@ -70,7 +70,10 @@ extension ContentViewModel {
 
             self.resetDetectedAICategories(from: self.photos)
             let targetPhotos = self.photos
-                .filter { $0.aiLabelingFetchedAt == nil }
+                .filter {
+                    $0.aiLabelingFetchedAt == nil
+                        || ($0.aiLabelingSchemaVersion ?? 1) < AILabelingGenerator.currentSchemaVersion
+                }
             let photoIndex = Dictionary(
                 uniqueKeysWithValues: self.photos.enumerated().map { ($1.fileURL, $0) }
             )
@@ -98,6 +101,7 @@ extension ContentViewModel {
                             photo.aiCategoryRawValues = result.categories.map(\.rawValue)
                             photo.aiRawIdentifiers = result.rawIdentifiers
                             photo.aiLabelingFetchedAt = Date()
+                            photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
                             self.addDetectedAICategories(result.categories)
                         }
                         self.aiLabelingCompletedCount += 1
