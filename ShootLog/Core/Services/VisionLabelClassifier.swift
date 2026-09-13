@@ -9,12 +9,10 @@ struct VisionLabelClassification: Equatable, Sendable {
 
 /// Visionの英語identifierを、アプリで扱う粗粒度カテゴリへ変換するサービス。
 enum VisionLabelClassifier {
-    static let confidenceThreshold: VNConfidence = 0.3
     static let maximumRawIdentifierCount = 10
 
     static func classify(
         _ image: CGImage,
-        confidenceThreshold _: VNConfidence = Self.confidenceThreshold,
         maxResults: Int = Self.maximumRawIdentifierCount
     ) -> VisionLabelClassification {
         guard maxResults > 0 else {
@@ -40,7 +38,7 @@ enum VisionLabelClassifier {
             .prefix(maxResults)
             .map(\.identifier)
         let topResults = rankedResults
-            .filter { $0.hasMinimumPrecision(0.4, forRecall: 0.5) }
+            .filter { $0.hasMinimumPrecision(0.55, forRecall: 0.65) }
             .prefix(maxResults)
         var categories: [AISubjectCategory] = []
         for result in topResults {

@@ -47,6 +47,7 @@ final class Photo {
     var aiCategoryRawValues: [String] = []
     var aiRawIdentifiers: [String] = []
     var aiLabelingFetchedAt: Date? = nil
+    var aiLabelingSchemaVersion: Int? = nil
     var aiCaptionText: String? = nil
     var aiCaptionFetchedAt: Date? = nil
     var asShotTemperatureKelvin: Double? = nil
