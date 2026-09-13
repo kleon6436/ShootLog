@@ -10,6 +10,10 @@ import Foundation
 final class EXIFPanelViewModel {
     var photo: Photo?
 
+    init(photo: Photo? = nil) {
+        self.photo = photo
+    }
+
     var fileNameText: String? { photo?.displayFileName }
     var cameraModelText: String? { photo?.cameraModel }
     var lensModelText: String? { photo?.lensModel }
