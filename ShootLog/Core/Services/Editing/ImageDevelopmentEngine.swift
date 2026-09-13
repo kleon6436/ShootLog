@@ -107,6 +107,10 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         return CIContext(options: options)
     }()
 
+    nonisolated static func warmUpRenderContext() {
+        _ = sharedContext
+    }
+
     /// HSL cube の再計算を省くためのメモ。actor 隔離下の呼び出しからのみ渡すが、
     /// `DevelopPipelineCache` 自身も `NSLock` で保護しているため detached 実行でも安全。
     private let pipelineCache = DevelopPipelineCache()

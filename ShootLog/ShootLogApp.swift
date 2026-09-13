@@ -24,6 +24,9 @@ struct ShootLogApp: App {
                 // ディスクI/O（キャッシュディレクトリ作成）がMainActor上で走るのを防ぐ
                 .task {
                     Task.detached(priority: .utility) {
+                        ImageDevelopmentEngine.warmUpRenderContext()
+                    }
+                    Task.detached(priority: .utility) {
                         _ = ImageLoader.shared
                         await PreviewCacheStore.shared.warmUp()
                         await ImageDevelopmentEngine.shared.warmUpCaches()

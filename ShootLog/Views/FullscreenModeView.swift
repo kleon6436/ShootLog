@@ -1,6 +1,13 @@
 import AppKit
 import SwiftUI
 
+private struct ZoomPanTransientState: Equatable {
+    var zoomScale: CGFloat = 1.0
+    var gestureMagnification: CGFloat = 1.0
+    var panOffset: CGSize = .zero
+    var gesturePanTranslation: CGSize = .zero
+}
+
 // フルスクリーンモード。黒背景・左右ナビ・お気に入り・回転・ズーム/パン。Esc でサイドバーへ戻る。
 // HUD（上部/下部オーバーレイ＋ウィンドウツールバー）は無操作で自動的に隠れ、
 // マウス移動やキー操作で再表示する（macOS 写真.app 相当の挙動）
@@ -14,10 +21,7 @@ struct FullscreenModeView: View {
 
     // ズーム/パンはこのViewのローカル状態として持つ。ViewModelBoxにキャッシュされる
     // FullscreenViewModelへ置くとモード往復で意図せず永続化されてしまうため（ADR参照）
-    @State private var zoomScale: CGFloat = 1.0
-    @State private var gestureMagnification: CGFloat = 1.0
-    @State private var panOffset: CGSize = .zero
-    @State private var gesturePanTranslation: CGSize = .zero
+    @State private var zoomPanState = ZoomPanTransientState()
     @State private var isGestureActive = false
 
     // ズーム上限・パンのクランプ計算に使う実測値
@@ -232,15 +236,15 @@ struct FullscreenModeView: View {
 
     // ジェスチャー中の暫定値を含む実効ズーム倍率
     private var effectiveScale: CGFloat {
-        clampedScale(zoomScale * gestureMagnification)
+        clampedScale(zoomPanState.zoomScale * zoomPanState.gestureMagnification)
     }
 
     // ジェスチャー中の暫定値を含む実効パンオフセット
     private var effectiveOffset: CGSize {
         clampedOffset(
             CGSize(
-                width: panOffset.width + gesturePanTranslation.width,
-                height: panOffset.height + gesturePanTranslation.height
+                width: zoomPanState.panOffset.width + zoomPanState.gesturePanTranslation.width,
+                height: zoomPanState.panOffset.height + zoomPanState.gesturePanTranslation.height
             ),
             scale: effectiveScale
         )
@@ -274,12 +278,12 @@ struct FullscreenModeView: View {
         MagnifyGesture()
             .onChanged { value in
                 isGestureActive = true
-                gestureMagnification = value.magnification
+                zoomPanState.gestureMagnification = value.magnification
             }
             .onEnded { value in
-                zoomScale = clampedScale(zoomScale * value.magnification)
-                gestureMagnification = 1.0
-                panOffset = clampedOffset(panOffset, scale: zoomScale)
+                zoomPanState.zoomScale = clampedScale(zoomPanState.zoomScale * value.magnification)
+                zoomPanState.gestureMagnification = 1.0
+                zoomPanState.panOffset = clampedOffset(zoomPanState.panOffset, scale: zoomPanState.zoomScale)
                 isGestureActive = false
                 vm.noteUserActivity()
             }
@@ -289,21 +293,21 @@ struct FullscreenModeView: View {
         DragGesture()
             .onChanged { value in
                 // fit倍率のときはパンさせない（オフセットは常に .zero へクランプされる）
-                guard zoomScale > 1.0 else { return }
+                guard zoomPanState.zoomScale > 1.0 else { return }
                 isGestureActive = true
-                gesturePanTranslation = value.translation
+                zoomPanState.gesturePanTranslation = value.translation
             }
             .onEnded { value in
                 defer {
-                    gesturePanTranslation = .zero
+                    zoomPanState.gesturePanTranslation = .zero
                     isGestureActive = false
                 }
-                guard zoomScale > 1.0 else { return }
+                guard zoomPanState.zoomScale > 1.0 else { return }
                 let moved = CGSize(
-                    width: panOffset.width + value.translation.width,
-                    height: panOffset.height + value.translation.height
+                    width: zoomPanState.panOffset.width + value.translation.width,
+                    height: zoomPanState.panOffset.height + value.translation.height
                 )
-                panOffset = clampedOffset(moved, scale: zoomScale)
+                zoomPanState.panOffset = clampedOffset(moved, scale: zoomPanState.zoomScale)
                 vm.noteUserActivity()
             }
     }
@@ -311,12 +315,12 @@ struct FullscreenModeView: View {
     // ズーム中の2本指スクロールによるパン。スワイプ判定と違い閾値コミットは不要で、
     // 受け取ったデルタを都度クランプしながら反映する
     private func panByScroll(_ delta: CGSize) {
-        guard zoomScale > 1.0 else { return }
+        guard zoomPanState.zoomScale > 1.0 else { return }
         let moved = CGSize(
-            width: panOffset.width + delta.width,
-            height: panOffset.height + delta.height
+            width: zoomPanState.panOffset.width + delta.width,
+            height: zoomPanState.panOffset.height + delta.height
         )
-        panOffset = clampedOffset(moved, scale: zoomScale)
+        zoomPanState.panOffset = clampedOffset(moved, scale: zoomPanState.zoomScale)
         vm.noteUserActivity()
     }
 
@@ -330,26 +334,23 @@ struct FullscreenModeView: View {
     }
 
     private func resetZoom() {
-        zoomScale = 1.0
-        gestureMagnification = 1.0
-        panOffset = .zero
-        gesturePanTranslation = .zero
+        zoomPanState = ZoomPanTransientState()
     }
 
     private func toggleZoom() {
         vm.noteUserActivity()
-        if zoomScale > 1.0 {
+        if zoomPanState.zoomScale > 1.0 {
             resetZoom()
         } else {
-            zoomScale = clampedScale(doubleClickZoomScale)
-            panOffset = .zero
+            zoomPanState.zoomScale = clampedScale(doubleClickZoomScale)
+            zoomPanState.panOffset = .zero
         }
     }
 
     private func applyZoom(_ scale: CGFloat) {
         vm.noteUserActivity()
-        zoomScale = clampedScale(scale)
-        panOffset = clampedOffset(panOffset, scale: zoomScale)
+        zoomPanState.zoomScale = clampedScale(scale)
+        zoomPanState.panOffset = clampedOffset(zoomPanState.panOffset, scale: zoomPanState.zoomScale)
     }
 
     // ⌘+ / ⌘- / ⌘0 のズーム操作。ピンチ非対応デバイス（Magic Mouse等）の代替手段
@@ -357,10 +358,10 @@ struct FullscreenModeView: View {
         guard press.modifiers.contains(.command) else { return .ignored }
         switch press.characters {
         case "+", "=":
-            applyZoom(zoomScale * keyboardZoomStep)
+            applyZoom(zoomPanState.zoomScale * keyboardZoomStep)
             return .handled
         case "-":
-            applyZoom(zoomScale / keyboardZoomStep)
+            applyZoom(zoomPanState.zoomScale / keyboardZoomStep)
             return .handled
         case "0":
             vm.noteUserActivity()
