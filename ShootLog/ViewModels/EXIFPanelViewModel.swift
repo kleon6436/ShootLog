@@ -46,6 +46,10 @@ final class EXIFPanelViewModel {
     // 成功要因タグの唯一の読取経路。View側は自身のphotoではなくこちらを参照する
     var successTags: [SuccessTagCategory] { photo?.successTags ?? [] }
 
+    var aiCategories: [AISubjectCategory] {
+        (photo?.aiCategoryRawValues ?? []).compactMap { AISubjectCategory(rawValue: $0) }
+    }
+
     var noteText: String? {
         guard let note = photo?.note, !note.isEmpty else { return nil }
         return note

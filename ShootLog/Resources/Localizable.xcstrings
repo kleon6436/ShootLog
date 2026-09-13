@@ -4142,6 +4142,22 @@
         }
       }
     },
+    "exif.label.aiCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI Category"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI分類"
+          }
+        }
+      }
+    },
     "exif.label.aperture": {
       "extractionState": "stale",
       "localizations": {
