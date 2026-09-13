@@ -13,14 +13,37 @@ protocol AILabelingImageProviding: Sendable {
 struct DefaultAILabelingImageProvider: AILabelingImageProviding {
     static let shared = DefaultAILabelingImageProvider()
 
-    func thumbnail(for target: AILabelingTarget) async -> NSImage? {
-        if let localIdentifier = target.localIdentifier {
-            return await PhotosLibraryThumbnailProvider.shared.thumbnail(
+    private let proxyImageLoader: @Sendable (URL) async -> NSImage?
+    private let photosLibraryThumbnailLoader: @Sendable (String, CGSize) async -> NSImage?
+
+    init(
+        proxyImageLoader: @escaping @Sendable (URL) async -> NSImage? = { url in
+            await ImageLoader.shared.proxyImage(for: url)
+        },
+        photosLibraryThumbnailLoader: @escaping @Sendable (
+            String, CGSize
+        ) async -> NSImage? = { localIdentifier, targetSize in
+            await PhotosLibraryThumbnailProvider.shared.thumbnail(
                 forLocalIdentifier: localIdentifier,
-                targetSize: CGSize(width: 480, height: 480)
+                targetSize: targetSize
             )
         }
-        return await ImageLoader.shared.thumbnail(for: target.url)
+    ) {
+        self.proxyImageLoader = proxyImageLoader
+        self.photosLibraryThumbnailLoader = photosLibraryThumbnailLoader
+    }
+
+    func thumbnail(for target: AILabelingTarget) async -> NSImage? {
+        guard let localIdentifier = target.localIdentifier else {
+            return await proxyImageLoader(target.url)
+        }
+        if FileManager.default.fileExists(atPath: target.url.path) {
+            return await proxyImageLoader(target.url)
+        }
+        return await photosLibraryThumbnailLoader(
+            localIdentifier,
+            CGSize(width: 480, height: 480)
+        )
     }
 }
 
@@ -42,6 +65,7 @@ struct VisionAILabelingClassifier: AILabelingClassifying {
 /// 開いたフォルダの写真を、選択写真の近傍から低優先度で分類する。
 actor AILabelingGenerator {
     static let shared = AILabelingGenerator()
+    static let currentSchemaVersion = 2
     private static let decodeThrottle = AILabelingDecodeThrottle(maxConcurrent: 2)
 
     private let imageProvider: any AILabelingImageProviding
