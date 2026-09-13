@@ -41,4 +41,30 @@ struct EXIFPanelViewModelTests {
         // ByteCountFormatter の正確な文字列はロケール依存のため、非空であることのみ検証する
         #expect(viewModel.fileSizeText?.isEmpty == false)
     }
+
+    @Test func aiCategoriesReturnsMappedCategoriesFromRawValues() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        photo.aiCategoryRawValues = ["person", "animal"]
+        let viewModel = EXIFPanelViewModel()
+        viewModel.photo = photo
+
+        #expect(viewModel.aiCategories == [.person, .animal])
+    }
+
+    @Test func aiCategoriesIsEmptyWhenRawValuesEmpty() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        let viewModel = EXIFPanelViewModel()
+        viewModel.photo = photo
+
+        #expect(viewModel.aiCategories.isEmpty)
+    }
+
+    @Test func aiCategoriesIgnoresUnknownRawValues() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        photo.aiCategoryRawValues = ["person", "not-a-real-category"]
+        let viewModel = EXIFPanelViewModel()
+        viewModel.photo = photo
+
+        #expect(viewModel.aiCategories == [.person])
+    }
 }

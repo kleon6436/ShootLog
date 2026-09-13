@@ -35,6 +35,13 @@ struct EXIFPanelView: View {
                     }
                 }
 
+                // AI分類（未分類時は非表示）
+                if !vm.aiCategories.isEmpty {
+                    EXIFCard {
+                        EXIFAICategoryBadges(categories: vm.aiCategories)
+                    }
+                }
+
                 // お気に入り状態
                 EXIFCard {
                     EXIFFavoriteRow(isFavorite: vm.isFavorite)
@@ -126,6 +133,34 @@ private struct EXIFColorModeBadge: View {
                 .foregroundStyle(.tint)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
+    }
+}
+
+private struct EXIFAICategoryBadges: View {
+    let categories: [AISubjectCategory]
+    private let columns = [GridItem(.adaptive(minimum: 70), spacing: Spacing.small)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("exif.label.aiCategory")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.small) {
+                ForEach(categories, id: \.self) { category in
+                    Text(category.displayName)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.tint.opacity(0.15))
+                        .foregroundStyle(.tint)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+            }
+        }
+        // .combine が見出し + 各バッジのTextを結合して読み上げる（"AI分類, 人物, 動物"）。
+        // 固定accessibilityLabelを付けるとこの結合結果が上書きされ、カテゴリ名が読まれなくなるため付けない
+        .accessibilityElement(children: .combine)
     }
 }
 
