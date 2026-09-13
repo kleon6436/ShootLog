@@ -6,9 +6,10 @@ struct EXIFPanelView: View {
     var photo: Photo?
     // 成功要因タグのトグル通知。書込自体はContentViewModel側のfunnelが担当する
     var onToggleTag: (SuccessTagCategory) -> Void = { _ in }
-    @State private var vm = EXIFPanelViewModel()
 
     var body: some View {
+        let vm = EXIFPanelViewModel(photo: photo)
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.medium) {
                 EXIFCard {
@@ -69,9 +70,6 @@ struct EXIFPanelView: View {
             .padding(Spacing.large)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onChange(of: photo?.id, initial: true) {
-            vm.photo = photo
-        }
     }
 }
 
