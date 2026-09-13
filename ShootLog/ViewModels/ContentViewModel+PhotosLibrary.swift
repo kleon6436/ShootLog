@@ -41,6 +41,7 @@ extension ContentViewModel {
         let assets = await Task.detached(priority: .utility) {
             PhotosLibraryRepository.fetchAssets()
         }.value
+        let (byIdentifier, originalFileNames) = await resolveOriginalFileNames(for: assets, context: context)
         let cacheDirectory = PhotosLibraryAssetExporter.defaultDirectory
         do {
             try await Task.detached(priority: .utility) {
@@ -52,15 +53,70 @@ extension ContentViewModel {
             return
         }
 
-        syncPhotosLibrary(assets: assets, context: context)
+        syncPhotosLibrary(
+            assets: assets,
+            existing: byIdentifier,
+            originalFileNames: originalFileNames,
+            context: context
+        )
         selectPhoto(photos.first)
+        let aiLabelingToken = beginAILabeling()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if let staging = self.photoStagingTask {
+                await staging.value
+            }
+            guard aiLabelingToken == self.aiLabelingToken else { return }
+
+            self.resetDetectedAICategories(from: self.photos)
+            let targetPhotos = self.photos
+                .filter { $0.aiLabelingFetchedAt == nil }
+            let photoIndex = Dictionary(
+                uniqueKeysWithValues: self.photos.enumerated().map { ($1.fileURL, $0) }
+            )
+            let aiTargets = targetPhotos.map {
+                AILabelingTarget(url: $0.fileURL, localIdentifier: $0.phAssetLocalIdentifier)
+            }
+            let aiTotal = aiTargets.count
+            await AILabelingGenerator.shared.start(
+                targets: aiTargets,
+                around: 0,
+                progress: { [weak self] done, total in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        guard aiLabelingToken == self.aiLabelingToken else { return }
+                        self.updateAILabelingProgress(done: done, total: total)
+                    }
+                },
+                onResult: { [weak self] url, result in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        guard aiLabelingToken == self.aiLabelingToken else { return }
+                        if let result,
+                           let index = photoIndex[url], self.photos.indices.contains(index) {
+                            let photo = self.photos[index]
+                            photo.aiCategoryRawValues = result.categories.map(\.rawValue)
+                            photo.aiRawIdentifiers = result.rawIdentifiers
+                            photo.aiLabelingFetchedAt = Date()
+                            self.addDetectedAICategories(result.categories)
+                        }
+                        self.aiLabelingCompletedCount += 1
+                        if aiTotal > 0,
+                           self.aiLabelingCompletedCount == aiTotal
+                            || self.aiLabelingCompletedCount.isMultiple(of: Self.photoStagingChunkSize) {
+                            try? self.modelContext?.save()
+                        }
+                    }
+                }
+            )
+        }
         isLoading = false
     }
 
-    private func syncPhotosLibrary(
-        assets: [PHAsset],
+    private func resolveOriginalFileNames(
+        for assets: [PHAsset],
         context: ModelContext
-    ) {
+    ) async -> (byIdentifier: [String: Photo], originalFileNames: [String: String]) {
         let all = (try? context.fetch(FetchDescriptor<Photo>())) ?? []
         let byIdentifier = Dictionary(
             all.compactMap { photo in
@@ -68,11 +124,35 @@ extension ContentViewModel {
             },
             uniquingKeysWith: { first, _ in first }
         )
+        let assetsNeedingOriginalFileNames = assets.filter {
+            byIdentifier[$0.localIdentifier]?.originalFileName == nil
+        }
+        let originalFileNames: [String: String] = await Task.detached(priority: .utility) {
+            Dictionary(
+                assetsNeedingOriginalFileNames.compactMap { asset in
+                    guard let originalFileName = PHAssetResource
+                        .assetResources(for: asset)
+                        .first?.originalFilename else { return nil }
+                    return (asset.localIdentifier, originalFileName)
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+        }.value
+        return (byIdentifier, originalFileNames)
+    }
+
+    private func syncPhotosLibrary(
+        assets: [PHAsset],
+        existing byIdentifier: [String: Photo],
+        originalFileNames: [String: String],
+        context: ModelContext
+    ) {
         let firstBatchCount = min(assets.count, Self.initialPhotoBatchSize)
         photos = assets[..<firstBatchCount].map {
             resolvePhotosLibraryPhoto(
                 for: $0,
                 existing: byIdentifier,
+                originalFileNames: originalFileNames,
                 context: context
             )
         }
@@ -85,6 +165,7 @@ extension ContentViewModel {
             await stagePhotosLibraryPhotos(
                 assets: remaining,
                 existing: byIdentifier,
+                originalFileNames: originalFileNames,
                 context: context,
                 generation: generation
             )
@@ -94,6 +175,7 @@ extension ContentViewModel {
     private func stagePhotosLibraryPhotos(
         assets: [PHAsset],
         existing byIdentifier: [String: Photo],
+        originalFileNames: [String: String],
         context: ModelContext,
         generation: Int
     ) async {
@@ -105,6 +187,7 @@ extension ContentViewModel {
                 resolvePhotosLibraryPhoto(
                     for: $0,
                     existing: byIdentifier,
+                    originalFileNames: originalFileNames,
                     context: context
                 )
             }
@@ -119,6 +202,7 @@ extension ContentViewModel {
     private func resolvePhotosLibraryPhoto(
         for asset: PHAsset,
         existing byIdentifier: [String: Photo],
+        originalFileNames: [String: String],
         context: ModelContext
     ) -> Photo {
         let fileURL = PhotosLibraryAssetExporter.fileURL(forLocalIdentifier: asset.localIdentifier)
@@ -129,9 +213,13 @@ extension ContentViewModel {
                 photo.exifFetchedAt = nil
                 photo.asShotWhiteBalanceFetchedAt = nil
             }
+            if photo.originalFileName == nil {
+                photo.originalFileName = originalFileNames[asset.localIdentifier]
+            }
             return photo
         }
         let photo = Photo(fileURL: fileURL, phAssetLocalIdentifier: asset.localIdentifier)
+        photo.originalFileName = originalFileNames[asset.localIdentifier]
         photo.shootingDate = asset.creationDate ?? Date()
         context.insert(photo)
         return photo

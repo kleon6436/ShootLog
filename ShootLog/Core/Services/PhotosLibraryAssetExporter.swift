@@ -21,7 +21,7 @@ actor PhotosLibraryAssetExporter {
 
     nonisolated static let defaultMaxDiskBytes = 2 * 1024 * 1024 * 1024
 
-    private var inFlightTasks: [String: (fileURL: URL, task: Task<Void, Never>)] = [:]
+    private var inFlightTasks: [String: (fileURL: URL, task: Task<Bool, Never>)] = [:]
     private var exportsSinceEviction = 0
 
     private let directory: URL
@@ -40,22 +40,24 @@ actor PhotosLibraryAssetExporter {
     }
 
     // 同じアセットへの要求をまとめ、PhotoImageViewModelとEXIF取得の二重取得を防ぐ。
-    func ensureExported(localIdentifier: String, fileURL: URL) async {
-        guard !FileManager.default.fileExists(atPath: fileURL.path) else { return }
+    @discardableResult
+    func ensureExported(localIdentifier: String, fileURL: URL) async -> Bool {
+        guard !FileManager.default.fileExists(atPath: fileURL.path) else { return true }
 
         if let inFlightTask = inFlightTasks[localIdentifier], inFlightTask.fileURL == fileURL {
             await inFlightTask.task.value
-            return
+            return FileManager.default.fileExists(atPath: fileURL.path)
         }
 
         let task = Task { [localIdentifier, fileURL] in
             await self.exportAsset(localIdentifier: localIdentifier, to: fileURL)
         }
         inFlightTasks[localIdentifier] = (fileURL: fileURL, task: task)
-        await task.value
+        let result = await task.value
         if inFlightTasks[localIdentifier]?.fileURL == fileURL {
             inFlightTasks[localIdentifier] = nil
         }
+        return result
     }
 
     /// 起動時にエクスポートキャッシュを準備し、古いファイルを上限内へ整理する。
@@ -95,11 +97,11 @@ actor PhotosLibraryAssetExporter {
         }.value
     }
 
-    private func exportAsset(localIdentifier: String, to fileURL: URL) async {
+    private func exportAsset(localIdentifier: String, to fileURL: URL) async -> Bool {
         guard let asset = PHAsset.fetchAssets(
             withLocalIdentifiers: [localIdentifier],
             options: nil
-        ).firstObject else { return }
+        ).firstObject else { return false }
 
         let options = PHImageRequestOptions()
         options.version = .current
@@ -109,7 +111,7 @@ actor PhotosLibraryAssetExporter {
 
         guard let data = await requestImageData(for: asset, options: options),
               !Task.isCancelled else {
-            return
+            return false
         }
 
         let directory = fileURL.deletingLastPathComponent()
@@ -119,18 +121,19 @@ actor PhotosLibraryAssetExporter {
                 withIntermediateDirectories: true
             )
         } catch {
-            return
+            return false
         }
 
         let maxPixelSize = PreviewCacheStore.shared.proxyLongEdge
         let exportData = Self.resizedJPEGData(from: data, maxPixelSize: maxPixelSize) ?? data
-        guard ImageFileCache.writeData(exportData, to: fileURL) else { return }
+        guard ImageFileCache.writeData(exportData, to: fileURL) else { return false }
 
         exportsSinceEviction += 1
         if exportsSinceEviction.isMultiple(of: Self.evictionInterval) {
             exportsSinceEviction = 0
             await evictToLimit()
         }
+        return true
     }
 
     private func requestImageData(

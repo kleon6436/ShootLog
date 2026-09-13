@@ -44,11 +44,22 @@ final class Photo {
     var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）
     // 軽量マイグレーションのため宣言時デフォルト値が必須（既存行にはinitが走らない）
     var successTagRawValues: [String] = []
+    var aiCategoryRawValues: [String] = []
+    var aiRawIdentifiers: [String] = []
+    var aiLabelingFetchedAt: Date? = nil
+    var aiCaptionText: String? = nil
+    var aiCaptionFetchedAt: Date? = nil
     var asShotTemperatureKelvin: Double? = nil
     var asShotTint: Double? = nil
     var asShotWhiteBalanceIsEstimated: Bool? = nil
     var asShotWhiteBalanceFetchedAt: Date? = nil
     var phAssetLocalIdentifier: String? = nil
+    var originalFileName: String? = nil
+
+    /// 表示・検索に使うファイル名。iCloud写真はオリジナルファイル名、フォルダ写真はfileURLのファイル名を使う
+    var displayFileName: String {
+        originalFileName ?? fileURL.lastPathComponent
+    }
 
     /// 成功要因タグの読み書きアクセサ。未知のraw valueは無視し、他のタグの読み取りに影響させない
     var successTags: [SuccessTagCategory] {

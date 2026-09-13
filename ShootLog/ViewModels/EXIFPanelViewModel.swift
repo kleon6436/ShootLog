@@ -10,7 +10,7 @@ import Foundation
 final class EXIFPanelViewModel {
     var photo: Photo?
 
-    var fileNameText: String? { photo?.fileURL.lastPathComponent }
+    var fileNameText: String? { photo?.displayFileName }
     var cameraModelText: String? { photo?.cameraModel }
     var lensModelText: String? { photo?.lensModel }
     var apertureText: String? { photo?.aperture.map { "f / " + Self.decimalText($0, fractionLength: 1) } }
