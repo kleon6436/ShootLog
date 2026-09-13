@@ -36,6 +36,8 @@ final class ContentViewModel {
 
     // 写真
     var photos: [Photo] = []
+    // フォルダスキャン時にまとめて取得した原本属性。iCloud写真には適用しない一時キャッシュ
+    var fileAttributesSnapshots: [URL: FileAttributesSnapshot] = [:]
     var currentPhotoSource: PhotoSourceKind?
     var selectedPhoto: Photo?
     var isLoading = false
@@ -239,6 +241,16 @@ final class ContentViewModel {
 
     func cancelPhotoCaption() {
         photoCaptionToken &+= 1
+    }
+
+    @discardableResult
+    func applyFileAttributesSnapshots(
+        _ snapshots: [URL: FileAttributesSnapshot],
+        generation: Int
+    ) -> Bool {
+        guard generation == photoStagingGeneration else { return false }
+        fileAttributesSnapshots = snapshots
+        return true
     }
 
     // 段階挿入の2回目以降で1度に処理する件数

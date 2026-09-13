@@ -10,7 +10,11 @@ struct SlideshowModeView: View {
         ZStack {
             Color.viewerCanvas.ignoresSafeArea()
 
-            PhotoViewerView(photo: vm.selectedPhoto, editInfo: vm.currentEditInfo)
+            PhotoViewerView(
+                photo: vm.selectedPhoto,
+                editInfo: vm.currentEditInfo,
+                fileAttributesSnapshots: vm.content.fileAttributesSnapshots
+            )
 
             // 速度選択（左上）
             VStack {
@@ -166,4 +170,3 @@ struct SlideshowModeView: View {
 }
 
 // MARK: - Helper Views
-

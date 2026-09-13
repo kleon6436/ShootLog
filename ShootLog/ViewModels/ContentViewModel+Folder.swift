@@ -53,22 +53,24 @@ extension ContentViewModel {
             }
             history.lastAccessedAt = Date()
             saveOrReportError(context)
-            loadHistories()
             currentFolderURL = url
             currentPhotoSource = .folder(url)
+            loadHistories(checkAvailability: false)
             await loadFolderPhotos(url)
         } catch {
             self.error = ShootLogError.bookmarkRestorationFailed
         }
     }
 
-    func loadHistories() {
+    func loadHistories(checkAvailability: Bool = true) {
         guard let context = modelContext else { return }
         let descriptor = FetchDescriptor<FolderHistory>(
             sortBy: [SortDescriptor(\.lastAccessedAt, order: .reverse)]
         )
         folderHistories = (try? context.fetch(descriptor)) ?? []
         historyAvailabilityTask?.cancel()
+        historyAvailabilityTask = nil
+        guard checkAvailability else { return }
         historyAvailabilityTask = Task { await refreshHistoryAvailability() }
     }
 
@@ -124,6 +126,7 @@ extension ContentViewModel {
             addToHistory(url: url, bookmark: bookmark, context: context)
             currentFolderURL = url
             currentPhotoSource = .folder(url)
+            loadHistories(checkAvailability: false)
             await loadFolderPhotos(url)
         } catch {
             self.error = ShootLogError.folderAccessDenied
@@ -139,15 +142,24 @@ extension ContentViewModel {
         currentEditInfo = nil
         currentDevelopSettings = nil
         isCropMode = false
+        let generation = photoStagingGeneration
+        guard applyFileAttributesSnapshots([:], generation: generation) else { return }
 
         do {
-            let urls = try await Task.detached(priority: .utility) {
+            let scanResult = try await Task.detached(priority: .utility) {
                 try PhotoRepository.scanImageURLs(in: folderURL)
             }.value
+            let urls = scanResult.urls
+            let snapshots = scanResult.snapshots
+            guard applyFileAttributesSnapshots(snapshots, generation: generation) else { return }
             syncPhotos(urls: urls, context: context)
             selectPhoto(photos.first)
             let previewGenerationToken = beginPreviewGeneration()
-            await PreviewGenerator.shared.start(urls: urls, around: 0) { [weak self] done, total in
+            await PreviewGenerator.shared.start(
+                urls: urls,
+                snapshots: snapshots,
+                around: 0
+            ) { [weak self] done, total in
                 Task { @MainActor in
                     guard let self else { return }
                     guard previewGenerationToken == self.previewGenerationToken else { return }
@@ -179,6 +191,7 @@ extension ContentViewModel {
                 let exifTotal = exifURLs.count
                 await EXIFPrefetcher.shared.start(
                     urls: exifURLs,
+                    snapshots: snapshots,
                     progress: { [weak self] done, total in
                         Task { @MainActor in
                             guard let self else { return }
@@ -201,7 +214,11 @@ extension ContentViewModel {
                     }
                 )
                 let aiTargets = targetPhotos.map {
-                    AILabelingTarget(url: $0.fileURL, localIdentifier: $0.phAssetLocalIdentifier)
+                    AILabelingTarget(
+                        url: $0.fileURL,
+                        localIdentifier: $0.phAssetLocalIdentifier,
+                        snapshot: snapshots[$0.fileURL]
+                    )
                 }
                 let aiTotal = aiTargets.count
                 await AILabelingGenerator.shared.start(
@@ -353,7 +370,7 @@ extension ContentViewModel {
             existing.lastAccessedAt = Date()
             existing.securityBookmark = bookmark
             saveOrReportError(context)
-            loadHistories()
+            loadHistories(checkAvailability: false)
             return
         }
 
@@ -364,7 +381,7 @@ extension ContentViewModel {
         if overflow > 0 { evictHistories(from: all, count: overflow, context: context) }
         context.insert(FolderHistory(url: url, bookmark: bookmark))
         saveOrReportError(context)
-        loadHistories()
+        loadHistories(checkAvailability: false)
     }
 
     // 履歴の上限超過分を削除する。実体が存在せず一覧に出ていない履歴を優先して選び、

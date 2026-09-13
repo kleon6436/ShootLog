@@ -1,7 +1,11 @@
 import Foundation
 
 protocol EXIFBatchReading: Sendable {
-    func readEXIFBatch(from urls: [URL], maxConcurrency: Int) async -> [URL: EXIFInfo]
+    func readEXIFBatch(
+        from urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot],
+        maxConcurrency: Int
+    ) async -> [URL: EXIFInfo]
 }
 
 /// 開いたフォルダのローカル写真のEXIFを低優先度で先読みする。
@@ -21,6 +25,7 @@ actor EXIFPrefetcher {
     /// 実行中のバッチはキャンセルして置き換える。
     func start(
         urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot] = [:],
         progress: @escaping @Sendable (Int, Int) -> Void,
         onResult: @escaping @Sendable (URL, EXIFInfo) -> Void
     ) {
@@ -34,6 +39,7 @@ actor EXIFPrefetcher {
         prefetchTask = Task.detached(priority: .utility) { [weak self] in
             _ = await Self.prefetch(
                 urls,
+                snapshots: snapshots,
                 batchSize: batchSize,
                 reader: reader,
                 progress: progress,
@@ -62,6 +68,7 @@ actor EXIFPrefetcher {
 
     private static func prefetch(
         _ urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot],
         batchSize: Int,
         reader: any EXIFBatchReading,
         progress: @escaping @Sendable (Int, Int) -> Void,
@@ -81,6 +88,7 @@ actor EXIFPrefetcher {
             let chunk = Array(urls[completed..<end])
             let results = await reader.readEXIFBatch(
                 from: chunk,
+                snapshots: snapshots,
                 maxConcurrency: EXIFService.recommendedBatchConcurrency(for: chunk.first)
             )
             guard !Task.isCancelled else { return false }
