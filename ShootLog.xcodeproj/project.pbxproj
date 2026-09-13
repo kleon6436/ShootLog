@@ -41,6 +41,7 @@
 		320EB5024F5CACDE698678FA /* FolderAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11C6C12F60B2B0D0F861DFE /* FolderAvailabilityChecker.swift */; };
 		33120C24CC572BDCF8D097FF /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763EE10565D38482AD27DB18 /* ContentViewModel.swift */; };
 		359FE7F552FE80D5F2F2379E /* realesrgan.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 4676ECFB30A59BD8D90D2B4D /* realesrgan.mlpackage */; };
+		36D160436B77EB2AFB55BB64 /* EXIFPrefetcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C675F4307490141B4153F75 /* EXIFPrefetcherTests.swift */; };
 		3B657497480D3E0441EBA0B6 /* UpscaleExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA8B9351D4D2F28C376679E /* UpscaleExportSheet.swift */; };
 		3BD196193EEEC4137633220B /* AISubjectCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C0ED3E14EB75810F32A448 /* AISubjectCategoryTests.swift */; };
 		3DB863D2D45699FDB4A78B65 /* SidebarModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12E9306D3A3C4A2213D21AC /* SidebarModeView.swift */; };
@@ -53,6 +54,7 @@
 		48C094BCE4EF3730DEE6C693 /* CropViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E0765DCFEF1C40188927D53 /* CropViewModel.swift */; };
 		494F66A99111027E1AC5EFA7 /* CaptureOneAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E683A1758973FA79257F860 /* CaptureOneAdapter.swift */; };
 		4B321C623395CCB70A4C8AEA /* IntegrationAppSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60E50E4196D06F05D525C96 /* IntegrationAppSetting.swift */; };
+		4BE811844360623E393EC0D3 /* EXIFPrefetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9747DD4268147F1FFBF70ABE /* EXIFPrefetcher.swift */; };
 		4D511A0E18D495C4649F8500 /* AILabelingGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A817591C14902A22BA844A4F /* AILabelingGeneratorTests.swift */; };
 		4DE7D733692D9DF48CC9C6A4 /* CustomAppAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5F98F0201F18F0FFDCA729 /* CustomAppAdapter.swift */; };
 		4F49BE37F18BC18C10658A4C /* PreviewCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9DBB7EBD9913CC8039BD40 /* PreviewCacheStore.swift */; };
@@ -271,6 +273,7 @@
 		73FF95B6F5DCAE63FD18D29F /* DevelopSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopSettings.swift; sourceTree = "<group>"; };
 		75E6A319C29E90C03BAA0BF2 /* HSLBandEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSLBandEditorView.swift; sourceTree = "<group>"; };
 		763EE10565D38482AD27DB18 /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
+		7C675F4307490141B4153F75 /* EXIFPrefetcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EXIFPrefetcherTests.swift; sourceTree = "<group>"; };
 		7D9FFCCED2E889F08B17BD94 /* UpscaleOutputDestinationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpscaleOutputDestinationTests.swift; sourceTree = "<group>"; };
 		7E9A136FC9BBC9E6DC0FFD0A /* FullscreenModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullscreenModeView.swift; sourceTree = "<group>"; };
 		80F7296C3DC912CEADEACE48 /* Photo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Photo.swift; sourceTree = "<group>"; };
@@ -287,6 +290,7 @@
 		8E0765DCFEF1C40188927D53 /* CropViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropViewModel.swift; sourceTree = "<group>"; };
 		912D4E42B78C3ED6568F23BA /* realesrgan_x2plus.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = realesrgan_x2plus.mlpackage; sourceTree = "<group>"; };
 		94A667C271CD28F31A13522F /* PreviewCacheStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewCacheStoreTests.swift; sourceTree = "<group>"; };
+		9747DD4268147F1FFBF70ABE /* EXIFPrefetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EXIFPrefetcher.swift; sourceTree = "<group>"; };
 		97DE986569CCC3B2BDC8D6B7 /* DevelopPresetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopPresetBar.swift; sourceTree = "<group>"; };
 		99E2DFFBCF2DF969FDB6A710 /* TiledInferenceRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiledInferenceRunnerTests.swift; sourceTree = "<group>"; };
 		9A7A351A947D5595EB57E9EF /* PreviewGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewGeneratorTests.swift; sourceTree = "<group>"; };
@@ -548,6 +552,7 @@
 				574D62AB2BE53760390585D9 /* DevelopSettingsTests.swift */,
 				51221DFACE1BBB2B84647042 /* DevelopViewModelTests.swift */,
 				40C45C35D791261F17559956 /* EXIFPanelViewModelTests.swift */,
+				7C675F4307490141B4153F75 /* EXIFPrefetcherTests.swift */,
 				054483E7B11E5E1051F6A23B /* HighResPrefetcherTests.swift */,
 				FA84F5C47F603BB722131E64 /* HistogramDataTests.swift */,
 				1BC2B610E9622F0C94503759 /* HSLColorCubeTests.swift */,
@@ -590,6 +595,7 @@
 			children = (
 				6A8DC334EB7AA433138E16E6 /* AILabelingGenerator.swift */,
 				8B31DFB97694482C78CB89E3 /* AppSettingsKeys.swift */,
+				9747DD4268147F1FFBF70ABE /* EXIFPrefetcher.swift */,
 				B913D5C3C46A4CA316F7DB28 /* EXIFService.swift */,
 				F11C6C12F60B2B0D0F861DFE /* FolderAvailabilityChecker.swift */,
 				87D3A781AB6130B0649232AB /* HighResPrefetcher.swift */,
@@ -777,6 +783,7 @@
 				02A89EFB03A1095A687D0F08 /* DisplayColorSpaceReader.swift in Sources */,
 				7654EF65E95271DED5FBD4AC /* EXIFPanelView.swift in Sources */,
 				581857E70CFC09EB7B0B3983 /* EXIFPanelViewModel.swift in Sources */,
+				4BE811844360623E393EC0D3 /* EXIFPrefetcher.swift in Sources */,
 				080DFC954BCE85A3E0C5131C /* EXIFService.swift in Sources */,
 				1923317160FCB7C5C33A64CB /* EditInfo.swift in Sources */,
 				D28DB6E2AD582B366940AA5B /* EditablePhotoView.swift in Sources */,
@@ -873,6 +880,7 @@
 				200481CAED65AEC538927221 /* DevelopSettingsTests.swift in Sources */,
 				E77784B2E1E9F9BE6D2704A8 /* DevelopViewModelTests.swift in Sources */,
 				EC9429A149799C331B048C6E /* EXIFPanelViewModelTests.swift in Sources */,
+				36D160436B77EB2AFB55BB64 /* EXIFPrefetcherTests.swift in Sources */,
 				86731DDD42F6EB1472364E38 /* HSLColorCubeTests.swift in Sources */,
 				A9C0F639646C4A8407D691F6 /* HighResPrefetcherTests.swift in Sources */,
 				213AE90D275DF66A574FFF3C /* HistogramDataTests.swift in Sources */,

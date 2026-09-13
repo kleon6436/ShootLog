@@ -51,6 +51,7 @@ targets:
         DEVELOPMENT_TEAM: 235777R328
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
         DEAD_CODE_STRIPPING: YES
+        MARKETING_VERSION: "1.2"
     dependencies: []
 
   ShootLogTests:
