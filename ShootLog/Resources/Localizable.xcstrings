@@ -5268,6 +5268,22 @@
         }
       }
     },
+    "exif.label.aiCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI Category"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI分類"
+          }
+        }
+      }
+    },
     "settings.networkConcurrency %lld" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5278,6 +5294,25 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Concurrent loads on network volumes: %lld file"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Concurrent loads on network volumes: %lld files"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワークボリュームの同時読み込み数: %lld 件"
+          }
+        }
+      }
+    },
                 }
               },
               "other" : {
