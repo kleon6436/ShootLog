@@ -106,7 +106,10 @@ extension ContentViewModel {
         if canReadFile, photo.exifFetchedAt == nil {
             let url = photo.fileURL
             do {
-                let exif = try await EXIFService.shared.readEXIF(from: url)
+                let exif = try await EXIFService.shared.readEXIF(
+                    from: url,
+                    snapshot: fileAttributesSnapshots[url]
+                )
                 apply(exif, to: photo)
                 // バックグラウンドのEXIF取得処理。失敗しても一覧表示は継続するためAlert化しない
                 try? modelContext?.save()
@@ -207,6 +210,7 @@ extension ContentViewModel {
             let urls = targets.map(\.fileURL)
             let results = await EXIFService.shared.readEXIFBatch(
                 from: urls,
+                snapshots: fileAttributesSnapshots,
                 maxConcurrency: EXIFService.recommendedBatchConcurrency(for: urls.first)
             )
             guard !Task.isCancelled else { return }

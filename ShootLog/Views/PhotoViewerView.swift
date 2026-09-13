@@ -12,6 +12,7 @@ struct PhotoViewerView: View {
     // 前後1枚の先読み対象URL。呼び出し元が写真一覧を持つため、
     // URLの決定（先頭・末尾の境界処理を含む）は呼び出し元の責務とする
     var neighborPrefetchURLs: [URL] = []
+    var fileAttributesSnapshots: [URL: FileAttributesSnapshot] = [:]
 
     // 高倍率ズーム中かどうか。true の間だけフルサイズデコードした画像へ差し替える。
     // 倍率そのものではなくBoolを受け取るのは、ジェスチャー中の連続的な倍率変化で
@@ -49,12 +50,19 @@ struct PhotoViewerView: View {
                 .task(id: photo?.id) {
                     // 前の写真のフルサイズ画像を残すと切替直後に別写真が見えてしまう
                     fullSizeImage = nil
-                    await vm.load(photo: photo, displaySize: geometry.size)
+                    await vm.load(
+                        photo: photo,
+                        displaySize: geometry.size,
+                        snapshot: photo.flatMap { fileAttributesSnapshots[$0.fileURL] }
+                    )
                 }
                 // 先読みは表示中写真のロードとは別タスクにする。写真IDをキーに共有すると、
                 // お気に入り絞り込みの切替で前後URLだけが変わった場合に古いURLのまま確定してしまう
                 .task(id: neighborPrefetchURLs) {
-                    await HighResPrefetcher.prefetch(urls: neighborPrefetchURLs)
+                    await HighResPrefetcher.prefetch(
+                        urls: neighborPrefetchURLs,
+                        snapshots: fileAttributesSnapshots
+                    )
                 }
                 .task(id: FullSizeDecodeKey(photoID: photo?.id, isEnabled: prefersFullSizeDecode)) {
                     await loadFullSizeIfNeeded()

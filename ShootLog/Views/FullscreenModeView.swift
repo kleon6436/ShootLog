@@ -91,6 +91,7 @@ struct FullscreenModeView: View {
             photo: vm.selectedPhoto,
             editInfo: vm.currentEditInfo,
             neighborPrefetchURLs: neighborPrefetchURLs,
+            fileAttributesSnapshots: vm.content.fileAttributesSnapshots,
             prefersFullSizeDecode: prefersFullSizeDecode,
             interpolation: isGestureActive ? .medium : .high,
             onDisplayedImageSizeChange: { displayedImagePixelSize = $0 }

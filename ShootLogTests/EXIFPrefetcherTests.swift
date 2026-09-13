@@ -172,7 +172,11 @@ private actor RecordingEXIFBatchReader: EXIFBatchReading {
         self.delay = delay
     }
 
-    func readEXIFBatch(from urls: [URL], maxConcurrency: Int) async -> [URL: EXIFInfo] {
+    func readEXIFBatch(
+        from urls: [URL],
+        snapshots: [URL: FileAttributesSnapshot],
+        maxConcurrency: Int
+    ) async -> [URL: EXIFInfo] {
         requests += 1
         if let delay {
             try? await Task.sleep(for: delay)

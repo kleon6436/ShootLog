@@ -21,7 +21,12 @@ final class PhotoImageViewModel {
     //
     // useFullResolution に true を渡すと displaySize を無視してフルサイズデコードへフォールバックする
     // （最大ズーム時に等倍以上で表示する場合に使う）
-    func load(photo: Photo?, displaySize: CGSize? = nil, useFullResolution: Bool = false) async {
+    func load(
+        photo: Photo?,
+        displaySize: CGSize? = nil,
+        useFullResolution: Bool = false,
+        snapshot: FileAttributesSnapshot? = nil
+    ) async {
         // 前の写真の残像をクリアしてから新しい写真をロード
         thumbnail = nil
         highRes = nil
@@ -62,7 +67,7 @@ final class PhotoImageViewModel {
             guard !Task.isCancelled else { return }
             highRes = loadedHighRes
         } else {
-            let proxy = await ImageLoader.shared.proxyImage(for: fileURL)
+            let proxy = await ImageLoader.shared.proxyImage(for: fileURL, snapshot: snapshot)
             guard !Task.isCancelled else { return }
             if let proxy {
                 highRes = proxy
