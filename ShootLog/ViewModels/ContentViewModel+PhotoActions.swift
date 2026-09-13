@@ -76,11 +76,6 @@ extension ContentViewModel {
             : String(localized: "toast.favorite.removed"))
     }
 
-    func saveNote(_ note: String, for photo: Photo) {
-        photo.note = note
-        if let context = modelContext { saveOrReportError(context) }
-    }
-
     // 成功要因タグの唯一の書込経路。配列の追加/削除判定はView側に持たせずここに閉じる
     func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) {
         var tags = photo.successTags
