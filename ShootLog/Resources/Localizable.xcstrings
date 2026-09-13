@@ -5313,25 +5313,6 @@
         }
       }
     },
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Concurrent loads on network volumes: %lld files"
-                }
-              }
-            }
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ネットワークボリューム同時読み込み数: %lld件"
-          }
-        }
-      }
-    },
     "settings.performance.note" : {
       "localizations" : {
         "en" : {
