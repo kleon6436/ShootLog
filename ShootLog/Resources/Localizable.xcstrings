@@ -1,16 +1,6 @@
 {
   "sourceLanguage" : "ja",
   "strings" : {
-    "%@, %@" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@, %2$@"
-          }
-        }
-      }
-    },
     "a11y.analysis.cameraFilter" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2214,23 +2204,6 @@
         }
       }
     },
-    "develop.export.running" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exporting"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "書き出し中"
-          }
-        }
-      }
-    },
     "develop.export.savePanel.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3395,40 +3368,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ストラクチャ"
-          }
-        }
-      }
-    },
-    "develop.temperature" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temperature"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "色温度"
-          }
-        }
-      }
-    },
-    "develop.tint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tint"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "色かぶり補正"
           }
         }
       }
@@ -5032,23 +4971,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "写真ライブラリへのアクセスが必要です"
-          }
-        }
-      }
-    },
-    "photosLibrary.permissionGranted.toast" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access to your Photos library was granted (photo listing will be implemented later)."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "写真ライブラリへのアクセスが許可されました（一覧表示は今後実装予定です）。"
           }
         }
       }

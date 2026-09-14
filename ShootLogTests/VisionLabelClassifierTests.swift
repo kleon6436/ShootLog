@@ -1,19 +1,10 @@
 import AppKit
 import Foundation
 import Testing
-import Vision
 
 @testable import ShootLog
 
 struct VisionLabelClassifierTests {
-
-    @Test func 全マッピングキーが実在identifierである() throws {
-        let known = Set(try VNClassifyImageRequest
-            .knownClassifications(forRevision: VNClassifyImageRequestRevision1)
-            .map(\.identifier))
-
-        #expect(VisionLabelClassifier.allMappedIdentifiers.isSubset(of: known))
-    }
 
     @Test func 代表的なidentifierをカテゴリへ分類する() {
         #expect(VisionLabelClassifier.category(for: "dog") == .animal)

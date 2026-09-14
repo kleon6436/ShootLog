@@ -95,11 +95,6 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
         _ = await store(image, forKey: key, evictAfter: true)
     }
 
-    /// キャッシュディレクトリ内のファイル使用量を返す。
-    func diskUsageBytes() async -> Int {
-        await diskEntries().reduce(0) { $0 + $1.size }
-    }
-
     /// 上限を超えた分を、最終更新日時が古いファイルから削除する。
     func evictToLimit() async {
         let directory = directory
@@ -107,13 +102,6 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
         await Task.detached(priority: .utility) {
             ImageFileCache.evict(in: directory, maxBytes: maxDiskBytes)
         }.value
-    }
-
-    /// 指定原本の現在のバージョンに対応するプロキシを削除する。
-    func invalidate(_ url: URL, snapshot: FileAttributesSnapshot? = nil) async {
-        let key = await cacheKey(for: url, snapshot: snapshot)
-        memoryCache.removeObject(forKey: key as NSString)
-        await removeDiskFiles(forKey: key)
     }
 
     /// 設定画面の明示操作用にすべてのプロキシを削除する。
@@ -265,13 +253,6 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
         }
     }
 
-    private func removeDiskFiles(forKey key: String) async {
-        let directory = directory
-        await Task.detached(priority: .utility) {
-            ImageFileCache.remove(forKey: key, extensions: ["heic", "jpg"], in: directory)
-        }.value
-    }
-
     private func touchDiskProxy(forKey key: String) {
         let directory = directory
         Task.detached(priority: .utility) {
@@ -281,13 +262,6 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
                 return
             }
         }
-    }
-
-    private func diskEntries() async -> [ImageFileCache.DiskEntry] {
-        let directory = directory
-        return await Task.detached(priority: .utility) {
-            ImageFileCache.entries(in: directory)
-        }.value
     }
 
     private static func decodeDownsampled(source: CGImageSource, maxPixelSize: Int) -> CGImage? {

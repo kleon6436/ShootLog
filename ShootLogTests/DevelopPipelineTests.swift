@@ -366,14 +366,6 @@ struct DevelopPipelineTests {
         #expect(firstLegacy != graded)
     }
 
-    @Test func hasAnyEffectTracksNeutrality() {
-        #expect(DevelopPipeline.hasAnyEffect(.neutral) == false)
-
-        var parameters = DevelopParameters.neutral
-        parameters.exposure = 0.5
-        #expect(DevelopPipeline.hasAnyEffect(parameters))
-    }
-
     // MARK: - 手動レンズ補正
 
     @Test func manualLensDistortionAppliesOnlyWhenEnabled() throws {

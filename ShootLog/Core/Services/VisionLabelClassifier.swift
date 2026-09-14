@@ -60,8 +60,6 @@ enum VisionLabelClassifier {
         return labelCategories[normalizedIdentifier] ?? .unknown
     }
 
-    static let allMappedIdentifiers: Set<String> = Set(labelCategories.keys)
-
     private static let labelCategories: [String: AISubjectCategory] = {
         let groupedLabels: [(AISubjectCategory, [String])] = [
             (.person, [

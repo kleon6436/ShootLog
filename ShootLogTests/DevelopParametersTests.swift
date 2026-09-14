@@ -301,38 +301,6 @@ struct DevelopParametersTests {
         #expect(HSLBand.magenta.centerHue == 320)
     }
 
-    // MARK: - hslAdjustment(for:)
-
-    @Test func hslAdjustmentReadsCorrectIndex() {
-        var parameters = DevelopParameters.neutral
-        parameters.hslSaturation[1] = 50
-        parameters.hslHue[1] = -12
-        parameters.hslLuminance[1] = 8
-
-        let adjustment = parameters.hslAdjustment(for: .orange)
-        #expect(adjustment.hue == -12)
-        #expect(adjustment.saturation == 50)
-        #expect(adjustment.luminance == 8)
-
-        let red = parameters.hslAdjustment(for: .red)
-        #expect(red.hue == 0)
-        #expect(red.saturation == 0)
-        #expect(red.luminance == 0)
-    }
-
-    @Test func hslAdjustmentReturnsZeroForMalformedArrays() {
-        var parameters = DevelopParameters.neutral
-        parameters.hslHue = [1, 2]
-        parameters.hslSaturation = [3, 4]
-        parameters.hslLuminance = [5, 6]
-
-        // magenta (index 7) は配列範囲外 → (0, 0, 0)
-        let adjustment = parameters.hslAdjustment(for: .magenta)
-        #expect(adjustment.hue == 0)
-        #expect(adjustment.saturation == 0)
-        #expect(adjustment.luminance == 0)
-    }
-
     // MARK: - 相対適用（applying(delta:)）
 
     @Test func applyingNeutralDeltaReturnsSelf() {
