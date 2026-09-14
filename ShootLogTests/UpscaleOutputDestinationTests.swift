@@ -150,12 +150,7 @@ struct UpscaleOutputDestinationTests {
         #expect(!UpscaleOutputDestination.isSameFileSystemObject(first, second))
     }
 
-    // MARK: - 防御5・防御6
-
-    @Test func defaultFileNameAppendsScaleSuffix() {
-        let source = URL(fileURLWithPath: "/tmp/photos/IMG_0042.NEF")
-        #expect(UpscaleOutputDestination.defaultFileName(for: source, scaleFactor: 4) == "IMG_0042_upscaled_4x")
-    }
+    // MARK: - 防御6
 
     @Test func capacityCheckRejectsImplausiblyLargeOutput() throws {
         let sandbox = try makeSandbox()

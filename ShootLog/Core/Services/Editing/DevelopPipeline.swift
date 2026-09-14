@@ -132,11 +132,6 @@ enum DevelopPipeline {
         return image.extent == input.extent ? image : image.cropped(to: input.extent)
     }
 
-    /// 何らかの調整が入っているか（`!parameters.isNeutral` の可読性用エイリアス）。
-    static func hasAnyEffect(_ parameters: DevelopParameters) -> Bool {
-        !parameters.isNeutral
-    }
-
     /// ガンマ（sRGB）ブラケットで評価すべき知覚的なトーン調整が 1 つでも入っているか。
     /// すべて中立なら変換フィルタ 2 枚を挟まず、リニア光の調整だけを通す。
     static func hasPerceptualEffect(_ parameters: DevelopParameters) -> Bool {

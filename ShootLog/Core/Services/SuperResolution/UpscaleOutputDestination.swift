@@ -76,13 +76,6 @@ enum UpscaleOutputDestination {
         UTType(filenameExtension: pathExtension.lowercased(), conformingTo: .image)
     }
 
-    // MARK: - 防御5
-
-    /// 既定のファイル名（拡張子なし）。原本と同名になることを避ける
-    static func defaultFileName(for sourceURL: URL, scaleFactor: Int) -> String {
-        "\(sourceURL.deletingPathExtension().lastPathComponent)_upscaled_\(scaleFactor)x"
-    }
-
     // MARK: - 防御6
 
     /// 推定出力サイズの1.5倍を確保できるかの判定に使う係数。
