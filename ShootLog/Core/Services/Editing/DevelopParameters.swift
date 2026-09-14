@@ -144,17 +144,6 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     var hasManualLensCorrection: Bool {
         lensDistortion != 0 || lensVignette != 0 || lensChromaticAberration != 0
     }
-
-    /// 指定した帯域の HSL 調整量を取り出す。配列が不正で範囲外の場合は (0, 0, 0) を返す。
-    func hslAdjustment(for band: HSLBand) -> (hue: Double, saturation: Double, luminance: Double) {
-        guard let index = HSLBand.allCases.firstIndex(of: band),
-              hslHue.indices.contains(index),
-              hslSaturation.indices.contains(index),
-              hslLuminance.indices.contains(index) else {
-            return (0, 0, 0)
-        }
-        return (hslHue[index], hslSaturation[index], hslLuminance[index])
-    }
 }
 
 // MARK: - 相対適用（プリセットの差分重ね）
