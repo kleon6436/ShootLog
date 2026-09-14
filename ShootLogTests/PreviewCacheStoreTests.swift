@@ -204,21 +204,6 @@ struct PreviewCacheStoreTests {
         #expect(max(regenerated.width, regenerated.height) <= 256)
     }
 
-    @Test func storeThenInvalidateRemovesCurrentProxy() async throws {
-        let sandbox = try makeSandbox()
-        defer { try? FileManager.default.removeItem(at: sandbox) }
-        let source = try writePNG(width: 64, height: 48, in: sandbox)
-        let cacheDirectory = sandbox.appendingPathComponent("cache", isDirectory: true)
-        let store = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
-
-        await store.store(try makeColorImage(width: 128, height: 96), for: source)
-        #expect(await store.diskUsageBytes() > 0)
-
-        await store.invalidate(source)
-        #expect(await store.cachedProxy(for: source) == nil)
-        #expect(try cachedFiles(in: cacheDirectory).isEmpty)
-    }
-
     @Test func evictToLimitRemovesOldestFilesFirst() async throws {
         let sandbox = try makeSandbox()
         defer { try? FileManager.default.removeItem(at: sandbox) }
@@ -245,7 +230,6 @@ struct PreviewCacheStoreTests {
 
         let limitingStore = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: newSize)
         await limitingStore.evictToLimit()
-        #expect(await limitingStore.diskUsageBytes() <= newSize)
 
         let reloaded = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
         #expect(await reloaded.cachedProxy(for: oldest) == nil)

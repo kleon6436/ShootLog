@@ -73,12 +73,6 @@ enum ImageFileCache {
         removeInterruptedWriteFiles(in: directory, isTemporaryFile: isTemporaryFile)
     }
 
-    static func remove(forKey key: String, extensions: [String], in directory: URL) {
-        for fileURL in fileURLs(forKey: key, extensions: extensions, in: directory) {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-    }
-
     static func entries(in directory: URL) -> [DiskEntry] {
         let keys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey]
         guard let files = try? FileManager.default.contentsOfDirectory(

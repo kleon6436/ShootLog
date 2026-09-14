@@ -27,8 +27,6 @@ struct HistogramData: Sendable, Equatable {
 
     var hasHighlightClipping: Bool { exceedsClipThreshold(red.last, green.last, blue.last) }
     var hasShadowClipping: Bool { exceedsClipThreshold(red.first, green.first, blue.first) }
-    var hasLuminanceHighlightClipping: Bool { exceedsClipThreshold(luminance.last) }
-    var hasLuminanceShadowClipping: Bool { exceedsClipThreshold(luminance.first) }
 
     /// 全ビン 0 の空ヒストグラム。
     static let empty = HistogramData(

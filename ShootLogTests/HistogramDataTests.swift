@@ -88,8 +88,6 @@ struct HistogramDataTests {
 
         #expect(histogram.hasHighlightClipping)
         #expect(histogram.hasShadowClipping)
-        #expect(histogram.hasLuminanceHighlightClipping)
-        #expect(!histogram.hasLuminanceShadowClipping)
     }
 
     @Test func clippingBelowFractionThresholdIsIgnored() {
@@ -137,8 +135,6 @@ struct HistogramDataTests {
 
         #expect(!histogram.hasHighlightClipping)
         #expect(!histogram.hasShadowClipping)
-        #expect(!histogram.hasLuminanceHighlightClipping)
-        #expect(!histogram.hasLuminanceShadowClipping)
         #expect(histogram.pixelCount == 0)
     }
 

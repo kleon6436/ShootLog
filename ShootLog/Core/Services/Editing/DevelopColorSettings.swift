@@ -133,15 +133,3 @@ enum WhiteBalanceResolver {
         return result
     }
 }
-
-/// Apple標準RAWデコーダーが利用する入力情報。DCP/LCPはこの世代では扱わない。
-struct RawDevelopmentProfile: Equatable, Sendable {
-    enum DecodeMethod: String, Sendable { case coreImageRAW, imageIO }
-    let cameraMake: String?
-    let cameraModel: String?
-    let decodeMethod: DecodeMethod
-    let supportsAsShotWhiteBalance: Bool
-    let profileIdentifier: String
-    let processVersion: Int
-    let failureReason: String?
-}
