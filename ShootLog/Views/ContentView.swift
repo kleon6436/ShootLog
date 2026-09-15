@@ -109,6 +109,12 @@ struct ContentView: View {
                 vm.deleteHistory(history)
             }
         )
+        // 空状態でもNSToolbarを生成し、透明タイトルバー下の信号機位置を揃える
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                EmptyView()
+            }
+        }
     }
 
     // body全体を1つのvarにまとめると型検査がタイムアウトするため、toolbarとの2分割にしている
