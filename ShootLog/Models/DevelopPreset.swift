@@ -13,8 +13,6 @@ final class DevelopPreset {
     var name: String = ""
     /// `JSONEncoder().encode(DevelopParameters)` の結果。
     var parametersData: Data = DevelopPreset.encodedNeutral()
-    /// blob 形式の世代。現在 1。
-    var schemaVersion: Int = 1
     /// 作成日時。
     var createdAt: Date = Date.now
     /// メニューでの並び順。新規は末尾に付ける。
@@ -24,7 +22,6 @@ final class DevelopPreset {
         self.id = UUID()
         self.name = name
         self.parametersData = (try? DevelopPreset.encode(parameters)) ?? DevelopPreset.encodedNeutral()
-        self.schemaVersion = 1
         self.createdAt = .now
         self.sortIndex = sortIndex
     }

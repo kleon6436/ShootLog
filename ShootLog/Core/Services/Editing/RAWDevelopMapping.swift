@@ -66,13 +66,6 @@ enum RAWDevelopMapping {
         return hasher.finalize()
     }
 
-    /// 委譲対象パラメータが 1 つでも中立でないか。
-    static func hasEffect(_ parameters: DevelopParameters) -> Bool {
-        parameters.exposure != 0 || parameters.temperature != 0 || parameters.tint != 0
-            || parameters.whiteBalance.hasEffect
-            || parameters.lensCorrectionEnabled
-    }
-
     private static func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
         if value.isNaN { return 0 }
         return min(max(value, lower), upper)
