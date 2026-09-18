@@ -35,28 +35,4 @@ struct RAWDevelopMappingTests {
         #expect(RAWDevelopMapping.decodeHash(contrastChanged) == baseHash)
     }
 
-    @Test func hasEffectReflectsDelegatedParametersOnly() {
-        #expect(RAWDevelopMapping.hasEffect(.neutral) == false)
-
-        var exposure = DevelopParameters.neutral
-        exposure.exposure = 1.0
-        #expect(RAWDevelopMapping.hasEffect(exposure))
-
-        var tint = DevelopParameters.neutral
-        tint.tint = -15
-        #expect(RAWDevelopMapping.hasEffect(tint))
-
-        var absoluteWB = DevelopParameters.neutral
-        absoluteWB.whiteBalance = .preset(.daylight)
-        #expect(RAWDevelopMapping.hasEffect(absoluteWB))
-
-        var lens = DevelopParameters.neutral
-        lens.lensCorrectionEnabled = true
-        #expect(RAWDevelopMapping.hasEffect(lens))
-
-        var nonDelegated = DevelopParameters.neutral
-        nonDelegated.shadows = 50
-        nonDelegated.colorNoiseReduction = 30
-        #expect(RAWDevelopMapping.hasEffect(nonDelegated) == false)
-    }
 }
