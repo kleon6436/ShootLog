@@ -229,18 +229,18 @@ struct FullscreenModeView: View {
     // （45MP級のRAWで最大ズーム時に眠くなるのを防ぐ）
     private static let fullSizeDecodeZoomThreshold: CGFloat = 1.5
 
-    // ジェスチャー中の暫定倍率も含めて判定する。PhotoViewerView 側でデバウンスするため、
+    // ジェスチャー中の一時倍率も含めて判定する。PhotoViewerView 側でデバウンスするため、
     // ピンチ中にしきい値を出入りしても再デコードは連発しない
     private var prefersFullSizeDecode: Bool {
         effectiveScale > Self.fullSizeDecodeZoomThreshold
     }
 
-    // ジェスチャー中の暫定値を含む実効ズーム倍率
+    // ジェスチャー中の一時値を含む実効ズーム倍率
     private var effectiveScale: CGFloat {
         clampedScale(zoomPanState.zoomScale * zoomPanState.gestureMagnification)
     }
 
-    // ジェスチャー中の暫定値を含む実効パンオフセット
+    // ジェスチャー中の一時値を含む実効パンオフセット
     private var effectiveOffset: CGSize {
         clampedOffset(
             CGSize(
