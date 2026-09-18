@@ -45,6 +45,16 @@
         }
       }
     },
+    "a11y.analysis.favoriteRatio %@ %@ %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a11y.analysis.favoriteRatio %1$@ %2$@ %3$@"
+          }
+        }
+      }
+    },
     "a11y.analysis.favoriteRatio %lld %lld %lld" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -822,6 +832,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "EXIFデータがありません"
+          }
+        }
+      }
+    },
+    "analysis.exifProgress %@ %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "analysis.exifProgress %1$@ %2$@"
           }
         }
       }
@@ -4524,6 +4544,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プレビュー"
+          }
+        }
+      }
+    },
+    "H %@°  S %@%%" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "H %1$@°  S %2$@%%"
           }
         }
       }
