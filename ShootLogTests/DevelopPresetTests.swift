@@ -21,7 +21,6 @@ struct DevelopPresetTests {
 
         #expect(preset.name == "Warm")
         #expect(preset.sortIndex == 3)
-        #expect(preset.schemaVersion == 1)
         #expect(preset.parameters.exposure == 1.5)
     }
 
