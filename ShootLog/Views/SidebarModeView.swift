@@ -53,7 +53,11 @@ struct SidebarModeView: View {
     // 左: 写真一覧（最小 120pt、理想 sidebarWidth pt、最大 400pt）。
     // 背景・区切り線は標準サイドバーの材質に任せる
     private var photoListColumn: some View {
-        PhotoListView(photos: vm.displayedPhotos, selection: $vm.selectedPhoto)
+        PhotoListView(
+            photos: vm.displayedPhotos,
+            selection: $vm.selectedPhoto,
+            contextMenuActions: photoContextMenuActions
+        )
             .navigationSplitViewColumnWidth(min: 120, ideal: sidebarWidth, max: 400)
             // OS標準のサイドバートグルは表示中だけ現れて独自ボタンと二重に並ぶため明示的に外し、
             // 常時表示の独自トグル1つに統一する（この modifier はサイドバー列の根に付ける必要がある）
@@ -141,7 +145,7 @@ struct SidebarModeView: View {
                     isCropMode: vm.isCropMode,
                     isFavorite: vm.isSelectedPhotoFavorite,
                     isDevelopActive: vm.isEXIFPanelVisible && vm.inspectorTab == .develop,
-                    isPhotosLibraryPhoto: vm.selectedPhoto?.phAssetLocalIdentifier != nil,
+                    isPhotosLibraryPhoto: selectedPhotoAvailability.map { !$0.hasLocalOriginalFile } ?? false,
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
                     onToggleFavorite: { vm.toggleFavorite() },
@@ -167,6 +171,12 @@ struct SidebarModeView: View {
                 max: vm.inspectorTab == .develop ? 420 : 320
             )
         }
+    }
+
+    // 選択中写真に対する操作可否。外部アプリ一覧の照会（Launch Services）はここでは不要なので
+    // hasExternalApps は既定値のままにする
+    private var selectedPhotoAvailability: PhotoActionAvailability? {
+        vm.selectedPhoto.map { PhotoActionAvailability(photo: $0) }
     }
 
     // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は
