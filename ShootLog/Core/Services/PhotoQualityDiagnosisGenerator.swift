@@ -1,106 +1,33 @@
 import AppKit
 import Foundation
 
-struct AILabelingTarget: Sendable {
-    let url: URL
-    let localIdentifier: String?
-
-    let snapshot: FileAttributesSnapshot?
-
-    init(
-        url: URL,
-        localIdentifier: String?,
-        snapshot: FileAttributesSnapshot? = nil
-    ) {
-        self.url = url
-        self.localIdentifier = localIdentifier
-        self.snapshot = snapshot
-    }
+protocol PhotoQualityDiagnosing: Sendable {
+    func diagnose(_ image: NSImage) -> PhotoQualityDiagnosis?
 }
 
-protocol AILabelingImageProviding: Sendable {
-    func thumbnail(for target: AILabelingTarget) async -> NSImage?
-}
+struct VisionPhotoQualityDiagnoser: PhotoQualityDiagnosing {
+    static let shared = VisionPhotoQualityDiagnoser()
 
-struct DefaultAILabelingImageProvider: AILabelingImageProviding {
-    static let shared = DefaultAILabelingImageProvider(
-        snapshotAwareProxyImageLoader: { url, snapshot in
-            await ImageLoader.shared.proxyImage(for: url, snapshot: snapshot)
-        }
-    )
-
-    private let proxyImageLoader: @Sendable (URL, FileAttributesSnapshot?) async -> NSImage?
-    private let photosLibraryThumbnailLoader: @Sendable (String, CGSize) async -> NSImage?
-
-    init(
-        proxyImageLoader: @escaping @Sendable (URL) async -> NSImage? = { url in
-            await ImageLoader.shared.proxyImage(for: url, snapshot: nil)
-        },
-        photosLibraryThumbnailLoader: @escaping @Sendable (
-            String, CGSize
-        ) async -> NSImage? = { localIdentifier, targetSize in
-            await PhotosLibraryThumbnailProvider.shared.thumbnail(
-                forLocalIdentifier: localIdentifier,
-                targetSize: targetSize
-            )
-        }
-    ) {
-        self.proxyImageLoader = { url, _ in await proxyImageLoader(url) }
-        self.photosLibraryThumbnailLoader = photosLibraryThumbnailLoader
-    }
-
-    private init(
-        snapshotAwareProxyImageLoader: @escaping @Sendable (URL, FileAttributesSnapshot?) async -> NSImage?,
-        photosLibraryThumbnailLoader: @escaping @Sendable (
-            String, CGSize
-        ) async -> NSImage? = { localIdentifier, targetSize in
-            await PhotosLibraryThumbnailProvider.shared.thumbnail(
-                forLocalIdentifier: localIdentifier,
-                targetSize: targetSize
-            )
-        }
-    ) {
-        self.proxyImageLoader = snapshotAwareProxyImageLoader
-        self.photosLibraryThumbnailLoader = photosLibraryThumbnailLoader
-    }
-
-    func thumbnail(for target: AILabelingTarget) async -> NSImage? {
-        guard let localIdentifier = target.localIdentifier else {
-            return await proxyImageLoader(target.url, target.snapshot)
-        }
-        if FileManager.default.fileExists(atPath: target.url.path) {
-            return await proxyImageLoader(target.url, nil)
-        }
-        return await photosLibraryThumbnailLoader(
-            localIdentifier,
-            CGSize(width: 480, height: 480)
-        )
-    }
-}
-
-protocol AILabelingClassifying: Sendable {
-    func classify(_ image: NSImage) -> VisionLabelClassification?
-}
-
-struct VisionAILabelingClassifier: AILabelingClassifying {
-    static let shared = VisionAILabelingClassifier()
-
-    func classify(_ image: NSImage) -> VisionLabelClassification? {
+    func diagnose(_ image: NSImage) -> PhotoQualityDiagnosis? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil
         }
-        return VisionLabelClassifier.classify(cgImage)
+        return PhotoQualityDiagnoser.diagnose(cgImage)
     }
 }
 
-/// 開いたフォルダの写真を、選択写真の近傍から低優先度で分類する。
-actor AILabelingGenerator {
-    static let shared = AILabelingGenerator()
-    static let currentSchemaVersion = 2
+/// 開いたフォルダの写真を、選択写真の近傍から低優先度で画質診断する。
+///
+/// 画像の解決は `AILabelingGenerator` と同じ `AILabelingImageProviding`
+/// （フォルダ写真・エクスポート済みiCloud写真は3200pxプロキシ、未エクスポートは軽量サムネイル）を共有する。
+actor PhotoQualityDiagnosisGenerator {
+    static let shared = PhotoQualityDiagnosisGenerator()
+    static let currentSchemaVersion = 1
+    // 被写体認識と同時に走るため、CPU/GPU競合が体感速度に出るなら両者でのスロットル統合を検討する。
     private static let decodeThrottle = AIBackgroundDecodeThrottle(maxConcurrent: 2)
 
     private let imageProvider: any AILabelingImageProviding
-    private let classifier: any AILabelingClassifying
+    private let diagnoser: any PhotoQualityDiagnosing
 
     private var generationTask: Task<Void, Never>?
     private var activeBatchID: UUID?
@@ -108,19 +35,19 @@ actor AILabelingGenerator {
 
     init(
         imageProvider: any AILabelingImageProviding = DefaultAILabelingImageProvider.shared,
-        classifier: any AILabelingClassifying = VisionAILabelingClassifier.shared
+        diagnoser: any PhotoQualityDiagnosing = VisionPhotoQualityDiagnoser.shared
     ) {
         self.imageProvider = imageProvider
-        self.classifier = classifier
+        self.diagnoser = diagnoser
     }
 
-    /// 分類対象を受け取り、選択中インデックス近傍を優先して分類する。
+    /// 診断対象を受け取り、選択中インデックス近傍を優先して診断する。
     /// 既存の実行中バッチはキャンセルして置き換える。
     func start(
         targets: [AILabelingTarget],
         around selectedIndex: Int?,
         progress: @escaping @Sendable (Int, Int) -> Void,
-        onResult: @escaping @Sendable (URL, VisionLabelClassification?) -> Void
+        onResult: @escaping @Sendable (URL, PhotoQualityDiagnosis?) -> Void
     ) {
         cancel()
 
@@ -129,12 +56,12 @@ actor AILabelingGenerator {
         activeProgress = progress
         let orderedTargets = Self.prioritizedTargets(targets, around: selectedIndex)
         let imageProvider = self.imageProvider
-        let classifier = self.classifier
+        let diagnoser = self.diagnoser
         generationTask = Task.detached(priority: .utility) { [weak self] in
             _ = await Self.generate(
                 orderedTargets,
                 imageProvider: imageProvider,
-                classifier: classifier,
+                diagnoser: diagnoser,
                 progress: progress,
                 onResult: onResult
             )
@@ -185,9 +112,9 @@ actor AILabelingGenerator {
     private static func generate(
         _ targets: [AILabelingTarget],
         imageProvider: any AILabelingImageProviding,
-        classifier: any AILabelingClassifying,
+        diagnoser: any PhotoQualityDiagnosing,
         progress: @escaping @Sendable (Int, Int) -> Void,
-        onResult: @escaping @Sendable (URL, VisionLabelClassification?) -> Void
+        onResult: @escaping @Sendable (URL, PhotoQualityDiagnosis?) -> Void
     ) async -> Bool {
         let total = targets.count
         guard total > 0 else {
@@ -197,10 +124,10 @@ actor AILabelingGenerator {
 
         guard !Task.isCancelled else { return false }
         let firstTarget = targets[0]
-        let firstResult = await Self.classify(
+        let firstResult = await Self.diagnose(
             firstTarget,
             imageProvider: imageProvider,
-            classifier: classifier
+            diagnoser: diagnoser
         )
         guard !Task.isCancelled else { return false }
         onResult(firstTarget.url, firstResult)
@@ -221,10 +148,10 @@ actor AILabelingGenerator {
                 nextIndex += 1
                 group.addTask(priority: .utility) {
                     guard !Task.isCancelled else { return false }
-                    let result = await Self.classify(
+                    let result = await Self.diagnose(
                         target,
                         imageProvider: imageProvider,
-                        classifier: classifier
+                        diagnoser: diagnoser
                     )
                     guard !Task.isCancelled else { return false }
                     onResult(target.url, result)
@@ -246,10 +173,10 @@ actor AILabelingGenerator {
                     nextIndex += 1
                     group.addTask(priority: .utility) {
                         guard !Task.isCancelled else { return false }
-                        let result = await Self.classify(
+                        let result = await Self.diagnose(
                             target,
                             imageProvider: imageProvider,
-                            classifier: classifier
+                            diagnoser: diagnoser
                         )
                         guard !Task.isCancelled else { return false }
                         onResult(target.url, result)
@@ -264,11 +191,11 @@ actor AILabelingGenerator {
         return completed == total
     }
 
-    private static func classify(
+    private static func diagnose(
         _ target: AILabelingTarget,
         imageProvider: any AILabelingImageProviding,
-        classifier: any AILabelingClassifying
-    ) async -> VisionLabelClassification? {
+        diagnoser: any PhotoQualityDiagnosing
+    ) async -> PhotoQualityDiagnosis? {
         do {
             try await decodeThrottle.acquire()
         } catch {
@@ -279,47 +206,6 @@ actor AILabelingGenerator {
         await decodeThrottle.release()
 
         guard let image else { return nil }
-        return classifier.classify(image)
-    }
-}
-
-/// AIバックグラウンド処理の画像デコード同時実行数を絞る。
-/// `AILabelingGenerator` と `PhotoQualityDiagnosisGenerator` がそれぞれ独立したインスタンスで使う。
-actor AIBackgroundDecodeThrottle {
-    private let maxConcurrent: Int
-    private var active = 0
-    private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
-
-    init(maxConcurrent: Int) {
-        self.maxConcurrent = maxConcurrent
-    }
-
-    func acquire() async throws {
-        guard active >= maxConcurrent else {
-            active += 1
-            return
-        }
-        let id = UUID()
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                waiters[id] = continuation
-            }
-        } onCancel: {
-            Task { await self.cancelWaiter(id) }
-        }
-    }
-
-    private func cancelWaiter(_ id: UUID) {
-        guard let continuation = waiters.removeValue(forKey: id) else { return }
-        continuation.resume(throwing: CancellationError())
-    }
-
-    func release() {
-        if let (id, continuation) = waiters.first {
-            waiters.removeValue(forKey: id)
-            continuation.resume()
-        } else {
-            active -= 1
-        }
+        return diagnoser.diagnose(image)
     }
 }

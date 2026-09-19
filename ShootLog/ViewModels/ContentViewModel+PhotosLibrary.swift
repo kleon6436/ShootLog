@@ -63,6 +63,7 @@ extension ContentViewModel {
         )
         selectPhoto(photos.first)
         let aiLabelingToken = beginAILabeling()
+        let aiQualityDiagnosisToken = beginAIQualityDiagnosis()
         Task { @MainActor [weak self] in
             guard let self else { return }
             if let staging = self.photoStagingTask {
@@ -115,6 +116,7 @@ extension ContentViewModel {
                     }
                 }
             )
+            await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
         }
         isLoading = false
     }

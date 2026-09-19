@@ -167,6 +167,7 @@ extension ContentViewModel {
                 }
             }
             let aiLabelingToken = beginAILabeling()
+            let aiQualityDiagnosisToken = beginAIQualityDiagnosis()
             let exifPrefetchToken = beginEXIFPrefetch()
             let photoCaptionToken = beginPhotoCaption()
             Task { @MainActor [weak self] in
@@ -254,6 +255,7 @@ extension ContentViewModel {
                         }
                     }
                 )
+                await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
                 if #available(macOS 27, *) {
                     let captionURLs = self.photos
                         .filter { $0.aiCaptionFetchedAt == nil }
@@ -348,12 +350,14 @@ extension ContentViewModel {
         photoStagingGeneration &+= 1
         cancelPreviewGeneration()
         cancelAILabeling()
+        cancelAIQualityDiagnosis()
         cancelEXIFPrefetch()
         cancelPhotoCaption()
         clearDetectedAICategories()
         selectedAICategories.removeAll()
         await PreviewGenerator.shared.cancel()
         await AILabelingGenerator.shared.cancel()
+        await qualityDiagnosisGenerator.cancel()
         await EXIFPrefetcher.shared.cancel()
         if #available(macOS 27, *) {
             await PhotoCaptionGenerator.shared.cancel()

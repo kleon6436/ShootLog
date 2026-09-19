@@ -50,6 +50,15 @@ final class Photo {
     var aiLabelingSchemaVersion: Int? = nil
     var aiCaptionText: String? = nil
     var aiCaptionFetchedAt: Date? = nil
+    // 画質診断。被写体認識（aiLabeling*）とは処理タイミング・失敗時の扱いが異なるため独立管理する
+    var aiAestheticsOverallScore: Double? = nil
+    var aiAestheticsIsUtility: Bool? = nil
+    var aiFaceQualityScore: Double? = nil
+    var aiExposureBias: Double? = nil
+    var aiSharpnessScore: Double? = nil
+    var aiCompositionOffsetScore: Double? = nil
+    var aiDiagnosisFetchedAt: Date? = nil
+    var aiDiagnosisSchemaVersion: Int? = nil
     var asShotTemperatureKelvin: Double? = nil
     var asShotTint: Double? = nil
     var asShotWhiteBalanceIsEstimated: Bool? = nil

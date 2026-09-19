@@ -11,7 +11,7 @@ macOS向けの写真管理・閲覧アプリ。ユーザーが選択したフォ
 
 | 項目 | 値 |
 |------|----|
-| 対象OS | macOS 14 Sonoma以降 |
+| 対象OS | macOS 15以降 |
 | Swift | 6.0 |
 | UI | SwiftUI / AppKit |
 | 永続化 | SwiftData |
@@ -204,6 +204,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）。出力カラースペースはsRGB / Display P3を選択可。書き出し時に超解像を続けて適用する現像→超解像チェーンにも対応（回転は現像段で焼き込み済みのため超解像へは `rotation:0` を渡す）
 - プレビュープロキシの永続キャッシュ（`PreviewCacheStore`、`previews-v1`）とフォルダ読み込み時のバックグラウンド生成（`PreviewGenerator`）、現像 Stage A 中立ベースの永続キャッシュ（`develop-base-v1`）。設定画面でプレビュー解像度（2560/3200/4096px）とキャッシュ上限（GB）を変更可。詳細は「画像ロード戦略 > プレビュープロキシ層」
 - AI被写体認識による自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: フォルダ読み込み時に Apple Vision framework の `VNClassifyImageRequest`（`VisionLabelClassifier`）で各写真を粗粒度カテゴリ（人物・動物・食べ物・風景・建物・乗り物・植物・屋内・テキスト・物・その他、`AISubjectCategory`）へ完全オンデバイス分類し、`Photo.aiCategoryRawValues`/`aiRawIdentifiers`/`aiLabelingFetchedAt` へ永続化する（`AILabelingGenerator`、`PreviewGenerator` と同じバックグラウンド生成パターン、フォルダ写真は`PreviewCacheStore`の3200pxプレビュープロキシ、iCloud写真はエクスポート済み高品質JPEGがあれば同様にプロキシ経由、未エクスポートは480px軽量サムネイルへフォールバックし自動エクスポートはしない）。判定閾値は`VisionLabelClassifier`の`hasMinimumPrecision(0.55, forRecall: 0.65)`。閾値・入力解像度の変更時は`Photo.aiLabelingSchemaVersion`（現行2、`AILabelingGenerator.currentSchemaVersion`）で既存の分類済み写真も次回フォルダ/iCloud読み込み時に自動再分類する（`.omc/plans/ai-classification-accuracy-improvement.md`）。ツールバーの `Favorites Only` 隣に検出カテゴリで複数選択絞り込みできる `AICategoryFilterMenu` を配置し、サイドバーには `.searchable` によるファイル名・カメラ名検索を追加。進捗はサイドバー下部に「被写体認識中 N枚」表示（プレビュー生成中と縦積み表示、位置ズレを避けるためOS標準コンポーネント=`ToolbarItemGroup`/`Menu`/`.searchable`のみで構成）。macOS 27以降限定でFoundation Models framework画像入力による自然言語写真検索を追加予定（`#available(macOS 27, *)`分岐、未実装、詳細はプラン参照）
+- AI画像診断（`.omc/plans/ai-photo-quality-diagnosis.md`）: フォルダ/iCloud読み込み時に統合美的スコア・顔品質・露出・構図・シャープネスを自動診断し、右インスペクタの専用カードに「良い点」「改善ポイント」を箇条書き表示。Vision framework の `CalculateImageAestheticsScoresRequest`（macOS 15+）と `VNDetectFaceCaptureQualityRequest` / `VNGenerateAttentionBasedSaliencyImageRequest` を組み合わせ、Core Image 自前計算で露出評価を行う。診断結果は `Photo.aiAestheticsOverallScore` 等に永続化し、フォルダ再訪時に再診断しない（`AILabelingGenerator` と同じバックグラウンド生成パターン）。進捗はサイドバー下部の既存overlayに「画質診断中 N枚」を3行目として追加表示
 
 ## SwiftDataモデル
 
@@ -260,7 +261,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、`PreviewCacheStore` / `PreviewGenerator` / `develop-base-v1`、WYSIWYG 維持）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、`PreviewCacheStore` / `PreviewGenerator` / `develop-base-v1`、WYSIWYG 維持）、AI画像診断（統合美的スコア・顔品質・露出・構図・シャープネス、右インスペクタ表示、バックグラウンド自動実行、`PhotoQualityDiagnoser` / `PhotoQualityInsightBuilder` / `PhotoQualityDiagnosisGenerator`）。
 
 ### 制限付き・検証継続中
 
@@ -274,6 +275,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
 - iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A〜D（権限基盤・一覧取得とサムネイル表示・フルサイズ表示とEXIF統合・キャッシュeviction）まで実装済み。詳細は「iCloud写真ライブラリの読み込み」章を参照。実機でのiCloud上のRAW写真表示、「Optimize Mac Storage」有効時のネットワーク経由ダウンロード体感、お気に入り・メモ・分析画面の実動作、キャッシュ削除の動作確認は未実施（実機・iCloud写真ライブラリが必要なため継続）。RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIは引き続きスコープ外。
 - AI被写体認識・自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: Phase A〜D（データモデル・`VisionLabelClassifier`のカテゴリマッピングテーブル・`AILabelingGenerator`・ツールバーのカテゴリフィルタ/検索UI/進捗表示・ローカライズ）まで実装済み、ビルド成功。実RAWフォルダでの分類所要時間・体感速度、iCloud写真ライブラリ経由での分類動作、`VisionLabelClassifier`のマッピングテーブル網羅性（「その他」への分類率）、ツールバー新規ボタン・検索欄・進捗overlayの実機デザインQA（整列崩れ・ライトダーク可読性・ウィンドウ幅追従）は実機検証待ち。macOS 27以降限定のFoundation Models自然言語検索（Phase F）は未実装（実装着手前にApple公式リリースノートでのAPI最終確認が前提条件）。精度向上（判定閾値`hasMinimumPrecision(0.55, forRecall: 0.65)`への厳格化、入力をプレビュープロキシ/エクスポート済み高品質JPEGへ変更、`aiLabelingSchemaVersion`による既存写真の自動再分類、`.omc/plans/ai-classification-accuracy-improvement.md`）はビルド・全テストgreenだが、実RAWフォルダでの`.unknown`率変化・カテゴリ分布比較、iCloud写真（エクスポート済み/未エクスポート双方）での動作、既存フォルダ再訪問時の自動再分類は実機検証待ち。
+- AI画像診断（`.omc/plans/ai-photo-quality-diagnosis.md`）: Phase A〜C（対応OS引き上げ・データモデル・診断ロジック・バックグラウンド生成器・UI・進捗表示）実装済み、ビルド・テストgreen。macOS 15への引き上げにより macOS 14ユーザーはアプリ自体を起動できなくなる（対応環境表で明示済み）。`CalculateImageAestheticsScoresRequest` の処理コスト・GPU競合（`AILabelingGenerator` との同時実行）は実機での計測待ち。`CIEdges` ベースのシャープネス指標は真のブレ検出APIでなく精度が限定的（`DetectLensSmudgeRequest` への将来置き換え考慮）。Saliency重心ベースの構図判定は過度に簡略化（実際の良い構図（三分割法等）との乖離あり、継続検証）。顔品質スコアが小さい顔・複数人物シーン・極端なポーズで不安定。ルールベース閾値が実写真データなしでは大雑把（指摘の偏り可能性あり、実フォルダでの「良い点/改善ポイント分布」確認が必須）。RAW 3200pxプロキシ経由での診断がフル解像度でのブレ・ノイズ判定に影響する可能性（既存分析画面と同じ「欠損データ処理」方針で対応）。
 
 ### 未着手・スコープ外
 

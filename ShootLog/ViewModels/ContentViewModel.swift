@@ -47,16 +47,27 @@ final class ContentViewModel {
     var previewGenerationToken = 0
     /// バックグラウンドのAIラベリングの残件数。0 のとき表示しない。
     private(set) var aiLabelingRemaining = 0
+    /// バックグラウンドの画質診断の残件数。0 のとき表示しない。
+    /// 更新は ContentViewModel+QualityDiagnosis.swift 側で行うため internal とする
+    var aiQualityDiagnosisRemaining = 0
     /// バックグラウンドのEXIF先読みの残件数。0 のとき表示しない。
     private(set) var exifPrefetchRemaining = 0
     // AIラベリング結果の保存チャンクを決めるための完了件数。
     var aiLabelingCompletedCount = 0
+    // 画質診断結果の保存チャンクを決めるための完了件数。
+    var aiQualityDiagnosisCompletedCount = 0
     // 現在の写真ソースで検出済みのAIカテゴリ。進捗更新ごとの全件走査を避けるため差分更新する。
     private(set) var detectedAICategories: Set<AISubjectCategory> = []
     // ツールバーのAIカテゴリフィルタ。写真ソース切替時にリセットする共有状態。
     var selectedAICategories: Set<AISubjectCategory> = []
     // キャンセル済みバッチから遅れて届くAIラベリング結果・進捗を無視するための世代番号。
     var aiLabelingToken = 0
+    // キャンセル済みバッチから遅れて届く画質診断結果・進捗を無視するための世代番号。
+    var aiQualityDiagnosisToken = 0
+    // 画質診断の実行主体。通常は共有インスタンスを使い、テストではスタブ入りの生成器へ差し替える。
+    // 処理本体は ContentViewModel+QualityDiagnosis.swift 側にある
+    @ObservationIgnored
+    var qualityDiagnosisGenerator: PhotoQualityDiagnosisGenerator = .shared
     // キャンセル済みバッチから遅れて届くEXIF先読み結果・進捗を無視するための世代番号。
     var exifPrefetchToken = 0
     // キャンセル済みバッチから遅れて届くキャプション結果・進捗を無視するための世代番号。

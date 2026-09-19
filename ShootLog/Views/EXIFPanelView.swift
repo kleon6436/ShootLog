@@ -43,6 +43,17 @@ struct EXIFPanelView: View {
                     }
                 }
 
+                // AI画質診断（未診断・指摘0件は非表示。判定と指摘生成は
+                // EXIFPanelViewModel.qualityDiagnosisContent に集約）
+                if let content = vm.qualityDiagnosisContent {
+                    EXIFCard {
+                        EXIFQualityDiagnosisCard(
+                            overallScore: content.diagnosis.aestheticsScore,
+                            insights: content.insights
+                        )
+                    }
+                }
+
                 // お気に入り状態
                 EXIFCard {
                     EXIFFavoriteRow(isFavorite: vm.isFavorite)
@@ -158,6 +169,52 @@ private struct EXIFAICategoryBadges: View {
         }
         // .combine が見出し + 各バッジのTextを結合して読み上げる（"AI分類, 人物, 動物"）。
         // 固定accessibilityLabelを付けるとこの結合結果が上書きされ、カテゴリ名が読まれなくなるため付けない
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// AI画質診断結果（統合スコア + 良い点/改善ポイントの箇条書き）
+private struct EXIFQualityDiagnosisCard: View {
+    let overallScore: Double?
+    let insights: [PhotoQualityInsight]
+
+    // aiAestheticsOverallScore は 0...1 で永続化されているため、分かりやすい 0-100 表現に変換する
+    private var scorePercent: Int? {
+        overallScore.map { Int(($0 * 100).rounded()) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.small) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("exif.label.qualityDiagnosis")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let scorePercent {
+                    // 見出しと結合して読み上げられるため、裸の数値のままだと意味が伝わらない。
+                    // 子要素側にラベルを付けることで .combine の結合結果に単位付きの文言が載る
+                    Text(String(scorePercent))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("a11y.exif.qualityDiagnosis.score \(scorePercent)")
+                }
+            }
+            ForEach(insights) { insight in
+                Label {
+                    Text(insight.messageKey)
+                        .font(.caption)
+                } icon: {
+                    Image(
+                        systemName: insight.kind == .positive
+                            ? "checkmark.circle.fill"
+                            : "exclamationmark.triangle.fill"
+                    )
+                    // good/bad状態を示す意味的ステータス色。SwiftUIのセマンティック動的カラーで
+                    // light/dark自動対応しており、生のRGBリテラル直書きではないためCLAUDE.md色規約の対象外
+                    .foregroundStyle(insight.kind == .positive ? .green : .orange)
+                }
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }

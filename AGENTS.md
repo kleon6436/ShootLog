@@ -11,7 +11,7 @@ macOS向けの写真管理・閲覧アプリ。ユーザーが選択したフォ
 
 | 項目 | 値 |
 |------|----|
-| 対象OS | macOS 14 Sonoma以降 |
+| 対象OS | macOS 15以降 |
 | Swift | 6.0 |
 | UI | SwiftUI / AppKit |
 | 永続化 | SwiftData |
