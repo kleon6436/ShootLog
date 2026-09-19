@@ -53,7 +53,11 @@ struct SidebarModeView: View {
     // 左: 写真一覧（最小 120pt、理想 sidebarWidth pt、最大 400pt）。
     // 背景・区切り線は標準サイドバーの材質に任せる
     private var photoListColumn: some View {
-        PhotoListView(photos: vm.displayedPhotos, selection: $vm.selectedPhoto)
+        PhotoListView(
+            photos: vm.displayedPhotos,
+            selection: $vm.selectedPhoto,
+            contextMenuActions: photoContextMenuActions
+        )
             .navigationSplitViewColumnWidth(min: 120, ideal: sidebarWidth, max: 400)
             // OS標準のサイドバートグルは表示中だけ現れて独自ボタンと二重に並ぶため明示的に外し、
             // 常時表示の独自トグル1つに統一する（この modifier はサイドバー列の根に付ける必要がある）
@@ -173,6 +177,36 @@ struct SidebarModeView: View {
     // hasExternalApps は既定値のままにする
     private var selectedPhotoAvailability: PhotoActionAvailability? {
         vm.selectedPhoto.map { PhotoActionAvailability(photo: $0) }
+    }
+
+    // グリッドの右クリックメニューが呼ぶアクション束。
+    // 各項目は performOnPhoto で対象写真を選択状態にしてから既存の選択依存APIを呼ぶ。
+    // externalApps は Launch Services への照会を伴うため、セルごとではなくここで1度だけ評価する
+    private var photoContextMenuActions: PhotoContextMenuActions {
+        PhotoContextMenuActions(
+            externalApps: vm.externalApps,
+            openInExternalApp: { photo, adapter in
+                vm.performOnPhoto(photo) { vm.openInExternalApp(adapter) }
+            },
+            toggleFavorite: { photo in
+                vm.performOnPhoto(photo) { vm.toggleFavorite() }
+            },
+            toggleSuccessTag: { photo, tag in
+                vm.performOnPhoto(photo) { vm.toggleSuccessTag(tag, for: photo) }
+            },
+            showDevelopPanel: { photo in
+                vm.performOnPhoto(photo) { vm.showDevelopPanel() }
+            },
+            rotate: { photo in
+                vm.performOnPhoto(photo) { vm.rotateSelectedPhoto() }
+            },
+            copyFileName: { photo in
+                vm.performOnPhoto(photo) { vm.copyFileName() }
+            },
+            copyFilePath: { photo in
+                vm.performOnPhoto(photo) { vm.copyFilePath() }
+            }
+        )
     }
 
     // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は
