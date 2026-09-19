@@ -94,6 +94,12 @@ struct SidebarModeView: View {
                                 Int64(vm.aiLabelingRemaining)
                             )
                             : nil,
+                        vm.aiQualityDiagnosisRemaining > 0
+                            ? String(
+                                format: String(localized: "sidebar.aiQualityDiagnosisProgress"),
+                                Int64(vm.aiQualityDiagnosisRemaining)
+                            )
+                            : nil,
                         vm.exifPrefetchRemaining > 0
                             ? String(
                                 format: String(localized: "sidebar.exifPrefetchProgress"),

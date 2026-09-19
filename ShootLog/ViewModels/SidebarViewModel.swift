@@ -155,6 +155,7 @@ final class SidebarViewModel: ContentViewModelProxy {
     var isLoading: Bool { content.isLoading }
     var previewGenerationRemaining: Int { content.previewGenerationRemaining }
     var aiLabelingRemaining: Int { content.aiLabelingRemaining }
+    var aiQualityDiagnosisRemaining: Int { content.aiQualityDiagnosisRemaining }
     var exifPrefetchRemaining: Int { content.exifPrefetchRemaining }
     var toastMessage: String? { content.toastMessage }
     var isSelectedPhotoFavorite: Bool { content.selectedPhoto?.isFavorite ?? false }

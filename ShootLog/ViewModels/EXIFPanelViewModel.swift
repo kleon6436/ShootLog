@@ -54,6 +54,31 @@ final class EXIFPanelViewModel {
         (photo?.aiCategoryRawValues ?? []).compactMap { AISubjectCategory(rawValue: $0) }
     }
 
+    // 画質診断カードの表示内容。表示可否の判定と指摘の生成をまとめ、View側での再計算を避ける
+    struct QualityDiagnosisContent {
+        let diagnosis: PhotoQualityDiagnosis
+        let insights: [PhotoQualityInsight]
+    }
+
+    // 未診断、またはスコア・指摘が1件も無い（＝空カードになる）場合にnilを返し、
+    // EXIFQualityDiagnosisCardを非表示にする。
+    // isUtilityによる抑制は「統合スコアの良い点」だけに限定し（PhotoQualityInsightBuilder側）、
+    // カード全体の表示可否には使わない。露出・シャープネス等は書類的な写真でも有効な指摘のため
+    var qualityDiagnosisContent: QualityDiagnosisContent? {
+        guard let photo, photo.aiDiagnosisFetchedAt != nil else { return nil }
+        let diagnosis = PhotoQualityDiagnosis(
+            aestheticsScore: photo.aiAestheticsOverallScore,
+            isUtility: photo.aiAestheticsIsUtility ?? false,
+            faceQualityScore: photo.aiFaceQualityScore,
+            exposureBias: photo.aiExposureBias,
+            sharpnessScore: photo.aiSharpnessScore,
+            compositionOffsetScore: photo.aiCompositionOffsetScore
+        )
+        let insights = PhotoQualityInsightBuilder.buildInsights(from: diagnosis)
+        guard diagnosis.aestheticsScore != nil || !insights.isEmpty else { return nil }
+        return QualityDiagnosisContent(diagnosis: diagnosis, insights: insights)
+    }
+
     var noteText: String? {
         guard let note = photo?.note, !note.isEmpty else { return nil }
         return note

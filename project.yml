@@ -4,7 +4,7 @@ attributes:
 options:
   bundleIdPrefix: com.shootlog
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.0"
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
   createIntermediateGroups: true
@@ -15,7 +15,7 @@ settings:
   base:
     PRODUCT_NAME: ShootLog
     SWIFT_VERSION: "6.0"
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
     SWIFT_STRICT_CONCURRENCY: complete

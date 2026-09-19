@@ -221,6 +221,35 @@
         }
       }
     },
+    "a11y.exif.qualityDiagnosis.score %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld point"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld points"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld点"
+          }
+        }
+      }
+    },
     "a11y.exif.successTag %@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -654,6 +683,159 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "乗り物"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.composition.offCenter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subject is positioned off-center"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主被写体が端に寄っています"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.exposure.bright" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlights may be blown out"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "白飛びしている可能性があります"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.exposure.dark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadows are slightly underexposed"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暗部が沈み気味です"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.exposure.good" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposure is well-balanced"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "露出バランスが良好です"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.face.good" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portrait is well-captured"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人物がしっかり捉えられています"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.face.low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portrait quality could be improved"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人物の表情・ピントが今ひとつです"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.overall.good" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overall, this is a well-composed photo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全体的に完成度の高い一枚です"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.sharpness.good" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image is sharp and crisp"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "くっきりとシャープに撮れています"
+          }
+        }
+      }
+    },
+    "ai.diagnosis.sharpness.soft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus may be slightly soft"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ピントが甘い可能性があります"
           }
         }
       }
@@ -4464,6 +4646,23 @@
         }
       }
     },
+    "exif.label.qualityDiagnosis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality Diagnosis"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画質診断"
+          }
+        }
+      }
+    },
     "exif.label.shootingDate" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5659,6 +5858,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "被写体認識中 %lld枚"
+          }
+        }
+      }
+    },
+    "sidebar.aiQualityDiagnosisProgress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Analyzing quality: %lld"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Analyzing quality: %lld"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画質診断中 %lld枚"
           }
         }
       }
