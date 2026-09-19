@@ -1751,6 +1751,7 @@
       }
     },
     "contextMenu.copyFileName" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1767,6 +1768,7 @@
       }
     },
     "contextMenu.copyPath" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1783,6 +1785,7 @@
       }
     },
     "contextMenu.develop" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1799,6 +1802,7 @@
       }
     },
     "contextMenu.favorite.add" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1815,6 +1819,7 @@
       }
     },
     "contextMenu.favorite.remove" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1831,6 +1836,7 @@
       }
     },
     "contextMenu.openWith" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1847,6 +1853,7 @@
       }
     },
     "contextMenu.rotate" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1863,6 +1870,7 @@
       }
     },
     "contextMenu.successTag" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6338,6 +6346,7 @@
       }
     },
     "toast.copied.fileName" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6354,6 +6363,7 @@
       }
     },
     "toast.copied.path" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6370,6 +6380,7 @@
       }
     },
     "toast.externalApp.exportFailed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6420,6 +6431,7 @@
       }
     },
     "toast.successTag.added %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6436,6 +6448,7 @@
       }
     },
     "toast.successTag.removed %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
