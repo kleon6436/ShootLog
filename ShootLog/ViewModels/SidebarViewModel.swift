@@ -75,9 +75,11 @@ final class SidebarViewModel: ContentViewModelProxy {
         }
     }
 
-    // ツールバーの「編集」ボタン用。編集タブを開いてインスペクタを表示する
+    // ツールバーの「編集」ボタン用。編集タブを開いてインスペクタを表示する。
+    // 写真未選択でもタブ自体は開ける（従来どおり）。現像できない写真のときだけ何もしない
     func showDevelopPanel() {
-        guard content.selectedPhoto?.phAssetLocalIdentifier == nil else { return }
+        if let photo = content.selectedPhoto,
+           !PhotoActionAvailability(photo: photo).canDevelop { return }
         inspectorTab = .develop
         isEXIFPanelVisible = true
     }
@@ -168,7 +170,23 @@ final class SidebarViewModel: ContentViewModelProxy {
     func resetEdits() { content.resetEdits() }
     func toggleFavorite() { content.toggleFavorite() }
     func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) { content.toggleSuccessTag(tag, for: photo) }
+    func copyFileName() { content.copyFileNameToPasteboard() }
+    func copyFilePath() { content.copyFilePathToPasteboard() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
+
+    // MARK: - 写真を対象にした操作の実行
+
+    // グリッドの右クリックメニュー用。メニュー項目は「選択中写真」を前提にした既存APIを
+    // そのまま呼ぶため、対象写真を選択状態にしてからアクションを実行する。
+    // selectedPhoto の setter と同じく Task で次の MainActor サイクルへ送るのは、
+    // 選択バインディングの確定処理と ContentViewModel の状態更新が同じフレームで競合し
+    // SwiftUI の "action tried to update multiple times per frame" 警告が出るのを避けるため
+    func performOnPhoto(_ photo: Photo, _ action: @escaping @MainActor () -> Void) {
+        Task { @MainActor in
+            content.selectPhoto(photo)
+            action()
+        }
+    }
 
     // MARK: - サイドバー開閉の判定
 

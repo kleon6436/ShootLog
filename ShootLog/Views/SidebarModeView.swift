@@ -141,7 +141,7 @@ struct SidebarModeView: View {
                     isCropMode: vm.isCropMode,
                     isFavorite: vm.isSelectedPhotoFavorite,
                     isDevelopActive: vm.isEXIFPanelVisible && vm.inspectorTab == .develop,
-                    isPhotosLibraryPhoto: vm.selectedPhoto?.phAssetLocalIdentifier != nil,
+                    isPhotosLibraryPhoto: selectedPhotoAvailability.map { !$0.hasLocalOriginalFile } ?? false,
                     onRotate: { vm.rotateSelectedPhoto() },
                     onToggleCrop: { vm.toggleCropMode() },
                     onToggleFavorite: { vm.toggleFavorite() },
@@ -167,6 +167,12 @@ struct SidebarModeView: View {
                 max: vm.inspectorTab == .develop ? 420 : 320
             )
         }
+    }
+
+    // 選択中写真に対する操作可否。外部アプリ一覧の照会（Launch Services）はここでは不要なので
+    // hasExternalApps は既定値のままにする
+    private var selectedPhotoAvailability: PhotoActionAvailability? {
+        vm.selectedPhoto.map { PhotoActionAvailability(photo: $0) }
     }
 
     // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は

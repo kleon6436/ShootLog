@@ -7,6 +7,9 @@ extension ContentViewModel {
 
     // 写真を選択し EditInfo と EXIF を遅延ロードする
     func selectPhoto(_ photo: Photo?) {
+        // トリミング中に別の写真へ切り替わると、前の写真基準の矩形を操作し続けてしまうため
+        // 選択のたびにトリミングモードを解除する
+        isCropMode = false
         selectedPhoto = photo
         guard let photo else {
             currentEditInfo = nil
@@ -76,16 +79,40 @@ extension ContentViewModel {
             : String(localized: "toast.favorite.removed"))
     }
 
-    // 成功要因タグの唯一の書込経路。配列の追加/削除判定はView側に持たせずここに閉じる
+    // 成功要因タグの唯一の書込経路。配列の追加/削除判定はView側に持たせずここに閉じる。
+    // 右クリックメニューからはタグの状態が画面に出ないため、toggleFavorite と同じく
+    // 保存に成功したときだけトーストで結果を知らせる
     func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) {
         var tags = photo.successTags
+        let isAdding = !tags.contains(tag)
         if let index = tags.firstIndex(of: tag) {
             tags.remove(at: index)
         } else {
             tags.append(tag)
         }
         photo.successTags = tags
-        if let context = modelContext { saveOrReportError(context) }
+        guard let context = modelContext, saveOrReportError(context) else { return }
+        showToast(isAdding
+            ? String(localized: "toast.successTag.added \(tag.displayName)")
+            : String(localized: "toast.successTag.removed \(tag.displayName)"))
+    }
+
+    // MARK: - Pasteboard
+
+    // ファイル名をパスボードへコピーする（グリッドの右クリックメニュー用）
+    func copyFileNameToPasteboard() {
+        guard let photo = selectedPhoto else { return }
+        pasteboardWriter.writeText(photo.displayFileName)
+        showToast(String(localized: "toast.copied.fileName"))
+    }
+
+    // 原本ファイルのパスをパスボードへコピーする。
+    // iCloud写真のパスは eviction 対象の一時キャッシュを指すためコピーさせない
+    func copyFilePathToPasteboard() {
+        guard let photo = selectedPhoto,
+              PhotoActionAvailability(photo: photo).canCopyPath else { return }
+        pasteboardWriter.writeFileURL(photo.fileURL)
+        showToast(String(localized: "toast.copied.path"))
     }
 
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する
@@ -162,10 +189,27 @@ extension ContentViewModel {
 
     // MARK: - External App
 
-    // 選択中写真を指定の外部アプリで開く
+    // 選択中写真を指定の外部アプリで開く。
+    // iCloud写真は fileURL がエクスポート前のプレースホルダーパスのため、
+    // 実ファイルの書き出しを待ってから開く（loadEXIFIfNeeded と同じ経路）
     func openInExternalApp(_ adapter: any ExternalAppProtocol) {
-        guard let url = selectedPhoto?.fileURL else { return }
-        adapter.open(url: url)
+        guard let photo = selectedPhoto else { return }
+        let url = photo.fileURL
+        guard let localIdentifier = photo.phAssetLocalIdentifier else {
+            adapter.open(url: url)
+            return
+        }
+        Task {
+            let isExported = await PhotosLibraryAssetExporter.shared.ensureExported(
+                localIdentifier: localIdentifier,
+                fileURL: url
+            )
+            guard isExported else {
+                showToast(String(localized: "toast.externalApp.exportFailed"))
+                return
+            }
+            adapter.open(url: url)
+        }
     }
 
     // 任意のURLを指定の外部アプリで開く（超解像書き出し完了後の「他のアプリで開く」用）。
