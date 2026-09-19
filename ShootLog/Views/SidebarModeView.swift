@@ -179,36 +179,6 @@ struct SidebarModeView: View {
         vm.selectedPhoto.map { PhotoActionAvailability(photo: $0) }
     }
 
-    // グリッドの右クリックメニューが呼ぶアクション束。
-    // 各項目は performOnPhoto で対象写真を選択状態にしてから既存の選択依存APIを呼ぶ。
-    // externalApps は Launch Services への照会を伴うため、セルごとではなくここで1度だけ評価する
-    private var photoContextMenuActions: PhotoContextMenuActions {
-        PhotoContextMenuActions(
-            externalApps: vm.externalApps,
-            openInExternalApp: { photo, adapter in
-                vm.performOnPhoto(photo) { vm.openInExternalApp(adapter) }
-            },
-            toggleFavorite: { photo in
-                vm.performOnPhoto(photo) { vm.toggleFavorite() }
-            },
-            toggleSuccessTag: { photo, tag in
-                vm.performOnPhoto(photo) { vm.toggleSuccessTag(tag, for: photo) }
-            },
-            showDevelopPanel: { photo in
-                vm.performOnPhoto(photo) { vm.showDevelopPanel() }
-            },
-            rotate: { photo in
-                vm.performOnPhoto(photo) { vm.rotateSelectedPhoto() }
-            },
-            copyFileName: { photo in
-                vm.performOnPhoto(photo) { vm.copyFileName() }
-            },
-            copyFilePath: { photo in
-                vm.performOnPhoto(photo) { vm.copyFilePath() }
-            }
-        )
-    }
-
     // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は
     // visiblePhotos 基準かつ端でクランプしループしないため、wrapsAround は指定しない
     private var neighborPrefetchURLs: [URL] {

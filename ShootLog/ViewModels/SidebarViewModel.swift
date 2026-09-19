@@ -169,6 +169,9 @@ final class SidebarViewModel: ContentViewModelProxy {
     func toggleCropMode() { content.toggleCropMode() }
     func resetEdits() { content.resetEdits() }
     func toggleFavorite() { content.toggleFavorite() }
+    // 写真を明示的に受け取る選択非依存の経路。グリッドの右クリックメニューのように
+    // 非選択の写真を操作しても、アプリ全体の選択を動かさないために使う
+    func toggleFavorite(_ photo: Photo) { content.toggleFavorite(photo) }
     func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) { content.toggleSuccessTag(tag, for: photo) }
     func copyFileName() { content.copyFileNameToPasteboard() }
     func copyFilePath() { content.copyFilePathToPasteboard() }
