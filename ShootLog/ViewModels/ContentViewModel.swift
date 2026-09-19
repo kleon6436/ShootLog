@@ -146,6 +146,10 @@ final class ContentViewModel {
         return visiblePhotos.firstIndex(where: { $0.id == selectedPhoto.id })
     }
 
+    // パスボード書き込み口。通常はシステムのパスボードを使い、テストではスタブへ差し替える
+    @ObservationIgnored
+    var pasteboardWriter: any PhotoPasteboardWriting = SystemPhotoPasteboardWriter()
+
     // Folder/Edit/PhotoActions extension から参照するため internal（既定アクセス）とする
     var modelContext: ModelContext?
     var bookmarkScopedURL: URL?
