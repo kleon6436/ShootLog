@@ -71,6 +71,7 @@
 		5CFED0E1590A019EF29C9856 /* DevelopSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73FF95B6F5DCAE63FD18D29F /* DevelopSettings.swift */; };
 		6075A239FC63062727C1E2E8 /* ContentViewModel+Develop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 627977062A1C8FD07B10D115 /* ContentViewModel+Develop.swift */; };
 		6341BEB509A7BEF1369DB05C /* PhotoListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E133BB3664A2D95D18BFE6 /* PhotoListView.swift */; };
+		63518FBD2E2A5D2A8420C9A7 /* SidebarViewModelPhotoActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058226A381F811C89EA08E5 /* SidebarViewModelPhotoActionTests.swift */; };
 		63F8B94D3EAA7610D89D09B7 /* LensCorrectionFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3CF56320660D67965170C3 /* LensCorrectionFilter.swift */; };
 		641FF383BDAA3292FCE50388 /* ColorGradingFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DCDB8D2E47872D66751BF7 /* ColorGradingFilter.swift */; };
 		64286B75346FA9C83BB5A492 /* UpscaleExportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCAD16353D613BB08C2CB72 /* UpscaleExportViewModelTests.swift */; };
@@ -178,6 +179,7 @@
 		F4CA1A0FB48EED919BEA6FB4 /* FolderHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C23180141F27C9F04528010 /* FolderHistory.swift */; };
 		F7F7AB0140C851B6067D14D8 /* ViewModeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40A5871EEFCC54199ECDA2F6 /* ViewModeProtocol.swift */; };
 		FABE34E186160ED39996C9CE /* UpscaleExportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62798210C338A80D5F72D6F6 /* UpscaleExportViewModel.swift */; };
+		FDCE833B42C83F2615B68C0D /* SidebarModeView+ContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019E8788427B57CF549D0588 /* SidebarModeView+ContextMenu.swift */; };
 		FE2E5BB83783BC3DE04AE003 /* PhotoshopAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBB2BA30C121B913CE5A9A8 /* PhotoshopAdapter.swift */; };
 		FF7E8A0A0C004286FE764047 /* ContentViewModel+DevelopPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = A864796490A20116C5ECC46B /* ContentViewModel+DevelopPreset.swift */; };
 		FFC09ED015787AEBD388A9AA /* ContentViewModelPasteboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60B53D68FDD86FC62CD0E40 /* ContentViewModelPasteboardTests.swift */; };
@@ -195,6 +197,7 @@
 
 /* Begin PBXFileReference section */
 		000D375D3F1E2FDF11670761 /* ExportColorSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportColorSpace.swift; sourceTree = "<group>"; };
+		019E8788427B57CF549D0588 /* SidebarModeView+ContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SidebarModeView+ContextMenu.swift"; sourceTree = "<group>"; };
 		03D9BC113DA38E7E1BD62383 /* SidebarViewModelAIFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModelAIFilterTests.swift; sourceTree = "<group>"; };
 		054483E7B11E5E1051F6A23B /* HighResPrefetcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighResPrefetcherTests.swift; sourceTree = "<group>"; };
 		071ECBEFD54AC3D6C5CA831F /* AnalysisViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisViewModelTests.swift; sourceTree = "<group>"; };
@@ -255,6 +258,7 @@
 		4C9DBB7EBD9913CC8039BD40 /* PreviewCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewCacheStore.swift; sourceTree = "<group>"; };
 		4EA61ACAA658B1A722E8CC3C /* ToneCurveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToneCurveTests.swift; sourceTree = "<group>"; };
 		4EEDD41C124A964E4C00DFFC /* AcknowledgementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcknowledgementsView.swift; sourceTree = "<group>"; };
+		5058226A381F811C89EA08E5 /* SidebarViewModelPhotoActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModelPhotoActionTests.swift; sourceTree = "<group>"; };
 		51221DFACE1BBB2B84647042 /* DevelopViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopViewModelTests.swift; sourceTree = "<group>"; };
 		51837C9265B8B48EB53A77C0 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		519DF2EE448A8C4BB95CFFDC /* DevelopColorSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopColorSettings.swift; sourceTree = "<group>"; };
@@ -397,6 +401,7 @@
 				EF13A531C7944060A4EB1AAC /* PhotoViewerView.swift */,
 				225F66EF350AE6462B7502AB /* SettingsView.swift */,
 				F12E9306D3A3C4A2213D21AC /* SidebarModeView.swift */,
+				019E8788427B57CF549D0588 /* SidebarModeView+ContextMenu.swift */,
 				FA4CB76CA0C0D3E38DD98F29 /* SlideshowModeView.swift */,
 				473987B891CAA36C8577A20C /* ToastView.swift */,
 				4A7D1B8592291539F1790C33 /* TrackpadSwipeCatcher.swift */,
@@ -600,6 +605,7 @@
 				F5DE919666BE32896CB553EE /* ShootLogTestsExample.swift */,
 				03D9BC113DA38E7E1BD62383 /* SidebarViewModelAIFilterTests.swift */,
 				8675EDFC43E5125BC753BE9E /* SidebarViewModelDevelopTests.swift */,
+				5058226A381F811C89EA08E5 /* SidebarViewModelPhotoActionTests.swift */,
 				1F0AB35DF7B72D28764D10A0 /* SuperResolutionModelCatalogTests.swift */,
 				99E2DFFBCF2DF969FDB6A710 /* TiledInferenceRunnerTests.swift */,
 				4EA61ACAA658B1A722E8CC3C /* ToneCurveTests.swift */,
@@ -877,6 +883,7 @@
 				B6B6F4E1A408DBBAB25E4D6A /* SettingsView.swift in Sources */,
 				245F3DE1BDBD2C3FDC1B1453 /* ShootLogApp.swift in Sources */,
 				B505DA43EF5FB9371CE5910B /* ShootLogError.swift in Sources */,
+				FDCE833B42C83F2615B68C0D /* SidebarModeView+ContextMenu.swift in Sources */,
 				3DB863D2D45699FDB4A78B65 /* SidebarModeView.swift in Sources */,
 				86D4E150100E80074C3AC21B /* SidebarViewModel.swift in Sources */,
 				C21830354E453E856C1E45A6 /* SlideshowModeView.swift in Sources */,
@@ -944,6 +951,7 @@
 				EB63C67DC3703BDBD56AE2E3 /* ShootLogTestsExample.swift in Sources */,
 				BFE1589B79419935E7B68224 /* SidebarViewModelAIFilterTests.swift in Sources */,
 				1733D01012AF80071872C81F /* SidebarViewModelDevelopTests.swift in Sources */,
+				63518FBD2E2A5D2A8420C9A7 /* SidebarViewModelPhotoActionTests.swift in Sources */,
 				CD3FD57C1002536E3960BD4D /* SuperResolutionModelCatalogTests.swift in Sources */,
 				1747A0F368BE64D2BBBCDDFB /* TiledInferenceRunnerTests.swift in Sources */,
 				2018365C1CFA3AE4BE84A424 /* ToneCurveTests.swift in Sources */,

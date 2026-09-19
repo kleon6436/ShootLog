@@ -20,7 +20,9 @@ struct ContentViewModelPasteboardTests {
         func writeFileURL(_ url: URL) { lock.withLock { urls.append(url) } }
     }
 
-    private func makeContentViewModel() throws -> (ContentViewModel, ModelContext, SpyPasteboardWriter) {
+    private func makeContentViewModel(
+        writer: SpyPasteboardWriter
+    ) throws -> (ContentViewModel, ModelContext) {
         let container = try ModelContainer(
             for: Photo.self, EditInfo.self, DevelopSettings.self, DevelopPreset.self,
             FolderHistory.self, IntegrationAppSetting.self,
@@ -29,13 +31,13 @@ struct ContentViewModelPasteboardTests {
         let context = ModelContext(container)
         let content = ContentViewModel()
         content.modelContext = context
-        let writer = SpyPasteboardWriter()
         content.pasteboardWriter = writer
-        return (content, context, writer)
+        return (content, context)
     }
 
     @Test func copiesDisplayFileNameAndShowsToast() throws {
-        let (content, context, writer) = try makeContentViewModel()
+        let writer = SpyPasteboardWriter()
+        let (content, context) = try makeContentViewModel(writer: writer)
         let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/ShootLogTests/IMG_0001.NEF"))
         context.insert(photo)
         // EXIF 遅延ロードなどの副作用を避けるため選択状態だけを直接組み立てる
@@ -48,7 +50,8 @@ struct ContentViewModelPasteboardTests {
     }
 
     @Test func copiesFilePathForFolderPhoto() throws {
-        let (content, context, writer) = try makeContentViewModel()
+        let writer = SpyPasteboardWriter()
+        let (content, context) = try makeContentViewModel(writer: writer)
         let url = URL(fileURLWithPath: "/tmp/ShootLogTests/IMG_0001.NEF")
         let photo = Photo(fileURL: url)
         context.insert(photo)
@@ -62,7 +65,8 @@ struct ContentViewModelPasteboardTests {
     }
 
     @Test func doesNotCopyPathForPhotosLibraryPhoto() throws {
-        let (content, context, writer) = try makeContentViewModel()
+        let writer = SpyPasteboardWriter()
+        let (content, context) = try makeContentViewModel(writer: writer)
         let photo = Photo(
             fileURL: URL(fileURLWithPath: "/tmp/ShootLogTests/icloud-import-v2/ABC123_L0_001.jpg"),
             phAssetLocalIdentifier: "ABC123/L0/001"
