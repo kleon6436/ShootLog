@@ -6209,6 +6209,54 @@
         }
       }
     },
+    "toast.copied.fileName" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Name Copied"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイル名をコピーしました"
+          }
+        }
+      }
+    },
+    "toast.copied.path" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path Copied"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスをコピーしました"
+          }
+        }
+      }
+    },
+    "toast.externalApp.exportFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t open the photo because it failed to load"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真の読み込みに失敗したため開けませんでした"
+          }
+        }
+      }
+    },
     "toast.favorite.added" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6239,6 +6287,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "お気に入りを解除しました"
+          }
+        }
+      }
+    },
+    "toast.successTag.added %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added “%@”"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」を追加しました"
+          }
+        }
+      }
+    },
+    "toast.successTag.removed %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed “%@”"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「%@」を解除しました"
           }
         }
       }

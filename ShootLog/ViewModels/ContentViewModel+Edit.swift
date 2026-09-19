@@ -46,9 +46,23 @@ extension ContentViewModel {
 
     // MARK: - Private
 
-    // EditInfo を取得する。なければ新規作成して currentEditInfo にセットする
+    // EditInfo を取得する。なければ新規作成して currentEditInfo にセットする。
+    // currentEditInfo が別の写真のものである（loadEditInfo を経ずに selectedPhoto が
+    // 入れ替わった経路）場合に他の写真の編集情報を書き換えないよう、
+    // developSettingsOrCreate と同じく photoID を検証してから返す。
+    // 現行のproduction経路（selectPhoto が必ず loadEditInfo を呼ぶ）では起きないが、
+    // 将来の誤用に対する防御として持たせる。
+    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadEditInfo と同じ
+    // 「全件 fetch して first(where:)」パターンを踏襲する
     private func editInfoOrCreate(for photo: Photo, context: ModelContext) -> EditInfo {
-        if let existing = currentEditInfo { return existing }
+        if let existing = currentEditInfo, existing.photoID == photo.id { return existing }
+
+        let all = (try? context.fetch(FetchDescriptor<EditInfo>())) ?? []
+        if let stored = all.first(where: { $0.photoID == photo.id }) {
+            currentEditInfo = stored
+            return stored
+        }
+
         let info = EditInfo(photoID: photo.id)
         context.insert(info)
         currentEditInfo = info
