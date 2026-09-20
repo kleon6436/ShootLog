@@ -3127,6 +3127,23 @@
         }
       }
     },
+    "develop.mask.addForegroundSubject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Subject Mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被写体マスクを追加"
+          }
+        }
+      }
+    },
     "develop.mask.unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3297,6 +3314,40 @@
         }
       }
     },
+    "develop.mask.addPerson" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Person Mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人物マスクを追加"
+          }
+        }
+      }
+    },
+    "develop.mask.addPerson.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Person detection may be inaccurate. Check the mask that was added."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人物の検出結果は不正確な場合があります。追加されたマスクを確認してください"
+          }
+        }
+      }
+    },
     "develop.mask.addRadialGradient" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3310,6 +3361,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "放射状グラデーションを追加"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.generating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generating mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを生成中"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.generationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to generate mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクの生成に失敗しました"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.noPersonFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No person found"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人物が見つかりませんでした"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.noSubjectFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No subject found"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被写体が見つかりませんでした"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.personName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Person %1$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人物 %1$lld"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.subjectName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subject %1$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被写体 %1$lld"
+          }
+        }
+      }
+    },
+    "develop.mask.ai.tapToRefine" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to refine subject"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タップして被写体を選び直す"
           }
         }
       }
@@ -3412,6 +3582,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "マスク名"
+          }
+        }
+      }
+    },
+    "develop.mask.regenerate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regenerate Mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを再生成"
+          }
+        }
+      }
+    },
+    "develop.mask.regenerate.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rebuild this mask with the current generation logic."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しい生成ロジックでこのマスクを作り直します"
           }
         }
       }

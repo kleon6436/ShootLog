@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ImageIO
 // `Array.move(fromOffsets:toOffset:)`（`List.onMove` と同じ並べ替え意味論）のため。
 import SwiftUI
 
@@ -97,6 +98,10 @@ final class DevelopViewModel {
     private(set) var maskOverlayImage: NSImage?
     /// UI のレイヤーリストで選択中のマスク。
     var selectedMaskLayerID: UUID?
+    /// AI マスクを生成中か（ボタンの無効化・スピナー表示用）。
+    private(set) var isGeneratingAIMask = false
+    /// 直近の AI マスク生成が失敗した理由。成功・写真切り替え・次の生成開始で消える。
+    private(set) var aiMaskGenerationFailureMessage: String?
     /// スプリット境界の位置。表示中画像矩形内の 0...1（左端=0、右端=1）。
     var splitPosition: CGFloat = 0.5
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
@@ -141,7 +146,13 @@ final class DevelopViewModel {
     private static var clipboard: DevelopParameters?
 
     private let engine: any ImageDeveloping
+    private let maskGenerator: any SubjectMaskGenerating
     private let content: ContentViewModel?
+
+    /// `MaskRaster.pngData` のデコード結果。スライダー操作のたびに PNG を展開し直さないため、
+    /// `rasterID` をキーに保持する。ラスタの中身は生成時に確定し以後変わらない（再生成は
+    /// 新しい `rasterID` を発行する）ので、ID 一致だけで再利用してよい。写真切り替えで捨てる。
+    private var maskRasterDecodeCache: [UUID: CGImage] = [:]
 
     private var currentPhoto: Photo?
     private var displaySize: CGSize = .zero
@@ -204,11 +215,13 @@ final class DevelopViewModel {
 
     init(
         engine: any ImageDeveloping = ImageDevelopmentEngine.shared,
+        maskGenerator: any SubjectMaskGenerating = VisionSubjectMaskGenerator.shared,
         content: ContentViewModel?,
         renderDebounce: Duration = .milliseconds(60),
         persistDebounce: Duration = .milliseconds(500)
     ) {
         self.engine = engine
+        self.maskGenerator = maskGenerator
         self.content = content
         self.renderDebounce = renderDebounce
         self.persistDebounce = persistDebounce
@@ -222,6 +235,7 @@ final class DevelopViewModel {
     func load(photo: Photo?, displaySize: CGSize, rotation: Int = 0, cropRect: CGRect? = nil) {
         // 切り替え前の写真のデバウンス保存を取りこぼさないよう、先にフラッシュする。
         flushPendingPersist()
+        collectOrphanedMaskRastersForLeavingPhoto()
         renderTask?.cancel()
         histogramTask?.cancel()
         invalidateBeforeImage()
@@ -244,6 +258,9 @@ final class DevelopViewModel {
         isShowingBefore = false
         splitPosition = 0.5
         selectedMaskLayerID = nil
+        // 別写真のラスタが混入しないよう、写真ごとにデコード結果を捨てる。
+        maskRasterDecodeCache.removeAll()
+        aiMaskGenerationFailureMessage = nil
         isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
         asShotWhiteBalance = nil
@@ -537,9 +554,18 @@ final class DevelopViewModel {
     /// 現在の調整値をプリセットとして保存する。
     /// - Parameter includeMasks: `true` ならマスクレイヤーも含めて保存する。既定 `false`
     ///   （放射状マスクの位置は写真ごとに意味が変わるため、既定では含めない）。
+    ///   AI マスクは `includeMasks` の値によらず常に除外する（`applyPreset`参照。ラスタが
+    ///   元写真にしか無く、別写真への適用時に複製できないため、保存時点で持たせない）。
     func saveCurrentAsPreset(name: String, includeMasks: Bool = false) {
         var toSave = parameters
-        if !includeMasks { toSave.masks = [] }
+        if !includeMasks {
+            toSave.masks = []
+        } else {
+            toSave.masks = toSave.masks.filter { layer in
+                if case .ai = layer.source { return false }
+                return true
+            }
+        }
         content?.saveDevelopPreset(name: name, from: toSave)
     }
 
@@ -558,13 +584,27 @@ final class DevelopViewModel {
     ///   - includeMasks: `true` ならプリセット側のマスクも反映する。既定 `false` の場合、
     ///     `relative: true` ではプリセット側マスクを追記せず、`relative: false` では
     ///     現在のマスクレイヤーをそのまま保持する（プリセットで上書きしない）。
+    ///
+    ///     `includeMasks: true` でも AI マスクは常に除外する（`pasteAdjustments` と同じ理由、
+    ///     プラン§3.6）。`DevelopPreset` は写真をまたいで使うのが本来の用途であり、AI マスクの
+    ///     ラスタは元写真の `DevelopSettings.maskRasters` にしか存在しないため、別写真への適用時
+    ///     ほぼ確実にラスタを複製できない（レビューで指摘された「fallback が実質常用パス化する」
+    ///     問題）。グラデーション・輝度レンジは幾何・数値パラメータのみで写真間の意味が保たれる
+    ///     ため、`.ai` だけを除いて含める。
     func applyPreset(_ preset: DevelopPreset, relative: Bool = false, includeMasks: Bool = false) {
         var presetParams = preset.parameters
+        presetParams.masks = presetParams.masks.filter { layer in
+            if case .ai = layer.source { return false }
+            return true
+        }
         if !includeMasks {
             presetParams.masks = relative ? [] : parameters.masks
         }
+        // 取り込んだマスクは末尾に積まれる（relative は追記、丸ごと置き換えは全部が外来）。
+        // .ai は上で除外済みなので実際にはno-opになるが、防御的に残す（§3.2参照整合性ケース3）。
+        let foreignMasksFrom = includeMasks ? (relative ? parameters.masks.count : 0) : nil
         let target = relative ? parameters.applying(delta: presetParams) : presetParams
-        applyReplacingParameters(target)
+        applyReplacingParameters(target, duplicatingAIMaskRastersFrom: foreignMasksFrom)
     }
 
     /// 現在の調整値をクリップボードへコピーする。
@@ -574,9 +614,16 @@ final class DevelopViewModel {
     }
 
     /// クリップボードの調整値を適用する。直前の状態は 1 段だけ戻せる。
+    /// AI マスクは既定で含めない（被写体位置が違う写真へラスタを貼るとほぼ確実に不正になるため。
+    /// グラデーション・輝度レンジは同一シーンの連写へ渡す用途が主なので含める。プラン §3.6）。
     func pasteAdjustments() {
         guard let clip = Self.clipboard else { return }
-        applyReplacingParameters(clip)
+        var filtered = clip
+        filtered.masks = clip.masks.filter { layer in
+            if case .ai = layer.source { return false }
+            return true
+        }
+        applyReplacingParameters(filtered, duplicatingAIMaskRastersFrom: 0)
     }
 
     /// プリセット適用・ペーストを 1 段だけ取り消す。
@@ -588,11 +635,36 @@ final class DevelopViewModel {
     }
 
     /// `parameters` を丸ごと差し替える。didSet でプレビュー再描画・永続化が予約される。
-    private func applyReplacingParameters(_ new: DevelopParameters) {
+    /// - Parameter index: 取り込んだ（＝この写真のものではない）マスクレイヤーの開始位置。
+    ///   指定すると、そこから末尾までの AI マスクのラスタを複製してから差し替える。
+    private func applyReplacingParameters(_ new: DevelopParameters, duplicatingAIMaskRastersFrom index: Int? = nil) {
         guard new != parameters else { return }
+        var target = new
+        if let index { duplicateAIMaskRasters(in: &target, from: index) }
         undoParameters = parameters
         canUndo = true
-        parameters = new
+        parameters = target
+    }
+
+    /// プリセット/ペーストで取り込んだ AI マスクレイヤーの `rasterID` を再発行し、`MaskRaster` を複製する。
+    ///
+    /// `MaskLayer.id` だけを再発行すると 2 レイヤーが 1 つの `MaskRaster` を指し、片方を消したときの
+    /// GC が他方のラスタを持っていってしまう（§3.2 参照整合性ケース 3）。
+    ///
+    /// 複製元が見つからない場合（他写真で作ったラスタを指すプリセットなど）は `.ai` のまま残す。
+    /// 未解決の `rasterID` は描画側で全面 0 として扱われて実害が無く、レイヤー種別を保てば
+    /// この写真向けの「再生成」導線をそのまま使えるため。
+    private func duplicateAIMaskRasters(in parameters: inout DevelopParameters, from index: Int) {
+        guard index < parameters.masks.count, let settings = content?.currentDevelopSettings else { return }
+        for position in index..<parameters.masks.count {
+            guard case .ai(var reference) = parameters.masks[position].source,
+                  let original = settings.maskRasters.first(where: { $0.id == reference.rasterID })
+            else { continue }
+            let duplicated = MaskRaster(id: UUID(), pngData: original.pngData, longEdge: original.longEdge)
+            settings.maskRasters.append(duplicated)
+            reference.rasterID = duplicated.id
+            parameters.masks[position].source = .ai(reference)
+        }
     }
 
     // MARK: - マスク（ローカル調整）
@@ -697,13 +769,153 @@ final class DevelopViewModel {
         parameters = updated
     }
 
+    // MARK: - AI マスク
+
+    /// マスク生成ロジック（前処理・Vision モデル）の世代番号。生成結果の見えが変わる変更を
+    /// 入れたら上げる。不一致のレイヤーには UI が再生成導線を出す（黙って作り直さない、§3.2）。
+    static let currentVisionRevision = 1
+
+    /// AI マスクのラスタを焼き込む長辺。`AIMaskReference.bakedLongEdge` として記録する（OQ-3）。
+    private static let aiMaskBakedLongEdge = 1_024
+    /// Vision へ渡すプレビューの最小長辺。`SubjectMaskGenerating` が要求する
+    /// 「最小辺 512px 以上」を通常のアスペクト比で満たすための下限。
+    private static let visionInputMinimumLongEdge: CGFloat = 1_024
+
+    /// AI 被写体 / 人物マスクを追加し、選択状態にする。
+    ///
+    /// - Parameters:
+    ///   - kind: 被写体マスクか人物マスクか。
+    ///   - clickPoint: ベース空間の正規化座標（左上原点・y 下向き）。`nil` なら検出された
+    ///     全インスタンスを使う。
+    ///
+    /// `.person` は「人物なし」を戻り値で判定できない（`SubjectMaskGenerating` の注記。
+    /// 実測で confidence は常に 1.0）。したがって生成できたマスクは必ずレイヤーとして提示し、
+    /// 不適切かどうかの判断は `removeMask(id:)` でユーザーに委ねる。
+    func addAIMask(kind: AIMaskKind, clickPoint: NormalizedPoint? = nil) async {
+        guard canEditMasks, !isGeneratingAIMask, let photo = currentPhoto else { return }
+
+        isGeneratingAIMask = true
+        aiMaskGenerationFailureMessage = nil
+        defer { isGeneratingAIMask = false }
+
+        // Vision 入力はベース空間（回転・トリミング前）で作る。表示空間を渡すと
+        // マスクの正規化座標が `MaskImageGenerator` の基準とずれる（§1.5）。
+        let params = parameters
+        let target = max(
+            PhotoImageViewModel.targetMaxPixelSize(for: displaySize),
+            Self.visionInputMinimumLongEdge
+        )
+        guard let source = await engine.renderPreview(
+            url: photo.fileURL,
+            parameters: params,
+            targetMaxPixelSize: target,
+            rotation: 0,
+            cropRect: nil,
+            previewColorSpace: nil,
+            useRAWParameterMapping: rawMappingActive,
+            usesManualLensCorrection: shouldApplyManualLensCorrection(params),
+            usesToneMaskedColorGrading: toneMaskedColorGradingActive,
+            asShotWhiteBalance: toneMaskedColorGradingActive ? asShotWhiteBalance : nil,
+            maskRasters: resolvedMaskRasters(for: params)
+        ) else {
+            aiMaskGenerationFailureMessage = String(localized: "develop.mask.ai.generationFailed")
+            return
+        }
+
+        // Vision の正規化座標は左下原点・y 上向き。`NormalizedPoint` とは y が逆。
+        let visionClickPoint = clickPoint.map { CGPoint(x: $0.x, y: 1 - $0.y) }
+        guard let result = await maskGenerator.generateMask(
+            for: source,
+            kind: kind,
+            clickPoint: visionClickPoint,
+            targetLongEdge: Self.aiMaskBakedLongEdge
+        ) else {
+            aiMaskGenerationFailureMessage = switch kind {
+            case .person: String(localized: "develop.mask.ai.noPersonFound")
+            case .foregroundSubject: String(localized: "develop.mask.ai.noSubjectFound")
+            }
+            return
+        }
+        // 生成中に写真が切り替わっていたら、別写真のラスタを貼らない。
+        guard currentPhoto?.id == photo.id else { return }
+
+        // DevelopSettingsの確保はVision成功後に行う。Vision失敗・写真切替などの早期returnで
+        // 中立な空行が永続的に残るのを防ぐため（updateDevelopParametersの「中立状態では
+        // 行を作らない」という不変条件に反しないようにする。レビュー指摘）。
+        guard let settings = content?.developSettingsForMaskRaster() else { return }
+
+        let rasterID = UUID()
+        let raster = MaskRaster(id: rasterID, pngData: result.pngData, longEdge: result.longEdge)
+        settings.maskRasters.append(raster)
+
+        let nameFormat = switch kind {
+        case .person: String(localized: "develop.mask.ai.personName")
+        case .foregroundSubject: String(localized: "develop.mask.ai.subjectName")
+        }
+        let layer = MaskLayer(
+            id: UUID(),
+            name: String(format: nameFormat, Int64(parameters.masks.count + 1)),
+            source: .ai(AIMaskReference(
+                rasterID: rasterID,
+                kind: kind,
+                instanceIndices: result.instanceIndices,
+                visionRevision: Self.currentVisionRevision,
+                bakedLongEdge: result.longEdge,
+                bakedAt: .now
+            )),
+            adjustments: LocalAdjustments()
+        )
+        var updated = parameters
+        updated.masks.append(layer)
+        parameters = updated
+        selectedMaskLayerID = layer.id
+    }
+
+    /// このレイヤーが現行の Vision 世代と異なる世代で焼き込まれているか。UI の再生成導線の表示条件。
+    func maskNeedsRegeneration(_ layer: MaskLayer) -> Bool {
+        guard case .ai(let reference) = layer.source else { return false }
+        if reference.visionRevision != Self.currentVisionRevision { return true }
+        // visionRevisionは一致していても、参照先のMaskRasterが存在しない状態
+        // （他写真のプリセットを誤って流用した等の防御的ケース）も再生成対象として扱う。
+        // これが無いと、ユーザーはマスクが無効である理由に気づく手段が無い（レビュー指摘）。
+        guard let settings = content?.currentDevelopSettings else { return false }
+        return !settings.maskRasters.contains { $0.id == reference.rasterID }
+    }
+
+    /// AI マスクレイヤーを同じ種別で作り直す。ユーザーが明示的に呼んだときだけ実行し、
+    /// `visionRevision` 不一致を検知して自動で作り直すことはしない（§3.2）。
+    ///
+    /// クリック位置は永続化していないため全インスタンス再検出になる。生成に失敗した場合は
+    /// 元のレイヤーを残す（失敗して何も無くなる状態を作らない）。
+    func regenerateAIMask(id: UUID) async {
+        guard let layer = maskLayers.first(where: { $0.id == id }),
+              case .ai(let reference) = layer.source else { return }
+        let before = maskLayers.count
+        await addAIMask(kind: reference.kind)
+        guard maskLayers.count > before else { return }
+        removeMask(id: id)
+    }
+
     // MARK: - Private
 
     /// AI マスクのラスタを MainActor 側で解決する。`MaskRaster` は `@Model` で `Sendable` でなく、
-    /// engine の `Task.detached` へ直接渡せないため値（`CGImage`）に落として渡す契約になっている。
-    /// Phase 1a では AI マスク自体が未実装なので常に空。
+    /// engine の `Task.detached` へ直接渡せないため値（`CGImage`）に落として渡す契約になっている（§3.2.1）。
+    /// 辞書に無い `rasterID` は描画側で全面 0 として扱われる。
     private func resolvedMaskRasters(for snapshot: DevelopParameters) -> [UUID: CGImage] {
-        [:]
+        guard let settings = content?.currentDevelopSettings else { return [:] }
+        var result: [UUID: CGImage] = [:]
+        for layer in snapshot.masks where layer.isEnabled {
+            guard case .ai(let reference) = layer.source else { continue }
+            if let cached = maskRasterDecodeCache[reference.rasterID] {
+                result[reference.rasterID] = cached
+                continue
+            }
+            guard let raster = settings.maskRasters.first(where: { $0.id == reference.rasterID }),
+                  let decoded = MaskRasterResolving.decodeCGImage(from: raster.pngData) else { continue }
+            maskRasterDecodeCache[reference.rasterID] = decoded
+            result[reference.rasterID] = decoded
+        }
+        return result
     }
 
     /// マスク可視化オーバーレイを現像プレビューとは独立のデバウンスで描き直す（§1.5.4）。
@@ -973,6 +1185,18 @@ final class DevelopViewModel {
             self?.syncSchemaGatedFlags()
             self?.pendingPersist = nil
         }
+    }
+
+    /// 写真から離れるタイミングで、その写真の孤児 `MaskRaster` を回収する（§3.2）。
+    ///
+    /// 対象は必ず「これから離れる写真」にする。表示しようとしている写真を対象にすると、
+    /// 直前のレイヤー削除を 1 段 Undo で戻した直後の再訪でラスタが消えている恐れがある。
+    /// `ContentViewModel.selectPhoto` が先に走るため `currentDevelopSettings` は既に次の写真を
+    /// 指している。離れる写真はまだ差し替えていない `currentPhoto` から引く。
+    /// デバウンス保存のフラッシュ後に呼ぶこと（未保存の blob を基準に到達判定しないため）。
+    private func collectOrphanedMaskRastersForLeavingPhoto() {
+        guard let photoID = currentPhoto?.id, let context = content?.modelContext else { return }
+        MaskRasterGarbageCollector.collect(forPhotoID: photoID, in: context)
     }
 
     /// デバウンス待ちの保存を即時に書き込む。写真切り替えで取りこぼさないため `load` の冒頭で呼ぶ。

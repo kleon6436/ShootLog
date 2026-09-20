@@ -96,6 +96,10 @@ extension ContentViewModel {
         let usesManualLens = (currentDevelopSettings?.usesManualLensCorrection ?? true)
             && !(useRAWMapping && parameters.lensCorrectionEnabled)
         let usesToneMasked = (currentDevelopSettings?.usesToneMaskedColorGrading ?? true)
+        let maskRasters = MaskRasterResolving.resolve(
+            masks: parameters.masks,
+            rasters: currentDevelopSettings?.maskRasters ?? []
+        )
 
         viewModel.beginProcessing()
 
@@ -130,6 +134,7 @@ extension ContentViewModel {
                 usesManualLensCorrection: usesManualLens,
                 usesToneMaskedColorGrading: usesToneMasked,
                 asShotWhiteBalance: asShot,
+                maskRasters: maskRasters,
                 superResolution: superResolution,
                 currentFolder: currentFolderURL,
                 folderPhotoURLs: photos.map(\.fileURL),

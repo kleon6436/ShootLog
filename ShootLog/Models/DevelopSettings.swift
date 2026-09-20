@@ -20,6 +20,9 @@ import SwiftData
 /// - 6: `masks`（ローカル調整）キーを含む blob 世代の記録。**読み取り分岐には使わない。**
 ///   `masks` は旧世代に解釈が存在しない純粋な追加フィールドで、version 5 以前のレコードでは
 ///   定義上必ず空配列になるため、既定値だけで既存レコードの見た目不変が満たされる。
+///
+/// AI マスクのラスタ（PNG）は blob に含めず、子 `@Model` の `MaskRaster` へ分離する。
+/// blob 側は `AIMaskReference.rasterID` だけを持ち、`maskRasters` リレーションから実体を引く。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
@@ -30,6 +33,11 @@ final class DevelopSettings {
     var schemaVersion: Int = DevelopSettings.currentSchemaVersion
     /// 調整値を最後に更新した時刻。
     var updatedAt: Date = Date.now
+    /// AI マスクのラスタ（子エンティティ）。`DevelopSettings` 削除時に cascade 削除される。
+    /// 参照整合性（レイヤー単体削除時の孤児化・Undo 時の生存・append 時の複製）は
+    /// アプリケーション層（到達可能性ベースの GC）が担う。
+    @Relationship(deleteRule: .cascade, inverse: \MaskRaster.developSettings)
+    var maskRasters: [MaskRaster] = []
 
     /// 新規レコードが名乗る世代。
     static let currentSchemaVersion = 6

@@ -17,6 +17,13 @@ struct MaskSectionView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let message = developViewModel.aiMaskGenerationFailureMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             if !developViewModel.maskLayers.isEmpty {
                 layerList
 
@@ -40,16 +47,35 @@ struct MaskSectionView: View {
     }
 
     private var addButtons: some View {
-        HStack(spacing: Spacing.small) {
-            Button("develop.mask.addLinearGradient", systemImage: "circle.lefthalf.striped.horizontal") {
-                developViewModel.addLinearGradientMask()
+        VStack(alignment: .leading, spacing: Spacing.small) {
+            HStack(spacing: Spacing.small) {
+                Button("develop.mask.addLinearGradient", systemImage: "circle.lefthalf.striped.horizontal") {
+                    developViewModel.addLinearGradientMask()
+                }
+                Button("develop.mask.addRadialGradient", systemImage: "circle.circle") {
+                    developViewModel.addRadialGradientMask()
+                }
+                Button("develop.mask.addLuminanceRange", systemImage: "circle.lefthalf.filled") {
+                    developViewModel.addLuminanceRangeMask()
+                }
             }
-            Button("develop.mask.addRadialGradient", systemImage: "circle.circle") {
-                developViewModel.addRadialGradientMask()
+
+            HStack(spacing: Spacing.small) {
+                Button("develop.mask.addForegroundSubject", systemImage: "person.and.background.dotted") {
+                    Task { await developViewModel.addAIMask(kind: .foregroundSubject) }
+                }
+                Button("develop.mask.addPerson", systemImage: "person.fill") {
+                    Task { await developViewModel.addAIMask(kind: .person) }
+                }
+                .help("develop.mask.addPerson.help")
+
+                if developViewModel.isGeneratingAIMask {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("develop.mask.ai.generating")
+                }
             }
-            Button("develop.mask.addLuminanceRange", systemImage: "circle.lefthalf.filled") {
-                developViewModel.addLuminanceRangeMask()
-            }
+            .disabled(developViewModel.isGeneratingAIMask)
         }
         .disabled(!developViewModel.canEditMasks)
     }
@@ -94,6 +120,20 @@ struct MaskSectionView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Text(layer.name))
             .accessibilityAddTraits(isSelected ? .isSelected : [])
+
+            if developViewModel.maskNeedsRegeneration(layer) {
+                Button {
+                    Task { await developViewModel.regenerateAIMask(id: layer.id) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .disabled(developViewModel.isGeneratingAIMask)
+                .help("develop.mask.regenerate.help")
+                .accessibilityLabel("develop.mask.regenerate")
+            }
 
             moveButtons(index: index)
 
