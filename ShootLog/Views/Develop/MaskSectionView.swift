@@ -44,6 +44,12 @@ struct MaskSectionView: View {
                 selectedLayerEditor(id: id)
             }
         }
+        // セクション（`DevelopSectionCard`）は展開時にしか `content` を評価しないため、
+        // マスクセクションを開いたタイミングで無調整写真のベースプレビューを用意する
+        // （`canEditMasks` が `previewImage` 依存のため、これが無いとボタンが永遠に無効のまま）。
+        .task(id: developViewModel.currentPhotoID) {
+            developViewModel.prepareMaskEditingPreviewIfNeeded()
+        }
     }
 
     /// 選択中レイヤーの ID。削除直後など実体が無い ID は無効として扱う。

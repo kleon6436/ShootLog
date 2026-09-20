@@ -147,6 +147,50 @@ final class DevelopViewModel {
     /// マスクを追加・編集できるか。ハンドルの初期配置にプレビューの表示基準が要る（§1.5.2）。
     var canEditMasks: Bool { previewImage != nil }
 
+    /// マスクセクションを開いたタイミングで呼ぶ。
+    ///
+    /// `render()` は調整・回転・トリミングがすべて中立の場合、Core Image を介さない最適化で
+    /// `previewImage` を作らず `nil` のままにする。マスク編集はそのジオメトリ基準を
+    /// `previewImage` に依存するため、無調整の写真でマスクセクションを開くと `canEditMasks`
+    /// が永遠に `false` のままとなり、マスク追加ボタンが無効化され続けていた
+    /// （実機報告: 「Masks can be added once the preview is ready」から進めない）。
+    /// この関数は中立時に限り一度だけベースプレビューを明示的に生成し、マスク編集を可能にする。
+    func prepareMaskEditingPreviewIfNeeded() {
+        guard previewImage == nil, !isRendering, let photo = currentPhoto else { return }
+        guard parameters.isNeutral, rotation == 0, !Self.isEffectiveCrop(cropRect) else { return }
+
+        isRendering = true
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        let rot = rotation
+        let crop = cropRect
+        let colorSpace = previewColorSpace
+        let usesToneMaskedColorGrading = toneMaskedColorGradingActive
+        let generation = nextRenderGeneration()
+        Task { [weak self] in
+            guard let self else { return }
+            let rendered = await self.engine.renderPreview(
+                url: photo.fileURL,
+                parameters: .neutral,
+                targetMaxPixelSize: target,
+                rotation: rot,
+                cropRect: crop,
+                previewColorSpace: colorSpace,
+                useRAWParameterMapping: false,
+                usesManualLensCorrection: false,
+                usesToneMaskedColorGrading: usesToneMaskedColorGrading,
+                asShotWhiteBalance: nil,
+                maskRasters: [:]
+            )
+            guard generation == self.renderGeneration else { return }
+            self.isRendering = false
+            guard let rendered else { return }
+            self.previewImage = NSImage(cgImage: rendered, size: .zero)
+            if self.histogram == nil {
+                self.histogram = await HistogramData.make(from: rendered)
+            }
+        }
+    }
+
     /// RAW かつ `CIRAWFilter` 委譲が有効か（レンズ補正トグルなど RAW 固有 UI の表示条件）。
     var canDelegateToRAWFilter: Bool { rawMappingActive }
 
@@ -184,6 +228,8 @@ final class DevelopViewModel {
     private var brushUndoStack: [(layerID: UUID, previousBrushEdits: [BrushStroke])] = []
 
     private var currentPhoto: Photo?
+    /// 写真切り替え検知用（`.task(id:)` 等、View 側は `currentPhoto` 自体に触れない）。
+    var currentPhotoID: UUID? { currentPhoto?.id }
     private var displaySize: CGSize = .zero
     /// `EditInfo` 由来の回転角。プレビューにも焼き込む。
     private var rotation: Int = 0
