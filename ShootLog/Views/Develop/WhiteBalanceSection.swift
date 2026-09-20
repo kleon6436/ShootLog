@@ -45,6 +45,8 @@ struct WhiteBalanceSection: View {
     var body: some View {
         DevelopSectionCard(
             "develop.section.whiteBalance",
+            id: "whiteBalance",
+            defaultExpanded: true,
             reset: (
                 isEnabled: developViewModel.parameters.isModified(in: .whiteBalance),
                 action: { developViewModel.resetSection(.whiteBalance) }
@@ -217,7 +219,7 @@ struct ColorGradingEditorView: View {
     ]
 
     var body: some View {
-        DevelopSectionCard("develop.section.colorGrading", reset: reset) {
+        DevelopSectionCard("develop.section.colorGrading", id: "colorGrading", reset: reset) {
             LazyVGrid(columns: columns, spacing: Spacing.medium) {
                 ColorWheelView(component: $settings.master, title: "develop.colorGrading.master")
                 ColorWheelView(component: $settings.shadows, title: "develop.colorGrading.shadows")
@@ -228,45 +230,114 @@ struct ColorGradingEditorView: View {
     }
 }
 
-/// DevelopPanelViewと同じカード表現を共有する小さな公開コンテナ。
+/// 現像パネルのセクションカード。ヘッダー行のクリックで開閉し、状態は `@AppStorage` で永続化する。
+///
+/// `DisclosureGroup` は macOS でヘッダー行のレイアウト（高さ・シェブロンの位置・右端の
+/// リセットボタン）を規定どおりに作れないため、同等の挙動を持つカスタムビューにしている。
 struct DevelopSectionCard<Content: View>: View {
-    let title: LocalizedStringKey
-    var reset: (isEnabled: Bool, action: () -> Void)?
-    @ViewBuilder let content: () -> Content
+    private let title: LocalizedStringKey
+    /// 折りたたみ時にだけ出す要約。ローカライズ済みの文字列を渡す。
+    private let summary: String?
+    private let reset: (isEnabled: Bool, action: () -> Void)?
+    private let content: () -> Content
+
+    @AppStorage private var isExpanded: Bool
 
     init(
         _ title: LocalizedStringKey,
+        id: String,
+        summary: String? = nil,
+        defaultExpanded: Bool = false,
         reset: (isEnabled: Bool, action: () -> Void)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
+        self.summary = summary
         self.reset = reset
         self.content = content
+        _isExpanded = AppStorage(wrappedValue: defaultExpanded, "develop.section.\(id).expanded")
+    }
+
+    private var isModified: Bool { reset?.isEnabled ?? false }
+
+    /// 三項演算子で文字列リテラルを渡すと LocalizedStringKey / String の
+    /// オーバーロードが曖昧になるため、Text として明示的に組み立てる。
+    private var expansionStateValue: Text {
+        isExpanded ? Text("a11y.section.expanded") : Text("a11y.section.collapsed")
+    }
+
+    /// 折りたたみ時の要約は目視では見えるので、VoiceOver にも展開状態と併せて伝える。
+    private var accessibilityValueText: Text {
+        if !isExpanded, let summary {
+            return expansionStateValue + Text(verbatim: ", ") + Text(summary)
+        }
+        return expansionStateValue
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.small) {
-            HStack {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let reset {
-                    Button(action: reset.action) {
-                        Image(systemName: "arrow.counterclockwise")
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .disabled(!reset.isEnabled)
-                    .help("develop.section.reset.help")
-                    .accessibilityLabel("develop.section.reset")
+        VStack(alignment: .leading, spacing: 0) {
+            header
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.small) {
+                    content()
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.large)
+                .padding(.bottom, Spacing.large)
             }
-            content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.medium)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+        .contentCard(padding: 0)
+        .animation(.easeInOut(duration: 0.18), value: isExpanded)
+    }
+
+    private var header: some View {
+        HStack(spacing: Spacing.small) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: Spacing.small) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: Spacing.small)
+                    if !isExpanded, let summary {
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if isModified {
+                        // 色だけに頼らないよう、折りたたみ時は summary と併用する。
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 6, height: 6)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(title)
+            .accessibilityValue(accessibilityValueText)
+
+            if let reset {
+                Button(action: reset.action) {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .disabled(!reset.isEnabled)
+                .help("develop.section.reset.help")
+                .accessibilityLabel("develop.section.reset")
+            }
+        }
+        .frame(height: 30)
+        .padding(.horizontal, Spacing.large)
     }
 }

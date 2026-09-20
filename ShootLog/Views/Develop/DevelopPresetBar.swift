@@ -13,8 +13,6 @@ struct DevelopPresetBar: View {
         HStack(spacing: Spacing.small) {
             presetMenu
 
-            Spacer()
-
             actionButton(
                 systemImage: "doc.on.doc",
                 labelKey: "develop.copyAdjustments",
@@ -114,8 +112,10 @@ struct DevelopPresetBar: View {
         } label: {
             Label("develop.preset.menu", systemImage: "square.stack.3d.up")
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .frame(maxWidth: .infinity)
     }
 
     private func actionButton(
@@ -128,7 +128,8 @@ struct DevelopPresetBar: View {
         Button(action: action) {
             Image(systemName: systemImage)
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
         .disabled(!isEnabled)
         .keyboardShortcut(shortcut)
         .help(labelKey)

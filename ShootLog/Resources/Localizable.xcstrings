@@ -221,6 +221,23 @@
         }
       }
     },
+    "a11y.develop.compareMode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare View"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "比較表示"
+          }
+        }
+      }
+    },
     "a11y.exif.qualityDiagnosis.score %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -522,6 +539,40 @@
         }
       }
     },
+    "a11y.section.collapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapsed"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "折りたたみ中"
+          }
+        }
+      }
+    },
+    "a11y.section.expanded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expanded"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展開中"
+          }
+        }
+      }
+    },
     "a11y.settings.developBaseCacheLimit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -636,6 +687,23 @@
         }
       }
     },
+    "a11y.toolbar.aiCategoryFilter %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by subject: %1$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被写体で絞り込み: %1$@"
+          }
+        }
+      }
+    },
     "a11y.toolbar.rotate" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -666,6 +734,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AI超解像で書き出す"
+          }
+        }
+      }
+    },
+    "a11y.viewer.position %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo %1$lld of %2$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld枚中 %1$lld枚目"
           }
         }
       }
@@ -2375,6 +2460,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "シャドウ"
+          }
+        }
+      }
+    },
+    "develop.compare.before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集前"
+          }
+        }
+      }
+    },
+    "develop.compare.normal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Normal"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常"
+          }
+        }
+      }
+    },
+    "develop.compare.split" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分割比較"
           }
         }
       }
@@ -4346,6 +4482,62 @@
         }
       }
     },
+    "develop.section.summary.lensProfile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロファイル"
+          }
+        }
+      }
+    },
+    "develop.section.summary.maskLayers %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg layer"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg layers"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld レイヤー"
+          }
+        }
+      }
+    },
     "develop.section.toneCurve" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5464,6 +5656,40 @@
         }
       }
     },
+    "exif.label.aiOnDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On-Device Recognition"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オンデバイス認識"
+          }
+        }
+      }
+    },
+    "exif.label.aiSubject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subject"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "被写体"
+          }
+        }
+      }
+    },
     "exif.label.aperture" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5649,6 +5875,23 @@
         }
       }
     },
+    "exif.label.qualityDiagnosisAxes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overall · Face · Exposure · Composition · Sharpness"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "総合・顔・露出・構図・シャープネス"
+          }
+        }
+      }
+    },
     "exif.label.shootingDate" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5695,6 +5938,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "成功要因"
+          }
+        }
+      }
+    },
+    "exif.label.whiteBalance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White Balance"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ホワイトバランス"
+          }
+        }
+      }
+    },
+    "exif.value.whiteBalance %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld K · %1$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld K · %1$@"
           }
         }
       }
@@ -5895,9 +6172,7 @@
         }
       }
     },
-    "K" : {
-
-    },
+    "K" : {},
     "menu.file.openFolder" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7331,6 +7606,23 @@
         }
       }
     },
+    "toolbar.aiCategoryFilter.summary %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$lld"
+          }
+        }
+      }
+    },
     "toolbar.analysis" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7446,6 +7738,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定を開く"
+          }
+        }
+      }
+    },
+    "toolbar.subtitle.photoCount %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg photo"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg photos"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld枚"
+          }
+        }
+      }
+    },
+    "toolbar.title.photosLibrary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos Library"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真ライブラリ"
           }
         }
       }
@@ -8342,6 +8690,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ドラッグして描画。[ ] キーでサイズ変更"
+          }
+        }
+      }
+    },
+    "viewer.showInspector" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Inspector"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インスペクタを表示"
+          }
+        }
+      }
+    },
+    "viewer.zoom.fit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to Screen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面に合わせる"
+          }
+        }
+      }
+    },
+    "viewer.zoom.fitPercent %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to Screen · %lld%%"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面に合わせる · %lld%%"
+          }
+        }
+      }
+    },
+    "viewer.zoom.percent %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%%"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%%"
           }
         }
       }
