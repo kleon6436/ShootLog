@@ -643,6 +643,29 @@ final class DevelopViewModel {
         return layer.id
     }
 
+    /// 輝度レンジのマスクレイヤーを 1 枚追加し、選択状態にする。
+    /// 既定は「明るい部分」の選択（空マスクの代替という主用途に寄せた初期値）。
+    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
+    @discardableResult
+    func addLuminanceRangeMask() -> UUID? {
+        guard canEditMasks else { return nil }
+        let layer = MaskLayer(
+            id: UUID(),
+            name: String(format: String(localized: "develop.mask.defaultName"), Int64(parameters.masks.count + 1)),
+            source: .luminanceRange(LuminanceRangeMask(
+                lowerBound: 0.6,
+                upperBound: 1.0,
+                smoothness: 30
+            )),
+            adjustments: LocalAdjustments()
+        )
+        var updated = parameters
+        updated.masks.append(layer)
+        parameters = updated
+        selectedMaskLayerID = layer.id
+        return layer.id
+    }
+
     /// 指定したマスクレイヤーを削除する。
     /// プレビューの有無でゲートしない。レンダー失敗などで `previewImage` が消えた状態から
     /// 抜け出す唯一の手段が削除のため。

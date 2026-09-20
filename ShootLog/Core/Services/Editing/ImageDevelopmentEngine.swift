@@ -354,6 +354,12 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     ///
     /// ベースデコードは `renderPreview` と同じキーで引くため、プレビュー描画済みの写真では
     /// 再デコードが起きない。現像チェーンは通さず、マスク画像だけを回転・トリミングする。
+    /// **輝度レンジマスクの可視化に関する既知の非対称性**: ここで輝度計算に使う`source`は
+    /// デコード直後の生画像（現像チェーン未適用）。一方、実際の合成（`DevelopMaskCompositor`）は
+    /// グローバル調整済みの画像（マスクループ開始時点、`DevelopPipeline`の`maskBaseImage`）を
+    /// 輝度計算に使う。露出・WB・トーン調整が中立でない場合、このオーバーレイが示す輝度選択の
+    /// 境界は実際の合成結果と厳密には一致しない。オーバーレイのためだけに知覚パイプライン全体を
+    /// 再実行するコストを避けるための意図的なトレードオフ。
     func renderMaskOverlay(
         url: URL,
         parameters: DevelopParameters,
@@ -379,8 +385,10 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
-            let extent = CIImage(cgImage: base).extent
-            let union = Self.unionMask(of: layers, baseExtent: extent, maskRasters: maskRasters)
+            let source = CIImage(cgImage: base)
+            let union = Self.unionMask(
+                of: layers, baseExtent: source.extent, maskRasters: maskRasters, sourceImage: source
+            )
             return Self.finalize(
                 Self.tintedRed(union),
                 rotation: rotation,
@@ -399,12 +407,13 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     private static func unionMask(
         of layers: [MaskLayer],
         baseExtent: CGRect,
-        maskRasters: [UUID: CGImage]
+        maskRasters: [UUID: CGImage],
+        sourceImage: CIImage
     ) -> CIImage {
         var union: CIImage?
         for layer in layers {
             let mask = DefaultMaskCompositor.maskImage(
-                for: layer, baseExtent: baseExtent, maskRasters: maskRasters
+                for: layer, baseExtent: baseExtent, maskRasters: maskRasters, sourceImage: sourceImage
             )
             guard let current = union else {
                 union = mask

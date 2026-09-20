@@ -3280,6 +3280,23 @@
         }
       }
     },
+    "develop.mask.addLuminanceRange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Luminance Range"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輝度レンジを追加"
+          }
+        }
+      }
+    },
     "develop.mask.addRadialGradient" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3327,6 +3344,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "フォールオフ"
+          }
+        }
+      }
+    },
+    "develop.mask.luminanceLower" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower Bound"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輝度下限"
+          }
+        }
+      }
+    },
+    "develop.mask.luminanceUpper" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upper Bound"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輝度上限"
+          }
+        }
+      }
+    },
+    "develop.mask.smoothness" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smoothness"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スムーズネス"
           }
         }
       }
