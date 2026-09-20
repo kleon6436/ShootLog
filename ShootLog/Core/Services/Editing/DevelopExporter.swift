@@ -70,7 +70,8 @@ struct DevelopExporter: Sendable {
             useRAWParameterMapping: useRAWParameterMapping,
             usesManualLensCorrection: usesManualLensCorrection,
             usesToneMaskedColorGrading: usesToneMaskedColorGrading,
-            asShotWhiteBalance: asShotWhiteBalance
+            asShotWhiteBalance: asShotWhiteBalance,
+            maskRasters: [:]
         ) else {
             // renderFull はキャンセル時も nil を返すため、キャンセル起因かを先に判定する
             try Task.checkCancellation()

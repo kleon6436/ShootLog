@@ -125,6 +125,8 @@ struct DevelopPanelView: View {
                     }
                 }
 
+                MaskSectionView(developViewModel: developViewModel)
+
                 if developViewModel.canDelegateToRAWFilter || developViewModel.canEditManualLensCorrection {
                     DevelopSectionCard("develop.section.lens", reset: sectionReset(.lens)) {
                         if developViewModel.canDelegateToRAWFilter {

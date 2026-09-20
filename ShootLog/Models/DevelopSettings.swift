@@ -17,19 +17,22 @@ import SwiftData
 /// - 4: 絶対 Kelvin/Tint とモードを持つホワイトバランスを保存する。旧値は従来の相対経路を維持する。
 /// - 5: カラーグレーディングをトーン域マスク方式（Metal カーネル）で解釈する。version 2〜4 のレコードは
 ///   編集時に 5 へ自動更新される（カラーグレーディング未使用時の見た目は不変）。version 1 は据え置き。
+/// - 6: `masks`（ローカル調整）キーを含む blob 世代の記録。**読み取り分岐には使わない。**
+///   `masks` は旧世代に解釈が存在しない純粋な追加フィールドで、version 5 以前のレコードでは
+///   定義上必ず空配列になるため、既定値だけで既存レコードの見た目不変が満たされる。
 @Model
 final class DevelopSettings {
     /// 対応する `Photo.id`。`EditInfo` と同じく明示的な UUID 一致で紐付ける。
     var photoID: UUID = UUID()
     /// `JSONEncoder().encode(DevelopParameters)` の結果。
     var parametersData: Data = DevelopSettings.encodedNeutral()
-    /// blob の解釈世代。新規レコードは 5。
+    /// blob の解釈世代。新規レコードは 6。
     var schemaVersion: Int = DevelopSettings.currentSchemaVersion
     /// 調整値を最後に更新した時刻。
     var updatedAt: Date = Date.now
 
     /// 新規レコードが名乗る世代。
-    static let currentSchemaVersion = 5
+    static let currentSchemaVersion = 6
 
     /// 中立状態のレコードを生成する。
     init(photoID: UUID) {
@@ -69,9 +72,9 @@ final class DevelopSettings {
         let encoded = try DevelopSettings.encode(newValue)
         parametersData = encoded
         updatedAt = .now
-        // version 2〜4 のレコードは編集時に現行世代へ引き上げる。追加された値は中立が既定のため
+        // version 2〜5 のレコードは編集時に現行世代へ引き上げる。追加された値は中立が既定のため
         // 既存の見た目を変えない。version 1 は据え置き（v1→v2 は露出・WB 委譲が入るため）。
-        if (2...4).contains(schemaVersion) { schemaVersion = Self.currentSchemaVersion }
+        if (2...5).contains(schemaVersion) { schemaVersion = Self.currentSchemaVersion }
     }
 
     /// `DevelopParameters` を JSON エンコードする。NaN / Inf を含む場合など `JSONEncoder` は throw する。

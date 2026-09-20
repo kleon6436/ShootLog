@@ -59,6 +59,9 @@ enum DevelopPipeline {
     ///   - applyManualLensCorrection: schemaVersion ゲートと、RAW のプロファイル補正が有効なら手動を
     ///     スキップする判断を呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
     ///   - usesToneMaskedColorGrading: `true` の場合、カラー補正にトーン域マスク方式の Metal カーネルを使う。
+    ///   - maskRasters: `AIMaskReference.rasterID` で引ける解決済みマスクラスタ。`@Model` は
+    ///     detached 側へ渡せないため、呼び出し側（MainActor）が値として解決して渡す。
+    ///   - maskCompositor: ローカル調整 1 枚分の合成器。テストはスパイを差し込む。
     /// - Returns: 調整後の画像。`parameters.isNeutral` の場合は `input` をそのまま返す。
     ///   フィルタ生成に失敗したステップは黙って読み飛ばし、直前の画像を維持する。
     ///
@@ -81,7 +84,9 @@ enum DevelopPipeline {
         skipExposureAndWhiteBalance: Bool = false,
         applyManualLensCorrection: Bool = false,
         usesToneMaskedColorGrading: Bool = false,
-        asShotWhiteBalance: WhiteBalanceSample? = nil
+        asShotWhiteBalance: WhiteBalanceSample? = nil,
+        maskRasters: [UUID: CGImage] = [:],
+        maskCompositor: any MaskCompositing = DefaultMaskCompositor()
     ) -> CIImage {
         guard !parameters.isNeutral else { return input }
 
@@ -127,6 +132,21 @@ enum DevelopPipeline {
         // --- リニア光ブラケット（ディテール）---
         image = applySharpness(parameters, to: image)
         image = applyNoiseReduction(parameters, to: image, isRAW: isRAW)
+
+        // --- ローカル調整（マスク）---
+        // index 0 が最下層。各レイヤーは直前までの結果へ自分の調整を掛けて合成する（累積）。
+        // crop-back の前に置くのは、feather のガウシアンで広がった extent が
+        // 正規化座標の基準をずらさないようにするため（§1.4）。
+        for layer in parameters.masks where layer.isEnabled {
+            image = maskCompositor.composeLayer(
+                layer,
+                onto: image,
+                baseExtent: input.extent,
+                isRAW: isRAW,
+                maskRasters: maskRasters,
+                cache: cache
+            )
+        }
 
         // ぼかし・ノイズ低減系のフィルタは extent を広げたり縮めたりするため、入力の枠へ戻す。
         return image.extent == input.extent ? image : image.cropped(to: input.extent)

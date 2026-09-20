@@ -6,9 +6,9 @@ import SwiftData
 extension ContentViewModel {
     // MARK: - Develop
 
-    // 選択中写真の DevelopSettings を SwiftData から取得する（なければ nil）。
-    // #Predicate での UUID フィルタが不安定なケースに備え、loadEditInfo と同じ
-    // 「全件 fetch して first(where:)」パターンを踏襲する
+    // 選択中写真の DevelopSettings を SwiftData から取得する（なければ nil）
+    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadEditInfo と同じ
+    // 「全件 fetch して first(where:)」パターンを踏襲する（ContentViewModel+Edit.swift参照）
     func loadDevelopSettings(for photo: Photo) {
         guard let context = modelContext else { return }
         let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
@@ -44,10 +44,12 @@ extension ContentViewModel {
     // 写真 ID を指定して現像調整値を保存する。写真切り替え時に、切り替え前の写真の
     // デバウンス保存を取りこぼさないための経路。currentDevelopSettings キャッシュには触らない
     // （対象写真は通常もう選択中ではないため）
+    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadDevelopSettings と
+    // 同じ「全件 fetch して first(where:)」パターンを踏襲する
     func persistDevelopParameters(_ parameters: DevelopParameters, forPhotoID photoID: UUID) {
         guard let context = modelContext else { return }
-        let existing = ((try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? [])
-            .first { $0.photoID == photoID }
+        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
+        let existing = all.first(where: { $0.photoID == photoID })
 
         if parameters.isNeutral {
             if let existing { context.delete(existing) }

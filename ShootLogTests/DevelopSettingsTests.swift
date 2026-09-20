@@ -20,7 +20,7 @@ struct DevelopSettingsTests {
     @Test func initialStateIsNeutral() {
         let settings = DevelopSettings(photoID: UUID())
 
-        #expect(DevelopSettings.currentSchemaVersion == 5)
+        #expect(DevelopSettings.currentSchemaVersion == 6)
         #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
         #expect(settings.usesRAWParameterMapping)
         #expect(settings.usesManualLensCorrection)
@@ -29,13 +29,13 @@ struct DevelopSettingsTests {
         #expect(!settings.parametersData.isEmpty)
     }
 
-    @Test func editingCurrentEligibleSettingsMigratesToVersion5WithoutMigratingVersion1() throws {
+    @Test func editingCurrentEligibleSettingsMigratesToVersion6WithoutMigratingVersion1() throws {
         let version2 = DevelopSettings(photoID: UUID())
         version2.schemaVersion = 2
         #expect(version2.usesRAWParameterMapping)
         #expect(version2.usesManualLensCorrection)
         try version2.setParameters(.neutral)
-        #expect(version2.schemaVersion == 5)
+        #expect(version2.schemaVersion == 6)
 
         let version1 = DevelopSettings(photoID: UUID())
         version1.schemaVersion = 1
@@ -45,21 +45,21 @@ struct DevelopSettingsTests {
         let version3 = DevelopSettings(photoID: UUID())
         version3.schemaVersion = 3
         try version3.setParameters(.neutral)
-        #expect(version3.schemaVersion == 5)
+        #expect(version3.schemaVersion == 6)
 
         let version4 = DevelopSettings(photoID: UUID())
         version4.schemaVersion = 4
         try version4.setParameters(.neutral)
-        #expect(version4.schemaVersion == 5)
+        #expect(version4.schemaVersion == 6)
     }
 
-    @Test func version4RecordMigratesToVersion5OnEdit() throws {
+    @Test func version5RecordMigratesToVersion6OnEdit() throws {
         let settings = DevelopSettings(photoID: UUID())
-        settings.schemaVersion = 4
+        settings.schemaVersion = 5
 
         try settings.setParameters(.neutral)
 
-        #expect(settings.schemaVersion == 5)
+        #expect(settings.schemaVersion == 6)
     }
 
     @Test func usesToneMaskedColorGradingGate() {

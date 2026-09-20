@@ -16,6 +16,7 @@ final class DevelopViewModel {
             guard !isApplyingLoadedState, parameters != oldValue else { return }
             scheduleRender()
             schedulePersist()
+            if maskEditMode { scheduleMaskOverlayRender() }
         }
     }
 
@@ -45,6 +46,7 @@ final class DevelopViewModel {
             guard isShowingBefore != oldValue else { return }
             if isShowingBefore {
                 isComparingSplit = false
+                maskEditMode = false
             }
         }
     }
@@ -58,6 +60,7 @@ final class DevelopViewModel {
                     return
                 }
                 isShowingBefore = false
+                maskEditMode = false
                 ensureBeforeImage()
             } else {
                 beforeImageTask?.cancel()
@@ -65,6 +68,33 @@ final class DevelopViewModel {
             }
         }
     }
+    /// マスク編集オーバーレイの表示・ハンドル操作モード。
+    ///
+    /// `previewImage == nil` の間は有効化できない。プレビューが無い間はビューアが
+    /// ベース画像を描く別経路に落ちており、1 枚目のマスクを置いている最中に
+    /// ハンドルの座標基準が入れ替わってしまうため（実装プラン §1.5.2）。
+    var maskEditMode = false {
+        didSet {
+            guard maskEditMode != oldValue else { return }
+            if maskEditMode {
+                guard previewImage != nil else {
+                    maskEditMode = false
+                    return
+                }
+                isShowingBefore = false
+                isComparingSplit = false
+                scheduleMaskOverlayRender()
+            } else {
+                maskOverlayTask?.cancel()
+                maskOverlayTask = nil
+                maskOverlayImage = nil
+            }
+        }
+    }
+    /// 有効なマスクの合成結果を赤く着色したオーバーレイ。`maskEditMode` 中のみ非 nil。
+    private(set) var maskOverlayImage: NSImage?
+    /// UI のレイヤーリストで選択中のマスク。
+    var selectedMaskLayerID: UUID?
     /// スプリット境界の位置。表示中画像矩形内の 0...1（左端=0、右端=1）。
     var splitPosition: CGFloat = 0.5
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
@@ -80,6 +110,12 @@ final class DevelopViewModel {
 
     /// リセット可能か（何らかの調整が入っている）。
     var canReset: Bool { !parameters.isNeutral }
+
+    /// 現在のマスクレイヤー一覧（表示順、index 0 が最下層）。
+    var maskLayers: [MaskLayer] { parameters.masks }
+
+    /// マスクを追加・編集できるか。ハンドルの初期配置にプレビューの表示基準が要る（§1.5.2）。
+    var canEditMasks: Bool { previewImage != nil }
 
     /// RAW かつ `CIRAWFilter` 委譲が有効か（レンズ補正トグルなど RAW 固有 UI の表示条件）。
     var canDelegateToRAWFilter: Bool { rawMappingActive }
@@ -142,6 +178,9 @@ final class DevelopViewModel {
     private var persistTask: Task<Void, Never>?
     private var beforeImageTask: Task<Void, Never>?
     private var beforeImageToken = 0
+    private var maskOverlayTask: Task<Void, Never>?
+    /// オーバーレイ要求の世代。await 明けにこれと一致しない結果は破棄する。
+    private var maskOverlayGeneration = 0
     /// レンダー要求の世代。await 明けにこれと一致しない結果は破棄し、`isRendering` の後始末も
     /// 最新世代のみが行う（キャンセル・supersede でスピナーが残らないようにする）。
     private var renderGeneration = 0
@@ -157,6 +196,9 @@ final class DevelopViewModel {
     private static let displaySizeChangeThreshold: CGFloat = 32
     /// RAW の露出・WB を `CIRAWFilter` で再デコードする描画のデバウンス。標準チェーンより長く取る。
     private static let rawMappingDebounce: Duration = .milliseconds(180)
+    /// マスクオーバーレイのデバウンス。現像プレビューとは別の engine ラウンドトリップなので
+    /// 独立したタイマーで動かし、ハンドルドラッグ中はオーバーレイだけを追従させる（§1.5.4）。
+    private static let maskOverlayDebounce: Duration = .milliseconds(60)
 
     init(
         engine: any ImageDeveloping = ImageDevelopmentEngine.shared,
@@ -199,6 +241,7 @@ final class DevelopViewModel {
         isRendering = false
         isShowingBefore = false
         splitPosition = 0.5
+        selectedMaskLayerID = nil
         isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
         asShotWhiteBalance = nil
@@ -330,7 +373,8 @@ final class DevelopViewModel {
                 useRAWParameterMapping: false,
                 usesManualLensCorrection: false,
                 usesToneMaskedColorGrading: false,
-                asShotWhiteBalance: nil
+                asShotWhiteBalance: nil,
+                maskRasters: resolvedMaskRasters(for: .neutral)
             )
             guard self.currentPhoto?.id == photoID else { return }
             guard let source,
@@ -387,6 +431,8 @@ final class DevelopViewModel {
             if wasComparingSplit {
                 ensureBeforeImage()
             }
+            // オーバーレイは回転・トリミングを焼き込んだ画像なので、幾何が変われば描き直す。
+            if maskEditMode { scheduleMaskOverlayRender() }
         } else {
             renderTask?.cancel()
             histogramTask?.cancel()
@@ -464,6 +510,7 @@ final class DevelopViewModel {
         manualLensCorrectionActive = true
         rawMappingActive = isRAW
         toneMaskedColorGradingActive = true
+        selectedMaskLayerID = nil
         undoParameters = nil
         canUndo = false
         if currentPhoto != nil, shouldRender {
@@ -530,7 +577,95 @@ final class DevelopViewModel {
         parameters = new
     }
 
+    // MARK: - マスク（ローカル調整）
+
+    /// 線形グラデーションのマスクレイヤーを 1 枚追加し、選択状態にする。
+    /// プレビューが出ていない間は何もしない（§1.5.2）。
+    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
+    @discardableResult
+    func addLinearGradientMask() -> UUID? {
+        guard canEditMasks else { return nil }
+        let layer = MaskLayer(
+            id: UUID(),
+            name: String(format: String(localized: "develop.mask.defaultName"), Int64(parameters.masks.count + 1)),
+            source: .linearGradient(LinearGradientMask(
+                start: NormalizedPoint(x: 0.3, y: 0.5),
+                end: NormalizedPoint(x: 0.7, y: 0.5)
+            )),
+            adjustments: LocalAdjustments()
+        )
+        var updated = parameters
+        updated.masks.append(layer)
+        parameters = updated
+        selectedMaskLayerID = layer.id
+        return layer.id
+    }
+
+    /// 指定したマスクレイヤーを削除する。
+    /// プレビューの有無でゲートしない。レンダー失敗などで `previewImage` が消えた状態から
+    /// 抜け出す唯一の手段が削除のため。
+    func removeMask(id: UUID) {
+        guard parameters.masks.contains(where: { $0.id == id }) else { return }
+        var updated = parameters
+        updated.masks.removeAll { $0.id == id }
+        parameters = updated
+        if selectedMaskLayerID == id { selectedMaskLayerID = nil }
+    }
+
+    /// 指定したマスクレイヤーをその場で書き換える。`parameters` 経由で代入するため、
+    /// 再描画と永続化は既存の didSet が予約する。
+    func updateMask(id: UUID, _ transform: (inout MaskLayer) -> Void) {
+        guard let index = parameters.masks.firstIndex(where: { $0.id == id }) else { return }
+        var updated = parameters
+        transform(&updated.masks[index])
+        guard updated != parameters else { return }
+        parameters = updated
+    }
+
     // MARK: - Private
+
+    /// AI マスクのラスタを MainActor 側で解決する。`MaskRaster` は `@Model` で `Sendable` でなく、
+    /// engine の `Task.detached` へ直接渡せないため値（`CGImage`）に落として渡す契約になっている。
+    /// Phase 1a では AI マスク自体が未実装なので常に空。
+    private func resolvedMaskRasters(for snapshot: DevelopParameters) -> [UUID: CGImage] {
+        [:]
+    }
+
+    /// マスク可視化オーバーレイを現像プレビューとは独立のデバウンスで描き直す（§1.5.4）。
+    private func scheduleMaskOverlayRender() {
+        maskOverlayTask?.cancel()
+        maskOverlayTask = nil
+        guard maskEditMode, previewImage != nil, let photo = currentPhoto,
+              parameters.masks.contains(where: { $0.isEnabled }) else {
+            maskOverlayImage = nil
+            return
+        }
+        let params = parameters
+        let rot = rotation
+        let crop = cropRect
+        let mapping = rawMappingActive
+        let rasters = resolvedMaskRasters(for: params)
+        let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        maskOverlayGeneration &+= 1
+        let generation = maskOverlayGeneration
+        maskOverlayTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.maskOverlayDebounce)
+            guard !Task.isCancelled, let self else { return }
+            let rendered = await self.engine.renderMaskOverlay(
+                url: photo.fileURL,
+                parameters: params,
+                targetMaxPixelSize: target,
+                rotation: rot,
+                cropRect: crop,
+                useRAWParameterMapping: mapping,
+                maskRasters: rasters
+            )
+            guard !Task.isCancelled, generation == self.maskOverlayGeneration,
+                  self.maskEditMode, self.currentPhoto?.id == photo.id else { return }
+            self.maskOverlayTask = nil
+            self.maskOverlayImage = rendered.map { NSImage(cgImage: $0, size: .zero) }
+        }
+    }
 
     private func scheduleRender() {
         renderTask?.cancel()
@@ -588,7 +723,8 @@ final class DevelopViewModel {
                 useRAWParameterMapping: false,
                 usesManualLensCorrection: false,
                 usesToneMaskedColorGrading: self.toneMaskedColorGradingActive,
-                asShotWhiteBalance: nil
+                asShotWhiteBalance: nil,
+                maskRasters: resolvedMaskRasters(for: .neutral)
             )
             guard generation == self.renderGeneration, let base else { return }
             let computed = await HistogramData.make(from: base)
@@ -630,7 +766,8 @@ final class DevelopViewModel {
             useRAWParameterMapping: useRAWParameterMapping,
             usesManualLensCorrection: usesManualLensCorrection,
             usesToneMaskedColorGrading: usesToneMaskedColorGrading,
-            asShotWhiteBalance: asShotWhiteBalance
+            asShotWhiteBalance: asShotWhiteBalance,
+            maskRasters: resolvedMaskRasters(for: params)
         )
         // supersede されていたら後始末は最新世代に任せる。
         guard generation == renderGeneration else { return }
@@ -639,6 +776,7 @@ final class DevelopViewModel {
         guard let rendered else {
             // 一時的なレンダー失敗。誤ったパラメータのプレビューを残さず、ベース画像へ戻す。
             previewImage = nil
+            maskEditMode = false
             histogram = nil
             return
         }
@@ -681,7 +819,8 @@ final class DevelopViewModel {
                 useRAWParameterMapping: useRAWParameterMapping,
                 usesManualLensCorrection: false,
                 usesToneMaskedColorGrading: usesToneMaskedColorGrading,
-                asShotWhiteBalance: nil
+                asShotWhiteBalance: nil,
+                maskRasters: resolvedMaskRasters(for: .neutral)
             )
             guard self.beforeImageToken == token,
                   self.currentPhoto?.id == photo.id else { return }
@@ -703,10 +842,12 @@ final class DevelopViewModel {
         beforeImage = nil
     }
 
-    /// 現像プレビューを消し、分割比較も終了する。
+    /// 現像プレビューを消し、分割比較・マスク編集も終了する。
+    /// マスク編集は表示基準に `previewImage` を使うため、プレビューが消えたら続行できない（§1.5.2）。
     private func clearPreview() {
         previewImage = nil
         isComparingSplit = false
+        maskEditMode = false
     }
 
     /// パイプラインへ渡す手動レンズ補正の適用可否。schemaVersion ゲート + RAW のプロファイル補正が

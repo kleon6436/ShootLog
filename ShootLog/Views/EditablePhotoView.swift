@@ -51,6 +51,13 @@ struct EditablePhotoView: View {
                 .onChange(of: editInfo?.cropRect) { _, newCrop in
                     developViewModel.updateEditGeometry(rotation: editInfo?.rotation ?? 0, cropRect: newCrop)
                 }
+                // トリミング中はベース画像を出す別経路に落ちてマスクの座標基準が変わるため相互排他にする
+                .onChange(of: isCropMode) { _, newValue in
+                    if newValue { developViewModel.maskEditMode = false }
+                }
+                .onChange(of: developViewModel.maskEditMode) { _, newValue in
+                    if newValue, isCropMode { onCropCancel() }
+                }
                 // 先読みは表示中写真のロードとは別タスクにする。写真IDをキーに共有すると、
                 // お気に入り絞り込みの切替で前後URLだけが変わった場合に古いURLのまま確定してしまう
                 .task(id: neighborPrefetchURLs) {
@@ -113,6 +120,15 @@ struct EditablePhotoView: View {
                         ),
                         onApply: onCropApply,
                         onCancel: onCropCancel
+                    )
+                }
+
+                if developViewModel.maskEditMode, !isCropMode, developPreview != nil {
+                    MaskEditOverlayView(
+                        developViewModel: developViewModel,
+                        containerSize: containerSize,
+                        rotation: editInfo?.rotation ?? 0,
+                        cropRect: editInfo?.cropRect
                     )
                 }
 
