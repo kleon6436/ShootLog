@@ -142,7 +142,7 @@ struct MaskLayerPersistenceTests {
         parameters.masks = [placeholder]
 
         let unknownSource = JSONValue.object([
-            "type": .string("luminanceRange"),
+            "type": .string("futureGeneratorKind"),
             "payload": .object([
                 "min": .number(0.2),
                 "max": .number(0.8),
@@ -168,7 +168,7 @@ struct MaskLayerPersistenceTests {
             Issue.record("未知の type が .unrecognized へ落ちていません")
             return
         }
-        #expect(type == "luminanceRange")
+        #expect(type == "futureGeneratorKind")
         #expect(raw == unknownSource)
 
         // 再エンコードしても payload が意味的に同一で戻ること

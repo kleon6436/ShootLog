@@ -1365,6 +1365,32 @@ struct DevelopViewModelTests {
         #expect(vm.maskLayers.isEmpty)
     }
 
+    @Test func addLuminanceRangeMaskAppendsLayer() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+
+        let id = try #require(vm.addLuminanceRangeMask())
+
+        #expect(vm.maskLayers.count == 1)
+        #expect(vm.parameters.masks.first?.id == id)
+        #expect(vm.selectedMaskLayerID == id)
+        if case .luminanceRange(let mask) = vm.parameters.masks[0].source {
+            #expect(mask.lowerBound < mask.upperBound)
+            #expect(mask.upperBound <= 1)
+        } else {
+            Issue.record("輝度レンジ以外の生成子が入っている")
+        }
+    }
+
+    @Test func addLuminanceRangeMaskIsNoOpWithoutPreview() {
+        let engine = SpyEngine()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        #expect(vm.addLuminanceRangeMask() == nil)
+        #expect(vm.maskLayers.isEmpty)
+    }
+
     @Test func removeMaskDropsLayerAndSelection() async throws {
         let engine = SpyEngine()
         let vm = await makeViewModelWithPreview(engine: engine)

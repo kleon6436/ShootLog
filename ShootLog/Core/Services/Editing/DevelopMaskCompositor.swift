@@ -11,11 +11,14 @@ protocol MaskCompositing: Sendable {
     /// 有効な 1 レイヤー分を合成し、直前までの結果（`input`）へ重ねた結果を返す。
     /// - Parameters:
     ///   - input: 直前までの合成結果。グローバル調整は適用済み（ベース画像ではない）。
+    ///   - baseImage: マスクループ開始時点で固定したグローバル調整済み画像。輝度レンジマスクが
+    ///     輝度を読む対象。`input` を使うと、下のレイヤーの効果で上のレイヤーの選択範囲がずれる。
     ///   - baseExtent: マスク幾何の基準になるチェーン入力の extent。
     ///   - maskRasters: `AIMaskReference.rasterID` で引ける解決済みラスタ。
     func composeLayer(
         _ layer: MaskLayer,
         onto input: CIImage,
+        baseImage: CIImage,
         baseExtent: CGRect,
         isRAW: Bool,
         maskRasters: [UUID: CGImage],
@@ -30,6 +33,7 @@ struct DefaultMaskCompositor: MaskCompositing {
     func composeLayer(
         _ layer: MaskLayer,
         onto input: CIImage,
+        baseImage: CIImage,
         baseExtent: CGRect,
         isRAW: Bool,
         maskRasters: [UUID: CGImage],
@@ -53,7 +57,9 @@ struct DefaultMaskCompositor: MaskCompositing {
         let filter = CIFilter.blendWithMask()
         filter.inputImage = adjusted
         filter.backgroundImage = input
-        filter.maskImage = Self.maskImage(for: layer, baseExtent: baseExtent, maskRasters: maskRasters)
+        filter.maskImage = Self.maskImage(
+            for: layer, baseExtent: baseExtent, maskRasters: maskRasters, sourceImage: baseImage
+        )
         return (filter.outputImage ?? input).cropped(to: baseExtent)
     }
 
@@ -91,8 +97,9 @@ struct DefaultMaskCompositor: MaskCompositing {
     static func maskImage(
         for layer: MaskLayer,
         baseExtent: CGRect,
-        maskRasters: [UUID: CGImage]
+        maskRasters: [UUID: CGImage],
+        sourceImage: CIImage?
     ) -> CIImage {
-        MaskImageGenerator.maskImage(for: layer, baseExtent: baseExtent)
+        MaskImageGenerator.maskImage(for: layer, baseExtent: baseExtent, sourceImage: sourceImage)
     }
 }

@@ -47,6 +47,9 @@ struct MaskSectionView: View {
             Button("develop.mask.addRadialGradient", systemImage: "circle.circle") {
                 developViewModel.addRadialGradientMask()
             }
+            Button("develop.mask.addLuminanceRange", systemImage: "circle.lefthalf.filled") {
+                developViewModel.addLuminanceRangeMask()
+            }
         }
         .disabled(!developViewModel.canEditMasks)
     }
@@ -148,6 +151,7 @@ struct MaskSectionView: View {
             .toggleStyle(.checkbox)
 
         radialGradientSliders(id: id)
+        luminanceRangeSliders(id: id)
 
         AdjustmentSlider(
             label: "develop.mask.density",
@@ -181,6 +185,31 @@ struct MaskSectionView: View {
                 value: radialBinding(id, \.falloff, default: 50),
                 range: 0...100,
                 neutral: 50
+            )
+        }
+    }
+
+    /// 輝度レンジ専用のスライダー。幾何ハンドルを持たないため操作はここだけで完結する。
+    @ViewBuilder
+    private func luminanceRangeSliders(id: UUID) -> some View {
+        if let layer = developViewModel.maskLayers.first(where: { $0.id == id }),
+           case .luminanceRange = layer.source {
+            AdjustmentSlider(
+                label: "develop.mask.luminanceLower",
+                value: luminanceBinding(id, \.lowerBound, default: 0),
+                range: 0...1,
+                fractionDigits: 2
+            )
+            AdjustmentSlider(
+                label: "develop.mask.luminanceUpper",
+                value: luminanceBinding(id, \.upperBound, default: 1),
+                range: 0...1,
+                fractionDigits: 2
+            )
+            AdjustmentSlider(
+                label: "develop.mask.smoothness",
+                value: luminanceBinding(id, \.smoothness, default: 30),
+                range: 0...100
             )
         }
     }
@@ -261,6 +290,28 @@ struct MaskSectionView: View {
                     guard case .radialGradient(var mask) = layer.source else { return }
                     mask[keyPath: keyPath] = newValue
                     layer.source = .radialGradient(mask)
+                }
+            }
+        )
+    }
+
+    /// 輝度レンジのペイロード 1 フィールドを読み書きする束縛。
+    private func luminanceBinding(
+        _ id: UUID,
+        _ keyPath: WritableKeyPath<LuminanceRangeMask, Double>,
+        default defaultValue: Double
+    ) -> Binding<Double> {
+        Binding(
+            get: {
+                guard let layer = developViewModel.maskLayers.first(where: { $0.id == id }),
+                      case .luminanceRange(let mask) = layer.source else { return defaultValue }
+                return mask[keyPath: keyPath]
+            },
+            set: { newValue in
+                developViewModel.updateMask(id: id) { layer in
+                    guard case .luminanceRange(var mask) = layer.source else { return }
+                    mask[keyPath: keyPath] = newValue
+                    layer.source = .luminanceRange(mask)
                 }
             }
         )

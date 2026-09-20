@@ -137,10 +137,14 @@ enum DevelopPipeline {
         // index 0 が最下層。各レイヤーは直前までの結果へ自分の調整を掛けて合成する（累積）。
         // crop-back の前に置くのは、feather のガウシアンで広がった extent が
         // 正規化座標の基準をずらさないようにするため（§1.4）。
+        // 輝度レンジマスクの選択範囲が下のレイヤーの効果でずれないよう、輝度を読む対象は
+        // ループ開始時点の画像に固定する。
+        let maskBaseImage = image
         for layer in parameters.masks where layer.isEnabled {
             image = maskCompositor.composeLayer(
                 layer,
                 onto: image,
+                baseImage: maskBaseImage,
                 baseExtent: input.extent,
                 isRAW: isRAW,
                 maskRasters: maskRasters,

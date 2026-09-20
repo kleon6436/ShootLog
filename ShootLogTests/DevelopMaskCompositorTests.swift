@@ -62,6 +62,20 @@ struct DevelopMaskCompositorTests {
         )
     }
 
+    /// 輝度レンジ生成子のマスクレイヤー。境界を鈍らせないよう `smoothness` は 0 に固定する。
+    private func makeLuminanceLayer(
+        lower: Double,
+        upper: Double,
+        _ adjustments: LocalAdjustments = LocalAdjustments()
+    ) -> MaskLayer {
+        MaskLayer(
+            id: UUID(),
+            name: "luminance",
+            source: .luminanceRange(LuminanceRangeMask(lowerBound: lower, upperBound: upper, smoothness: 0)),
+            adjustments: adjustments
+        )
+    }
+
     private func renderRGBA(_ image: CIImage, context: CIContext) throws -> [UInt8] {
         let rect = image.extent.integral
         let width = Int(rect.width)
@@ -198,6 +212,71 @@ struct DevelopMaskCompositorTests {
         #expect(mean(try renderRGBA(neutral, context: context)) == mean(try renderRGBA(input, context: context)))
     }
 
+    // MARK: - 輝度レンジマスク
+
+    /// 輝度は「グローバル調整を通した後」の画像から読む。全域を選ぶレンジは全面マスクと同じに、
+    /// 外れたレンジは何も起こさない。
+    @Test func luminanceRangeLayerReadsGloballyAdjustedImage() throws {
+        let context = try makeContext()
+        let input = try makeFlatImage(value: 128)
+
+        var globalOnly = DevelopParameters.neutral
+        globalOnly.exposure = 0.5
+
+        var fullRange = globalOnly
+        fullRange.masks = [makeLuminanceLayer(lower: 0, upper: 1, LocalAdjustments(exposure: 1.0))]
+
+        // グローバル +0.5EV 後のガンマ空間の輝度は約 0.59。ここから外れたレンジは何も選ばない。
+        var missedRange = globalOnly
+        missedRange.masks = [makeLuminanceLayer(lower: 0.8, upper: 1.0, LocalAdjustments(exposure: 1.0))]
+
+        let globalMean = mean(try renderRGBA(
+            DevelopPipeline.apply(globalOnly, to: input, isRAW: false), context: context
+        ))
+        let fullMean = mean(try renderRGBA(
+            DevelopPipeline.apply(fullRange, to: input, isRAW: false), context: context
+        ))
+        let missedMean = mean(try renderRGBA(
+            DevelopPipeline.apply(missedRange, to: input, isRAW: false), context: context
+        ))
+
+        #expect(fullMean > globalMean + 10)
+        #expect(abs(missedMean - globalMean) < 1)
+    }
+
+    /// 各レイヤーはマスクループ開始時点の画像から輝度を読む。`input`（累積結果）から読むと、
+    /// 1 枚目の露出で輝度が持ち上がって 2 枚目の選択範囲から外れ、効きが消える。
+    @Test func luminanceRangeLayersEvaluateAgainstFixedBaseImage() throws {
+        let context = try makeContext()
+        let input = try makeFlatImage(value: 128)   // ガンマ空間の輝度 約 0.50
+
+        // 元の輝度は含み、+1EV 後の輝度（ガンマ空間で約 0.69）は含まないレンジ。
+        var stacked = DevelopParameters.neutral
+        stacked.masks = [
+            makeLuminanceLayer(lower: 0.40, upper: 0.60, LocalAdjustments(exposure: 1.0)),
+            makeLuminanceLayer(lower: 0.40, upper: 0.60, LocalAdjustments(exposure: 1.0))
+        ]
+
+        var singleStep = DevelopParameters.neutral
+        singleStep.masks = [makeFullCoverageLayer(LocalAdjustments(exposure: 1.0))]
+
+        var doubleStep = DevelopParameters.neutral
+        doubleStep.masks = [makeFullCoverageLayer(LocalAdjustments(exposure: 2.0))]
+
+        let stackedMean = mean(try renderRGBA(
+            DevelopPipeline.apply(stacked, to: input, isRAW: false), context: context
+        ))
+        let singleMean = mean(try renderRGBA(
+            DevelopPipeline.apply(singleStep, to: input, isRAW: false), context: context
+        ))
+        let doubleMean = mean(try renderRGBA(
+            DevelopPipeline.apply(doubleStep, to: input, isRAW: false), context: context
+        ))
+
+        #expect(abs(stackedMean - doubleMean) < 2)
+        #expect(stackedMean > singleMean + 10)
+    }
+
     // MARK: - 持ち上げ済みパラメータの契約
 
     @Test func liftedParametersKeepGeometryNeutralAndMasksEmpty() {
@@ -285,6 +364,7 @@ private final class SpyMaskCompositor: MaskCompositing, @unchecked Sendable {
     func composeLayer(
         _ layer: MaskLayer,
         onto input: CIImage,
+        baseImage: CIImage,
         baseExtent: CGRect,
         isRAW: Bool,
         maskRasters: [UUID: CGImage],
@@ -294,6 +374,7 @@ private final class SpyMaskCompositor: MaskCompositing, @unchecked Sendable {
         return wrapped.composeLayer(
             layer,
             onto: input,
+            baseImage: baseImage,
             baseExtent: baseExtent,
             isRAW: isRAW,
             maskRasters: maskRasters,

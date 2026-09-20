@@ -50,6 +50,7 @@ enum MaskSource: Codable, Equatable, Sendable {
     case none
     case linearGradient(LinearGradientMask)
     case radialGradient(RadialGradientMask)
+    case luminanceRange(LuminanceRangeMask)
     case ai(AIMaskReference)
     /// 未知の種別。描画時は全面 0 として扱い、再エンコードでは `raw` をそのまま書き戻す。
     case unrecognized(type: String, raw: JSONValue)
@@ -66,6 +67,20 @@ struct RadialGradientMask: Codable, Equatable, Sendable {
     var aspectRatio: Double
     var rotationDegrees: Double
     var falloff: Double
+}
+
+/// 輝度レンジで選択するマスク。幾何を持たず、元画像の輝度だけで選択範囲が決まる。
+///
+/// Vision framework に空セグメンテーションの公開 API が無いため、「画面上部・高輝度」のような
+/// 選択を線形グラデーションとの重ねで作るための土台として用意している（OQ-9）。
+struct LuminanceRangeMask: Codable, Equatable, Sendable {
+    /// 選択する輝度範囲の下限（0...1）。
+    var lowerBound: Double
+    /// 選択する輝度範囲の上限（0...1）。`lowerBound <= upperBound` を期待するが、
+    /// 保存データが崩れていても描画側は例外を投げない（`MaskImageGenerator` 参照）。
+    var upperBound: Double
+    /// 境界のぼかし具合（0...100）。0 で急峻、100 で滑らか。
+    var smoothness: Double
 }
 
 /// AI マスクのラスタ（子 `@Model` の `MaskRaster`）への参照。
@@ -139,6 +154,7 @@ extension MaskSource {
         static let none = "none"
         static let linearGradient = "linearGradient"
         static let radialGradient = "radialGradient"
+        static let luminanceRange = "luminanceRange"
         static let ai = "ai"
     }
 
@@ -153,6 +169,8 @@ extension MaskSource {
             self = .linearGradient(try container.decode(LinearGradientMask.self, forKey: .payload))
         case TypeName.radialGradient:
             self = .radialGradient(try container.decode(RadialGradientMask.self, forKey: .payload))
+        case TypeName.luminanceRange:
+            self = .luminanceRange(try container.decode(LuminanceRangeMask.self, forKey: .payload))
         case TypeName.ai:
             self = .ai(try container.decode(AIMaskReference.self, forKey: .payload))
         default:
@@ -177,6 +195,9 @@ extension MaskSource {
             try container.encode(mask, forKey: .payload)
         case .radialGradient(let mask):
             try container.encode(TypeName.radialGradient, forKey: .type)
+            try container.encode(mask, forKey: .payload)
+        case .luminanceRange(let mask):
+            try container.encode(TypeName.luminanceRange, forKey: .type)
             try container.encode(mask, forKey: .payload)
         case .ai(let reference):
             try container.encode(TypeName.ai, forKey: .type)

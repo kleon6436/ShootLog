@@ -1,5 +1,6 @@
 import CoreGraphics
 import CoreImage
+import CoreImage.CIFilterBuiltins
 import Foundation
 import Testing
 
@@ -52,6 +53,14 @@ struct MaskImageGeneratorTests {
         )
     }
 
+    private func generate(
+        _ layer: MaskLayer,
+        baseExtent: CGRect = MaskImageGeneratorTests.extent,
+        sourceImage: CIImage? = nil
+    ) -> CIImage {
+        MaskImageGenerator.maskImage(for: layer, baseExtent: baseExtent, sourceImage: sourceImage)
+    }
+
     /// 左端 0 → 右端 1 の水平グラデーション。
     private var horizontalGradient: MaskSource {
         .linearGradient(LinearGradientMask(
@@ -65,7 +74,7 @@ struct MaskImageGeneratorTests {
     @Test("線形グラデーションは始点で 0、終点で 1 になる")
     func linearGradientEndpoints() {
         let context = makeContext()
-        let mask = MaskImageGenerator.maskImage(for: makeLayer(source: horizontalGradient), baseExtent: Self.extent)
+        let mask = generate(makeLayer(source: horizontalGradient))
 
         #expect(sample(mask, x: 0, y: 50, context: context) < 0.01)
         #expect(sample(mask, x: 99, y: 50, context: context) > 0.99)
@@ -86,20 +95,17 @@ struct MaskImageGeneratorTests {
             ))
         ]
         for source in sources {
-            let mask = MaskImageGenerator.maskImage(for: makeLayer(source: source), baseExtent: Self.extent)
+            let mask = generate(makeLayer(source: source))
             #expect(mask.extent == Self.extent)
         }
 
         // feather を掛けるとガウシアンが extent を広げるが、最後の crop で戻る。
-        let feathered = MaskImageGenerator.maskImage(
-            for: makeLayer(source: horizontalGradient, feather: 100),
-            baseExtent: Self.extent
-        )
+        let feathered = generate(makeLayer(source: horizontalGradient, feather: 100))
         #expect(feathered.extent == Self.extent)
 
         // 原点が 0 でない extent でも一致すること。
         let offset = CGRect(x: 40, y: -25, width: 80, height: 60)
-        let offsetMask = MaskImageGenerator.maskImage(for: makeLayer(source: horizontalGradient), baseExtent: offset)
+        let offsetMask = generate(makeLayer(source: horizontalGradient), baseExtent: offset)
         #expect(offsetMask.extent == offset)
     }
 
@@ -110,7 +116,7 @@ struct MaskImageGeneratorTests {
             start: NormalizedPoint(x: 0.5, y: 0),
             end: NormalizedPoint(x: 0.5, y: 1)
         ))
-        let mask = MaskImageGenerator.maskImage(for: makeLayer(source: source), baseExtent: Self.extent)
+        let mask = generate(makeLayer(source: source))
 
         // 始点は画像の上端 ＝ Core Image の y = maxY 側。
         #expect(sample(mask, x: 50, y: 99, context: context) < 0.01)
@@ -119,7 +125,7 @@ struct MaskImageGeneratorTests {
         // 原点が 0 でない extent でも上端＝maxY 側であること。
         // （`height - y*height - origin.y` のように origin.y を引く変換だと、ここで上下がずれる）
         let offset = CGRect(x: 40, y: -25, width: 80, height: 60)
-        let offsetMask = MaskImageGenerator.maskImage(for: makeLayer(source: source), baseExtent: offset)
+        let offsetMask = generate(makeLayer(source: source), baseExtent: offset)
         #expect(sample(offsetMask, x: 80, y: 34, context: context) < 0.01)
         #expect(sample(offsetMask, x: 80, y: -25, context: context) > 0.99)
     }
@@ -129,10 +135,7 @@ struct MaskImageGeneratorTests {
     @Test("isInverted で始点と終点の値が入れ替わる")
     func invertedSwapsEndpoints() {
         let context = makeContext()
-        let mask = MaskImageGenerator.maskImage(
-            for: makeLayer(source: horizontalGradient, isInverted: true),
-            baseExtent: Self.extent
-        )
+        let mask = generate(makeLayer(source: horizontalGradient, isInverted: true))
 
         #expect(sample(mask, x: 0, y: 50, context: context) > 0.99)
         #expect(sample(mask, x: 99, y: 50, context: context) < 0.01)
@@ -141,14 +144,8 @@ struct MaskImageGeneratorTests {
     @Test("density 50 でマスク値が概ね半分になる")
     func densityScalesMask() {
         let context = makeContext()
-        let full = MaskImageGenerator.maskImage(
-            for: makeLayer(source: horizontalGradient, density: 100),
-            baseExtent: Self.extent
-        )
-        let half = MaskImageGenerator.maskImage(
-            for: makeLayer(source: horizontalGradient, density: 50),
-            baseExtent: Self.extent
-        )
+        let full = generate(makeLayer(source: horizontalGradient, density: 100))
+        let half = generate(makeLayer(source: horizontalGradient, density: 50))
 
         for x in [50, 75, 99] {
             let expected = sample(full, x: x, y: 50, context: context) * 0.5
@@ -164,8 +161,8 @@ struct MaskImageGeneratorTests {
             start: NormalizedPoint(x: 0.4995, y: 0.5),
             end: NormalizedPoint(x: 0.5005, y: 0.5)
         ))
-        let sharp = MaskImageGenerator.maskImage(for: makeLayer(source: step), baseExtent: Self.extent)
-        let soft = MaskImageGenerator.maskImage(for: makeLayer(source: step, feather: 100), baseExtent: Self.extent)
+        let sharp = generate(makeLayer(source: step))
+        let soft = generate(makeLayer(source: step, feather: 100))
 
         #expect(sample(sharp, x: 48, y: 50, context: context) < 0.01)
         #expect(sample(sharp, x: 52, y: 50, context: context) > 0.99)
@@ -176,10 +173,7 @@ struct MaskImageGeneratorTests {
     @Test("合成順は isInverted → density → feather")
     func compositionOrder() {
         let context = makeContext()
-        let mask = MaskImageGenerator.maskImage(
-            for: makeLayer(source: horizontalGradient, isInverted: true, density: 50),
-            baseExtent: Self.extent
-        )
+        let mask = generate(makeLayer(source: horizontalGradient, isInverted: true, density: 50))
 
         // 始点のベース値は 0。invert → 1、density → 0.5。
         // 逆順（density → invert）なら 0 * 0.5 = 0 の反転で 1 になる。
@@ -214,8 +208,8 @@ struct MaskImageGeneratorTests {
         falloff: Double = 100,
         extent: CGRect = MaskImageGeneratorTests.extent
     ) -> CIImage {
-        MaskImageGenerator.maskImage(
-            for: makeLayer(source: radialSource(
+        generate(
+            makeLayer(source: radialSource(
                 center: center,
                 radius: radius,
                 aspectRatio: aspectRatio,
@@ -331,7 +325,7 @@ struct MaskImageGeneratorTests {
         ]
 
         for source in sources {
-            let mask = MaskImageGenerator.maskImage(for: makeLayer(source: source), baseExtent: Self.extent)
+            let mask = generate(makeLayer(source: source))
             #expect(mask.extent == Self.extent)
             for point in [(0, 0), (50, 50), (99, 99), (0, 99)] {
                 #expect(sample(mask, x: point.0, y: point.1, context: context) < 0.001)
@@ -358,7 +352,7 @@ struct MaskImageGeneratorTests {
         ]
 
         for source in sources {
-            let mask = MaskImageGenerator.maskImage(for: makeLayer(source: source), baseExtent: Self.extent)
+            let mask = generate(makeLayer(source: source))
             for point in [(0, 0), (50, 50), (99, 99), (0, 99)] {
                 #expect(sample(mask, x: point.0, y: point.1, context: context) < 0.001)
             }
@@ -372,9 +366,137 @@ struct MaskImageGeneratorTests {
             start: NormalizedPoint(x: 0.5, y: 0.5),
             end: NormalizedPoint(x: 0.5, y: 0.5)
         ))
-        let mask = MaskImageGenerator.maskImage(for: makeLayer(source: source), baseExtent: Self.extent)
+        let mask = generate(makeLayer(source: source))
 
         #expect(mask.extent == Self.extent)
         #expect(sample(mask, x: 50, y: 50, context: context) < 0.001)
+    }
+
+    // MARK: - 輝度レンジ
+
+    /// 生成子はガンマ（sRGB）空間で輝度を索引するため、ソース画像はリニア光として渡す。
+    /// ここで逆変換を掛けておくと、生成子側の `CILinearToSRGBToneCurve` を経て
+    /// 索引される輝度がちょうど `value`（表示に近い値）になる。
+    private func asLinearLight(_ image: CIImage) -> CIImage {
+        image.applyingFilter("CISRGBToneCurveToLinear")
+    }
+
+    /// ガンマ空間で一様な輝度 `value` になるソース画像。
+    private func flatSource(_ value: Double, extent: CGRect = MaskImageGeneratorTests.extent) -> CIImage {
+        asLinearLight(CIImage(color: CIColor(red: value, green: value, blue: value, alpha: 1)))
+            .cropped(to: extent)
+    }
+
+    /// ガンマ空間で左端 0 → 右端 1 になるグレースケール。輝度 L はおよそ `(x + 0.5) / 幅`。
+    private var luminanceRamp: CIImage {
+        let filter = CIFilter.linearGradient()
+        filter.point0 = CGPoint(x: 0, y: 50)
+        filter.point1 = CGPoint(x: 100, y: 50)
+        filter.color0 = CIColor(red: 0, green: 0, blue: 0, alpha: 1)
+        filter.color1 = CIColor(red: 1, green: 1, blue: 1, alpha: 1)
+        return asLinearLight(filter.outputImage ?? CIImage.empty()).cropped(to: Self.extent)
+    }
+
+    private func luminanceSource(
+        lower: Double,
+        upper: Double,
+        smoothness: Double = 0
+    ) -> MaskSource {
+        .luminanceRange(LuminanceRangeMask(lowerBound: lower, upperBound: upper, smoothness: smoothness))
+    }
+
+    @Test("一様な輝度は範囲内で選択され、範囲外では選択されない")
+    func luminanceRangeSelectsFlatSourceInsideBounds() {
+        let context = makeContext()
+        let source = flatSource(0.5)
+
+        let inside = generate(makeLayer(source: luminanceSource(lower: 0.4, upper: 0.6)), sourceImage: source)
+        let outside = generate(makeLayer(source: luminanceSource(lower: 0.7, upper: 0.9)), sourceImage: source)
+
+        #expect(sample(inside, x: 50, y: 50, context: context) > 0.99)
+        #expect(sample(outside, x: 50, y: 50, context: context) < 0.01)
+    }
+
+    @Test("輝度グラデーションでは選択範囲に対応する帯だけが立つ")
+    func luminanceRangeSelectsBandOnGradient() {
+        let context = makeContext()
+        let mask = generate(
+            makeLayer(source: luminanceSource(lower: 0.3, upper: 0.7)),
+            sourceImage: luminanceRamp
+        )
+
+        // 帯の内側（L ≒ 0.5）。
+        #expect(sample(mask, x: 50, y: 50, context: context) > 0.9)
+        // 下限・上限のすぐ内側。境界は LUT の刻み（1/255）ぶん鈍るため余裕を取って標本する。
+        #expect(sample(mask, x: 35, y: 50, context: context) > 0.9)
+        #expect(sample(mask, x: 65, y: 50, context: context) > 0.9)
+        // 帯の外側。
+        #expect(sample(mask, x: 25, y: 50, context: context) < 0.1)
+        #expect(sample(mask, x: 75, y: 50, context: context) < 0.1)
+        #expect(sample(mask, x: 5, y: 50, context: context) < 0.01)
+        #expect(sample(mask, x: 95, y: 50, context: context) < 0.01)
+    }
+
+    @Test("smoothness が大きいほど境界の遷移が緩やかになる")
+    func luminanceRangeSmoothnessSoftensEdge() {
+        let context = makeContext()
+        func value(at luma: Double, smoothness: Double) -> Double {
+            let layer = makeLayer(source: luminanceSource(lower: 0.4, upper: 0.6, smoothness: smoothness))
+            return sample(generate(layer, sourceImage: flatSource(luma)), x: 50, y: 50, context: context)
+        }
+
+        // 範囲のすぐ外側。急峻なら 0、滑らかなら裾が残る。
+        #expect(value(at: 0.65, smoothness: 0) < 0.01)
+        #expect(value(at: 0.65, smoothness: 100) > 0.15)
+
+        // 範囲の中心。滑らかにすると頂点も 1 より下がる。
+        #expect(value(at: 0.5, smoothness: 0) > 0.99)
+        #expect(value(at: 0.5, smoothness: 100) < 0.97)
+    }
+
+    @Test("sourceImage が nil の輝度レンジマスクは全面 0 になる")
+    func luminanceRangeWithoutSourceImageProducesEmptyMask() {
+        let context = makeContext()
+        let mask = generate(makeLayer(source: luminanceSource(lower: 0, upper: 1)))
+
+        #expect(mask.extent == Self.extent)
+        for point in [(0, 0), (50, 50), (99, 99), (0, 99)] {
+            #expect(sample(mask, x: point.0, y: point.1, context: context) < 0.001)
+        }
+    }
+
+    @Test("退化した輝度レンジは例外を投げず全面 0 相当を返す")
+    func degenerateLuminanceRangeProducesEmptyMask() {
+        let context = makeContext()
+        let sources: [MaskSource] = [
+            luminanceSource(lower: 0.9, upper: 0.1),
+            luminanceSource(lower: .nan, upper: 1),
+            luminanceSource(lower: 0, upper: .nan)
+        ]
+
+        for source in sources {
+            for luma in [0.05, 0.5, 0.95] {
+                let mask = generate(makeLayer(source: source), sourceImage: flatSource(luma))
+                #expect(mask.extent == Self.extent)
+                #expect(sample(mask, x: 50, y: 50, context: context) < 0.01)
+            }
+        }
+
+        // smoothness が非有限なら 0 として扱う（範囲自体は生きる）。
+        let nanSmoothness = luminanceSource(lower: 0.4, upper: 0.6, smoothness: .nan)
+        let mask = generate(makeLayer(source: nanSmoothness), sourceImage: flatSource(0.5))
+        #expect(sample(mask, x: 50, y: 50, context: context) > 0.99)
+    }
+
+    @Test("輝度レンジマスクの extent は sourceImage より baseExtent が優先される")
+    func luminanceRangeMaskExtentMatchesBaseExtent() {
+        let context = makeContext()
+        // ソースが baseExtent の左下 1/4 しか覆っていない場合。
+        let partial = flatSource(0.5, extent: CGRect(x: 0, y: 0, width: 50, height: 50))
+        let mask = generate(makeLayer(source: luminanceSource(lower: 0.4, upper: 0.6)), sourceImage: partial)
+
+        #expect(mask.extent == Self.extent)
+        #expect(sample(mask, x: 25, y: 25, context: context) > 0.99)
+        #expect(sample(mask, x: 75, y: 75, context: context) < 0.001)
     }
 }
