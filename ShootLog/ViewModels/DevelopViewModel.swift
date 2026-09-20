@@ -147,6 +147,16 @@ final class DevelopViewModel {
     /// マスクを追加・編集できるか。ハンドルの初期配置にプレビューの表示基準が要る（§1.5.2）。
     var canEditMasks: Bool { previewImage != nil }
 
+    /// マスクセクションを一度でも開き、ベースプレビューを用意したか。
+    ///
+    /// これが `true` の間は `render()` のneutral最適化（`previewImage` を `nil` に戻す）を
+    /// スキップし、無調整に戻っても `previewImage` を維持し続ける。`maskEditMode`
+    /// （オーバーレイ表示トグル）はユーザーが明示的にオンにするまで `false` のままで、
+    /// マスク追加・削除自体はこのトグルと無関係に行えるため、`maskEditMode` だけでは
+    /// 「マスクを削除して無調整に戻ったら `canEditMasks` が `false` に戻り再追加できなくなる」
+    /// バグ（実機報告）を防げない。写真を切り替えるまで維持する。
+    private var didPrepareMaskEditingPreview = false
+
     /// マスクセクションを開いたタイミングで呼ぶ。
     ///
     /// `render()` は調整・回転・トリミングがすべて中立の場合、Core Image を介さない最適化で
@@ -185,6 +195,7 @@ final class DevelopViewModel {
             self.isRendering = false
             guard let rendered else { return }
             self.previewImage = NSImage(cgImage: rendered, size: .zero)
+            self.didPrepareMaskEditingPreview = true
             if self.histogram == nil {
                 self.histogram = await HistogramData.make(from: rendered)
             }
@@ -340,6 +351,7 @@ final class DevelopViewModel {
         isShowingBefore = false
         splitPosition = 0.5
         selectedMaskLayerID = nil
+        didPrepareMaskEditingPreview = false
         // 別写真のラスタが混入しないよう、写真ごとにデコード結果を捨てる。
         maskRasterDecodeCache.removeAll()
         clearBrushTransientState()
@@ -1261,8 +1273,12 @@ final class DevelopViewModel {
         generation: Int
     ) async {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
-        // ただしマスク編集中は例外。`previewImage` を消すと `canEditMasks` が落ちてマスクを再追加できなくなる。
-        guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) || maskEditMode else {
+        // ただしマスクセクションを一度でも開いていれば例外。`previewImage` を消すと
+        // `canEditMasks` が落ち、マスクを削除して無調整に戻ったときに再追加できなくなる
+        // （`maskEditMode` はオーバーレイ表示トグルでマスク追加・削除とは独立に false でいられるため、
+        // それだけでは条件として不十分）。
+        guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect)
+            || maskEditMode || didPrepareMaskEditingPreview else {
             if generation == renderGeneration {
                 clearPreview()
                 scheduleHistogramOnly(generation: generation)
@@ -1292,9 +1308,9 @@ final class DevelopViewModel {
         isRendering = false
         guard let rendered else {
             // 一時的なレンダー失敗。誤ったパラメータのプレビューを残さず、ベース画像へ戻す。
-            // マスク編集中は例外で直前のプレビューを残す。ここで捨てるとハンドルの座標基準
-            // （§1.5.2）が失われ、編集セッションごと抜けてしまう。
-            if !maskEditMode { previewImage = nil }
+            // マスク編集中・マスクセクションを開いた後は例外で直前のプレビューを残す。
+            // ここで捨てるとハンドルの座標基準（§1.5.2）や `canEditMasks` が失われてしまう。
+            if !maskEditMode, !didPrepareMaskEditingPreview { previewImage = nil }
             histogram = nil
             return
         }

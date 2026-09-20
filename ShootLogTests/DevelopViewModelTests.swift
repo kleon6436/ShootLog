@@ -1521,6 +1521,34 @@ struct DevelopViewModelTests {
         #expect(vm.addLinearGradientMask() != nil)
     }
 
+    /// 実機報告の再現条件そのもの: `maskEditMode`（オーバーレイ表示トグル）を一切オンにせず、
+    /// 無調整の写真でマスクセクションを開いて追加・削除するだけのフロー。
+    /// `maskEditMode` に依存する保護だけでは、このフローでは効かない。
+    @Test func removeMaskWithoutMaskEditModeKeepsPreviewEditable() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/mask2.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        // マスクセクションを開いたタイミングの動作を模倣。
+        vm.prepareMaskEditingPreviewIfNeeded()
+        await settle()
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+
+        let id = try #require(vm.addLinearGradientMask())
+        await settle()
+
+        vm.removeMask(id: id)
+        await settle()
+
+        #expect(vm.parameters.isNeutral)
+        #expect(vm.maskEditMode == false)
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+        #expect(vm.addLinearGradientMask() != nil)
+    }
+
     @Test func updateMaskWritesThroughToParameters() async throws {
         let engine = SpyEngine()
         let vm = await makeViewModelWithPreview(engine: engine)
