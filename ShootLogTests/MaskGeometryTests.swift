@@ -380,4 +380,80 @@ struct MaskGeometryTests {
         )
         #expect(overflowing.rotation == 90)
     }
+
+    // MARK: - baseAspectRatio（放射状マスクハンドルのアスペクト比補正、Phase 1b）
+
+    @Test func baseAspectRatioMatchesPreviewWhenNoRotationOrCrop() throws {
+        let geometry = try #require(
+            MaskGeometry(
+                previewImageSize: CGSize(width: 1600, height: 900),
+                containerSize: CGSize(width: 800, height: 600),
+                rotation: 0,
+                cropRect: nil
+            )
+        )
+        #expect(abs(geometry.baseAspectRatio - (1600.0 / 900.0)) < 1e-9)
+    }
+
+    @Test func baseAspectRatioSwapsOnQuarterTurn() throws {
+        // previewImageSize は回転・トリミング焼き込み済み（横長 1600x900）。
+        // 90度回転していたなら、回転前のベース画像は縦長 900x1600 だったはず。
+        let geometry = try #require(
+            MaskGeometry(
+                previewImageSize: CGSize(width: 1600, height: 900),
+                containerSize: CGSize(width: 800, height: 900),
+                rotation: 90,
+                cropRect: nil
+            )
+        )
+        #expect(abs(geometry.baseAspectRatio - (900.0 / 1600.0)) < 1e-9)
+    }
+
+    @Test func baseAspectRatioUndoesCropToRecoverOriginalRatio() throws {
+        // ベース画像は 2000x1000（横長2:1）。中央を正方形に切り抜くと
+        // previewImageSize は 1000x1000 になる。baseAspectRatio はこの crop を
+        // 逆算して元の 2:1 を復元できなければならない。
+        let cropRect = CGRect(x: 0.25, y: 0, width: 0.5, height: 1.0)
+        let geometry = try #require(
+            MaskGeometry(
+                previewImageSize: CGSize(width: 1000, height: 1000),
+                containerSize: CGSize(width: 500, height: 500),
+                rotation: 0,
+                cropRect: cropRect
+            )
+        )
+        #expect(abs(geometry.baseAspectRatio - 2.0) < 1e-9)
+    }
+
+    @Test func baseAspectRatioUndoesCropBeforeRotationSwap() throws {
+        // ベース画像 4000x3000（横長 4:3）を90度回転すると 3000x4000。
+        // それを幅比0.5・高さ比1.0でクロップすると previewImageSize は 1500x4000。
+        // クロップを先に戻す（0.5, 1.0で割る）→ 3000x4000 → 90度スワップ → 4000x3000 → 4:3。
+        // 先にスワップしてからcrop比で割ると誤った値（5.33...）になる（Phase 1bレビューで検出）。
+        let cropRect = CGRect(x: 0, y: 0, width: 0.5, height: 1.0)
+        let geometry = try #require(
+            MaskGeometry(
+                previewImageSize: CGSize(width: 1500, height: 4000),
+                containerSize: CGSize(width: 750, height: 2000),
+                rotation: 90,
+                cropRect: cropRect
+            )
+        )
+        #expect(abs(geometry.baseAspectRatio - (4000.0 / 3000.0)) < 1e-9)
+    }
+
+    @Test func baseAspectRatioUndoesCropBeforeRotationSwapAt270() throws {
+        // 270度も90度と同じ「rotation % 180 != 0」分岐を通ることを確認する
+        // （ベース4000x3000→270度回転で3000x4000→幅比0.5で切ると1500x4000）。
+        let cropRect = CGRect(x: 0, y: 0, width: 0.5, height: 1.0)
+        let geometry = try #require(
+            MaskGeometry(
+                previewImageSize: CGSize(width: 1500, height: 4000),
+                containerSize: CGSize(width: 750, height: 2000),
+                rotation: 270,
+                cropRect: cropRect
+            )
+        )
+        #expect(abs(geometry.baseAspectRatio - (4000.0 / 3000.0)) < 1e-9)
+    }
 }

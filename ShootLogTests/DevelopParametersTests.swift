@@ -50,7 +50,25 @@ struct DevelopParametersTests {
         parameters.lensDistortion = 27
         parameters.lensVignette = 28
         parameters.lensChromaticAberration = 29
+        parameters.masks = [maskLayer(exposure: 0.5)]
         return parameters
+    }
+
+    private func maskLayer(exposure: Double) -> MaskLayer {
+        var adjustments = LocalAdjustments()
+        adjustments.exposure = exposure
+        return MaskLayer(
+            id: UUID(),
+            name: "mask",
+            source: .linearGradient(LinearGradientMask(
+                start: NormalizedPoint(x: 0.1, y: 0.2),
+                end: NormalizedPoint(x: 0.8, y: 0.9)
+            )),
+            isInverted: true,
+            density: 60,
+            feather: 30,
+            adjustments: adjustments
+        )
     }
 
     private func assertUnchangedSections(
@@ -108,6 +126,9 @@ struct DevelopParametersTests {
             #expect(parameters.lensDistortion == before.lensDistortion)
             #expect(parameters.lensVignette == before.lensVignette)
             #expect(parameters.lensChromaticAberration == before.lensChromaticAberration)
+        }
+        if excludedSection != .masks {
+            #expect(parameters.masks == before.masks)
         }
     }
 
@@ -192,7 +213,39 @@ struct DevelopParametersTests {
             parameters.reset(section)
         }
 
+        // `.masks` のリセットはマスク定義を残す仕様なので、レイヤーを外してから中立判定する。
+        #expect(parameters.masks.count == 1)
+        parameters.masks = []
         #expect(parameters.isNeutral)
+    }
+
+    @Test func resetMasksNeutralizesAdjustmentsButKeepsDefinitions() {
+        var parameters = DevelopParameters.neutral
+        parameters.masks = [maskLayer(exposure: 0.5), maskLayer(exposure: -1)]
+        let before = parameters
+
+        parameters.reset(.masks)
+
+        #expect(parameters.masks.count == 2)
+        for (layer, original) in zip(parameters.masks, before.masks) {
+            #expect(layer.adjustments == LocalAdjustments())
+            #expect(layer.id == original.id)
+            #expect(layer.source == original.source)
+            #expect(layer.isInverted == original.isInverted)
+            #expect(layer.density == original.density)
+            #expect(layer.feather == original.feather)
+        }
+    }
+
+    @Test func isModifiedInMasksTracksAdjustmentsOnly() {
+        var parameters = DevelopParameters.neutral
+        #expect(!parameters.isModified(in: .masks))
+
+        parameters.masks = [maskLayer(exposure: 0)]
+        #expect(!parameters.isModified(in: .masks))
+
+        parameters.masks.append(maskLayer(exposure: 0.5))
+        #expect(parameters.isModified(in: .masks))
     }
 
     // MARK: - Codable round trip

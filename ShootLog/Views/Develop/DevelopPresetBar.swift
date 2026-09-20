@@ -7,6 +7,7 @@ struct DevelopPresetBar: View {
     @State private var isSaveDialogPresented = false
     @State private var isManagerPresented = false
     @State private var newPresetName = ""
+    @State private var includeMasksInPreset = false
 
     var body: some View {
         HStack(spacing: Spacing.small) {
@@ -36,17 +37,47 @@ struct DevelopPresetBar: View {
                 action: developViewModel.undoLastApply
             )
         }
-        .alert("develop.preset.saveTitle", isPresented: $isSaveDialogPresented) {
-            TextField("develop.preset.namePlaceholder", text: $newPresetName)
-            Button("common.cancel", role: .cancel) { newPresetName = "" }
-            Button("develop.preset.save") {
-                developViewModel.saveCurrentAsPreset(name: newPresetName)
-                newPresetName = ""
-            }
-        }
+        // `.alert` は Toggle のようなカスタムコントロールを描画しないため、
+        // 「マスクを含める」を置ける sheet に統一する。
+        .sheet(isPresented: $isSaveDialogPresented) { savePresetSheet }
         .sheet(isPresented: $isManagerPresented) {
             DevelopPresetManagerSheet(developViewModel: developViewModel)
         }
+    }
+
+    private var savePresetSheet: some View {
+        VStack(alignment: .leading, spacing: Spacing.medium) {
+            Text("develop.preset.saveTitle")
+                .font(.headline)
+
+            TextField("develop.preset.namePlaceholder", text: $newPresetName)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("develop.preset.namePlaceholder")
+
+            if !developViewModel.maskLayers.isEmpty {
+                Toggle("develop.preset.includeMasks", isOn: $includeMasksInPreset)
+                    .toggleStyle(.checkbox)
+            }
+
+            HStack {
+                Spacer()
+                Button("common.cancel", role: .cancel) { dismissSaveDialog() }
+                    .keyboardShortcut(.cancelAction)
+                Button("develop.preset.save") {
+                    developViewModel.saveCurrentAsPreset(name: newPresetName, includeMasks: includeMasksInPreset)
+                    dismissSaveDialog()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(Spacing.large)
+        .frame(width: 320)
+    }
+
+    private func dismissSaveDialog() {
+        isSaveDialogPresented = false
+        newPresetName = ""
+        includeMasksInPreset = false
     }
 
     private var presetMenu: some View {
@@ -61,6 +92,16 @@ struct DevelopPresetBar: View {
                         }
                         Button("develop.preset.applyRelative") {
                             developViewModel.applyPreset(preset, relative: true)
+                        }
+                        // マスクを持たないプリセットでは選択肢が無意味なので出さない。
+                        if !preset.parameters.masks.isEmpty {
+                            Divider()
+                            Button("develop.preset.applyWithMasks") {
+                                developViewModel.applyPreset(preset, relative: false, includeMasks: true)
+                            }
+                            Button("develop.preset.applyRelativeWithMasks") {
+                                developViewModel.applyPreset(preset, relative: true, includeMasks: true)
+                            }
                         }
                     }
                 }

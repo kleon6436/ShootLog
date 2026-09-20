@@ -36,6 +36,32 @@ struct MaskGeometry: Equatable, Sendable {
     /// コンテナ座標系での表示画像の矩形（レターボックスを除いた領域）。
     let imageFrame: CGRect
 
+    /// ベース空間（回転・トリミング前）のピクセルアスペクト比（幅/高さ）。
+    ///
+    /// 放射状マスクの楕円・円形ハンドルは正規化座標だけでは非正方形画像で歪む
+    /// （`MaskImageGenerator` は extent の実ピクセル短辺を基準に半径を換算するため）。
+    /// `previewImageSize`（回転・トリミング済み）を回転・トリミングの逆写像で
+    /// ベース空間のピクセル寸法へ戻し、その比率だけを使う（実ピクセル値そのものは不要）。
+    ///
+    /// `ImageDevelopmentEngine` は「回転 → トリミング」の順で適用し、`cropRect` は
+    /// 回転後の画像基準の正規化矩形（このファイル冒頭のdocstring参照）。逆算は
+    /// **先にcropRectで割ってポスト回転・プレクロップのサイズへ戻し、
+    /// そのあとで回転の90/270スワップを行う**必要がある（適用順の逆順）。
+    var baseAspectRatio: CGFloat {
+        let uncropped: CGSize
+        if let cropRect, cropRect.width > 0, cropRect.height > 0 {
+            uncropped = CGSize(
+                width: previewImageSize.width / cropRect.width,
+                height: previewImageSize.height / cropRect.height
+            )
+        } else {
+            uncropped = previewImageSize
+        }
+        return rotation % 180 != 0
+            ? uncropped.height / uncropped.width
+            : uncropped.width / uncropped.height
+    }
+
     /// 表示サイズが未確定（プレビュー未到着・レイアウト前）の場合は `nil` を返す。
     /// マスク編集はプレビューが出るまで無効化される（プラン §1.5.2）ので、呼び出し側は
     /// `nil` をそのまま「編集不可」として扱ってよい。

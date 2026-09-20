@@ -1,5 +1,7 @@
 import AppKit
 import Foundation
+// `Array.move(fromOffsets:toOffset:)`（`List.onMove` と同じ並べ替え意味論）のため。
+import SwiftUI
 
 /// サイドバーモードの現像編集パネルとビューアプレビューの状態を持つ ViewModel。
 ///
@@ -520,6 +522,10 @@ final class DevelopViewModel {
         }
     }
 
+    /// `reset()` を呼ぶ前に確認ダイアログを出すべきか。マスクレイヤーを 1 枚以上持つ場合、
+    /// AI マスク生成やブラシ作業を確認なしで破棄させないため。
+    var resetRequiresConfirmation: Bool { !maskLayers.isEmpty }
+
     /// セクション単位で調整を中立へ戻す。didSet 経由でプレビュー再描画・保存が予約される。
     func resetSection(_ section: DevelopSection) {
         guard parameters.isModified(in: section) else { return }
@@ -529,8 +535,12 @@ final class DevelopViewModel {
     // MARK: - プリセット / コピー & ペースト
 
     /// 現在の調整値をプリセットとして保存する。
-    func saveCurrentAsPreset(name: String) {
-        content?.saveDevelopPreset(name: name, from: parameters)
+    /// - Parameter includeMasks: `true` ならマスクレイヤーも含めて保存する。既定 `false`
+    ///   （放射状マスクの位置は写真ごとに意味が変わるため、既定では含めない）。
+    func saveCurrentAsPreset(name: String, includeMasks: Bool = false) {
+        var toSave = parameters
+        if !includeMasks { toSave.masks = [] }
+        content?.saveDevelopPreset(name: name, from: toSave)
     }
 
     func deletePreset(_ preset: DevelopPreset) {
@@ -542,10 +552,18 @@ final class DevelopViewModel {
     }
 
     /// プリセットの調整値を適用する。直前の状態は 1 段だけ戻せる。
-    /// - Parameter relative: `true` なら現在の調整値へプリセットを差分として重ねる（露出違いの
-    ///   複数カットへ同じスタイルを崩さず足せる）。`false`（既定）なら丸ごと置き換える。
-    func applyPreset(_ preset: DevelopPreset, relative: Bool = false) {
-        let target = relative ? parameters.applying(delta: preset.parameters) : preset.parameters
+    /// - Parameters:
+    ///   - relative: `true` なら現在の調整値へプリセットを差分として重ねる（露出違いの
+    ///     複数カットへ同じスタイルを崩さず足せる）。`false`（既定）なら丸ごと置き換える。
+    ///   - includeMasks: `true` ならプリセット側のマスクも反映する。既定 `false` の場合、
+    ///     `relative: true` ではプリセット側マスクを追記せず、`relative: false` では
+    ///     現在のマスクレイヤーをそのまま保持する（プリセットで上書きしない）。
+    func applyPreset(_ preset: DevelopPreset, relative: Bool = false, includeMasks: Bool = false) {
+        var presetParams = preset.parameters
+        if !includeMasks {
+            presetParams.masks = relative ? [] : parameters.masks
+        }
+        let target = relative ? parameters.applying(delta: presetParams) : presetParams
         applyReplacingParameters(target)
     }
 
@@ -601,6 +619,30 @@ final class DevelopViewModel {
         return layer.id
     }
 
+    /// 放射状グラデーションのマスクレイヤーを 1 枚追加し、選択状態にする。
+    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
+    @discardableResult
+    func addRadialGradientMask() -> UUID? {
+        guard canEditMasks else { return nil }
+        let layer = MaskLayer(
+            id: UUID(),
+            name: String(format: String(localized: "develop.mask.defaultName"), Int64(parameters.masks.count + 1)),
+            source: .radialGradient(RadialGradientMask(
+                center: NormalizedPoint(x: 0.5, y: 0.5),
+                radius: 0.3,
+                aspectRatio: 1.0,
+                rotationDegrees: 0,
+                falloff: 50
+            )),
+            adjustments: LocalAdjustments()
+        )
+        var updated = parameters
+        updated.masks.append(layer)
+        parameters = updated
+        selectedMaskLayerID = layer.id
+        return layer.id
+    }
+
     /// 指定したマスクレイヤーを削除する。
     /// プレビューの有無でゲートしない。レンダー失敗などで `previewImage` が消えた状態から
     /// 抜け出す唯一の手段が削除のため。
@@ -610,6 +652,16 @@ final class DevelopViewModel {
         updated.masks.removeAll { $0.id == id }
         parameters = updated
         if selectedMaskLayerID == id { selectedMaskLayerID = nil }
+    }
+
+    /// マスクレイヤーの表示順を並べ替える。index 0 が最下層のまま、配列の並びを直接操作する。
+    /// `List.onMove` のシグネチャに合わせてある。
+    func moveMasks(from source: IndexSet, to destination: Int) {
+        guard canEditMasks else { return }
+        var updated = parameters
+        updated.masks.move(fromOffsets: source, toOffset: destination)
+        guard updated != parameters else { return }
+        parameters = updated
     }
 
     /// 指定したマスクレイヤーをその場で書き換える。`parameters` 経由で代入するため、

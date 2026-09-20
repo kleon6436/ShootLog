@@ -1339,6 +1339,32 @@ struct DevelopViewModelTests {
         #expect(vm.maskLayers.isEmpty)
     }
 
+    @Test func addRadialGradientMaskAppendsLayer() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+
+        let id = try #require(vm.addRadialGradientMask())
+
+        #expect(vm.maskLayers.count == 1)
+        #expect(vm.parameters.masks.first?.id == id)
+        #expect(vm.selectedMaskLayerID == id)
+        if case .radialGradient(let mask) = vm.parameters.masks[0].source {
+            #expect(mask.radius > 0)
+            #expect(mask.aspectRatio == 1)
+        } else {
+            Issue.record("放射状グラデーション以外の生成子が入っている")
+        }
+    }
+
+    @Test func addRadialGradientMaskIsNoOpWithoutPreview() {
+        let engine = SpyEngine()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        #expect(vm.addRadialGradientMask() == nil)
+        #expect(vm.maskLayers.isEmpty)
+    }
+
     @Test func removeMaskDropsLayerAndSelection() async throws {
         let engine = SpyEngine()
         let vm = await makeViewModelWithPreview(engine: engine)
@@ -1408,6 +1434,150 @@ struct DevelopViewModelTests {
 
         #expect(vm.maskOverlayImage == nil)
         #expect(engine.maskOverlayCallCount == callsAfterLeaving)
+    }
+
+    @Test func moveMasksReordersLayers() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let first = try #require(vm.addLinearGradientMask())
+        let second = try #require(vm.addLinearGradientMask())
+        let third = try #require(vm.addLinearGradientMask())
+
+        vm.moveMasks(from: IndexSet(integer: 0), to: 3)
+
+        #expect(vm.maskLayers.map(\.id) == [second, third, first])
+    }
+
+    @Test func moveMasksIsNoOpWithoutPreview() {
+        let engine = SpyEngine()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        var parameters = DevelopParameters.neutral
+        parameters.masks = [makeMaskLayer(), makeMaskLayer()]
+        vm.parameters = parameters
+        let before = vm.maskLayers.map(\.id)
+
+        vm.moveMasks(from: IndexSet(integer: 0), to: 2)
+
+        #expect(vm.maskLayers.map(\.id) == before)
+    }
+
+    @Test func resetRequiresConfirmationOnlyWithMaskLayers() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        #expect(vm.resetRequiresConfirmation == false)
+
+        let id = try #require(vm.addLinearGradientMask())
+        #expect(vm.resetRequiresConfirmation)
+
+        vm.removeMask(id: id)
+        #expect(vm.resetRequiresConfirmation == false)
+    }
+
+    // MARK: - プリセットとマスク
+
+    private func makeMaskLayer() -> MaskLayer {
+        MaskLayer(
+            id: UUID(),
+            name: "mask",
+            source: .linearGradient(LinearGradientMask(
+                start: NormalizedPoint(x: 0.2, y: 0.5),
+                end: NormalizedPoint(x: 0.8, y: 0.5)
+            )),
+            adjustments: LocalAdjustments()
+        )
+    }
+
+    @Test func saveCurrentAsPresetExcludesMasksByDefault() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photo) = try makeRAWContentViewModel(schemaVersion: nil)
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        vm.parameters.exposure = 1
+        await settle()
+        vm.addLinearGradientMask()
+
+        vm.saveCurrentAsPreset(name: "no-masks")
+
+        let saved = try context.fetch(FetchDescriptor<DevelopPreset>())
+        #expect(saved.count == 1)
+        #expect(saved.first?.parameters.masks.isEmpty == true)
+    }
+
+    @Test func saveCurrentAsPresetKeepsMasksWhenRequested() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photo) = try makeRAWContentViewModel(schemaVersion: nil)
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        vm.parameters.exposure = 1
+        await settle()
+        vm.addLinearGradientMask()
+
+        vm.saveCurrentAsPreset(name: "with-masks", includeMasks: true)
+
+        let saved = try context.fetch(FetchDescriptor<DevelopPreset>())
+        #expect(saved.first?.parameters.masks.count == 1)
+    }
+
+    @Test func applyPresetKeepsCurrentMasksWhenNotIncluded() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let existing = try #require(vm.addLinearGradientMask())
+
+        var presetParams = DevelopParameters.neutral
+        presetParams.contrast = 40
+        presetParams.masks = [makeMaskLayer()]
+        vm.applyPreset(DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0))
+
+        #expect(vm.parameters.contrast == 40)
+        #expect(vm.maskLayers.map(\.id) == [existing])
+    }
+
+    @Test func applyPresetReplacesMasksWhenIncluded() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        vm.addLinearGradientMask()
+
+        var presetParams = DevelopParameters.neutral
+        let presetMask = makeMaskLayer()
+        presetParams.masks = [presetMask]
+        vm.applyPreset(DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0), includeMasks: true)
+
+        #expect(vm.maskLayers.map(\.id) == [presetMask.id])
+    }
+
+    @Test func relativePresetApplyDoesNotAppendMasksWhenNotIncluded() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let existing = try #require(vm.addLinearGradientMask())
+
+        var presetParams = DevelopParameters.neutral
+        presetParams.contrast = 20
+        presetParams.masks = [makeMaskLayer()]
+        vm.applyPreset(DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0), relative: true)
+
+        #expect(vm.parameters.contrast == 20)
+        #expect(vm.maskLayers.map(\.id) == [existing])
+    }
+
+    @Test func relativePresetApplyAppendsMasksWithReissuedIDsWhenIncluded() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let existing = try #require(vm.addLinearGradientMask())
+
+        var presetParams = DevelopParameters.neutral
+        let presetMask = makeMaskLayer()
+        presetParams.masks = [presetMask]
+        let preset = DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0)
+        vm.applyPreset(preset, relative: true, includeMasks: true)
+
+        #expect(vm.maskLayers.count == 2)
+        #expect(vm.maskLayers[0].id == existing)
+        // 同じプリセットを重ねても id が衝突しないよう、追記側は再発行される。
+        #expect(vm.maskLayers[1].id != presetMask.id)
+        #expect(vm.maskLayers[1].source == presetMask.source)
     }
 
     @Test func maskOverlayIsNotRenderedWhenAllMasksDisabled() async throws {
