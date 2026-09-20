@@ -58,6 +58,9 @@ enum DevelopSection: String, CaseIterable, Sendable {
     case colorGrading
     case blackAndWhite
     case lens
+    /// ローカル調整。リセットは各レイヤーの `adjustments` の中立化のみで、
+    /// マスク定義（幾何・ストローク・AI ラスタ参照）は残す。
+    case masks
 }
 
 /// RAW 現像 / 非破壊編集の全調整値をまとめた値型。
@@ -188,6 +191,8 @@ extension DevelopParameters {
         case .lens:
             lensCorrectionEnabled != neutral.lensCorrectionEnabled || lensDistortion != neutral.lensDistortion
                 || lensVignette != neutral.lensVignette || lensChromaticAberration != neutral.lensChromaticAberration
+        case .masks:
+            masks.contains { $0.adjustments != LocalAdjustments() }
         }
     }
 
@@ -236,6 +241,10 @@ extension DevelopParameters {
             lensDistortion = 0
             lensVignette = 0
             lensChromaticAberration = 0
+        case .masks:
+            for index in masks.indices {
+                masks[index].adjustments = LocalAdjustments()
+            }
         }
     }
 

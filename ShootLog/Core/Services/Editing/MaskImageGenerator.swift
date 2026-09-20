@@ -32,6 +32,10 @@ enum MaskImageGenerator {
     /// この絶対値以下の feather / density 差は中立とみなす。
     private static let neutralThreshold = 1e-6
 
+    /// 放射状マスクの内外半径が一致すると `CIRadialGradient` の遷移幅が 0 になるため、
+    /// falloff 0 でも最低これだけの遷移帯（ピクセル）を残す。エッジのジャギーも同時に抑える。
+    private static let minimumRadialTransitionPixels = 0.5
+
     /// 全面 0（完全透明の黒）。infinite extent。
     private static let zeroImage = CIImage(color: CIColor(red: 0, green: 0, blue: 0, alpha: 0))
 
@@ -59,13 +63,15 @@ enum MaskImageGenerator {
 
     // MARK: - ベース生成子
 
-    /// Phase 1a で実装するのは線形グラデーションのみ。
-    /// 放射状（Phase 1b）・AI（Phase 2）・未知の種別（前方互換、§3.5）はいずれも全面 0 を返す。
+    /// 実装済みは線形（Phase 1a）と放射状（Phase 1b）。
+    /// AI（Phase 2）・未知の種別（前方互換、§3.5）はいずれも全面 0 を返す。
     private static func baseImage(for source: MaskSource, in extent: CGRect) -> CIImage {
         switch source {
         case .linearGradient(let gradient):
             return linearGradientImage(gradient, in: extent)
-        case .none, .radialGradient, .ai, .unrecognized:
+        case .radialGradient(let gradient):
+            return radialGradientImage(gradient, in: extent)
+        case .none, .ai, .unrecognized:
             return zeroImage
         }
     }
@@ -84,6 +90,48 @@ enum MaskImageGenerator {
         filter.color0 = CIColor(red: 0, green: 0, blue: 0, alpha: 0)
         filter.color1 = CIColor(red: 1, green: 1, blue: 1, alpha: 1)
         return filter.outputImage ?? zeroImage
+    }
+
+    /// `CIRadialGradient` は真円しか作れないため、円を生成してから中心固定のアフィン変換で楕円化・回転する。
+    ///
+    /// 半径は extent の短辺基準でピクセルへ換算する。縦横で別々の基準にすると
+    /// `aspectRatio == 1` でも非正方形の画像で真円にならないため。
+    private static func radialGradientImage(_ gradient: RadialGradientMask, in extent: CGRect) -> CIImage {
+        guard let center = pixelPoint(gradient.center, in: extent),
+              gradient.radius.isFinite, gradient.radius > 0,
+              gradient.aspectRatio.isFinite, gradient.aspectRatio > 0,
+              gradient.rotationDegrees.isFinite else {
+            return zeroImage
+        }
+
+        let outerRadius = gradient.radius * Double(min(extent.width, extent.height))
+        guard outerRadius > minimumRadialTransitionPixels else { return zeroImage }
+
+        // falloff 0 で内外半径がほぼ一致して境界が立ち、100 で中心から外周までの全域が遷移帯になる。
+        let falloffRatio = clampPercent(gradient.falloff) / 100
+        let innerRadius = min(outerRadius * (1 - falloffRatio), outerRadius - minimumRadialTransitionPixels)
+
+        let filter = CIFilter.radialGradient()
+        filter.center = center
+        // radius0 <= radius1 を保ち、内側（半径小）を白＝マスク値 1、外側を 0 に固定する。
+        filter.radius0 = Float(max(innerRadius, 0))
+        filter.radius1 = Float(outerRadius)
+        filter.color0 = CIColor(red: 1, green: 1, blue: 1, alpha: 1)
+        filter.color1 = CIColor(red: 0, green: 0, blue: 0, alpha: 0)
+        guard let circle = filter.outputImage else { return zeroImage }
+
+        // 「まず楕円化、次に回転」の順に固定する（回転ハンドルで楕円全体を回す直感的な挙動）。
+        // 逆順だと回転軸と楕円の軸がずれ、同じ値でも見た目が変わる。
+        // `aspectRatio` は 幅 / 高さ。1 より大きいと横長になる。
+        let transform = CGAffineTransform(translationX: center.x, y: center.y)
+            .rotated(by: CGFloat(gradient.rotationDegrees * .pi / 180))
+            .scaledBy(x: 1, y: CGFloat(1 / gradient.aspectRatio))
+            .translatedBy(x: -center.x, y: -center.y)
+
+        // `CISmoothLinearGradient` と違い `CIRadialGradient` は外周を囲む有限 extent を返す。
+        // そのまま後段へ渡すと最後の crop が交差で縮み、feather の `clampedToExtent()` も
+        // 外周の値を画面全体へ引き伸ばしてしまうため、全面 0 の無限 extent へ載せ直す。
+        return circle.transformed(by: transform).composited(over: zeroImage)
     }
 
     /// ベース空間の正規化座標（左上原点）を Core Image のピクセル座標（左下原点）へ写す。

@@ -6,6 +6,8 @@ struct DevelopPanelView: View {
     @Bindable var developViewModel: DevelopViewModel
     var onExport: () -> Void = {}
 
+    @State private var isResetConfirmationPresented = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.large) {
@@ -161,9 +163,25 @@ struct DevelopPanelView: View {
 
                 HStack {
                     Button("develop.reset", role: .destructive) {
-                        developViewModel.reset()
+                        if developViewModel.resetRequiresConfirmation {
+                            isResetConfirmationPresented = true
+                        } else {
+                            developViewModel.reset()
+                        }
                     }
                     .disabled(!developViewModel.canReset)
+                    .confirmationDialog(
+                        "develop.reset.confirmTitle",
+                        isPresented: $isResetConfirmationPresented,
+                        titleVisibility: .visible
+                    ) {
+                        Button("develop.reset.confirmAction", role: .destructive) {
+                            developViewModel.reset()
+                        }
+                        Button("common.cancel", role: .cancel) {}
+                    } message: {
+                        Text("develop.reset.confirmMessage")
+                    }
 
                     Spacer()
 
