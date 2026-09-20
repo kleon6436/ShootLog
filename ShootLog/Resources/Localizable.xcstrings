@@ -420,19 +420,19 @@
         }
       }
     },
-    "a11y.mask.handle.start" : {
+    "a11y.mask.handle.center" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gradient start handle"
+            "value" : "Radial mask center handle"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "グラデーションの開始点ハンドル"
+            "value" : "放射状マスクの中心ハンドル"
           }
         }
       }
@@ -454,23 +454,6 @@
         }
       }
     },
-    "a11y.mask.handle.center" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Radial mask center handle"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放射状マスクの中心ハンドル"
-          }
-        }
-      }
-    },
     "a11y.mask.handle.radius" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -488,19 +471,19 @@
         }
       }
     },
-    "a11y.mask.moveUp" : {
+    "a11y.mask.handle.start" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move mask up"
+            "value" : "Gradient start handle"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "マスクを上へ移動"
+            "value" : "グラデーションの開始点ハンドル"
           }
         }
       }
@@ -518,6 +501,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "マスクを下へ移動"
+          }
+        }
+      }
+    },
+    "a11y.mask.moveUp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move mask up"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを上へ移動"
           }
         }
       }
@@ -734,6 +734,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AI超解像で書き出す"
+          }
+        }
+      }
+    },
+    "a11y.viewer.position %@ %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a11y.viewer.position %1$@ %2$@"
           }
         }
       }
@@ -3331,6 +3341,23 @@
         }
       }
     },
+    "develop.mask.addBrush" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paint with Brush"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラシで描く"
+          }
+        }
+      }
+    },
     "develop.mask.addForegroundSubject" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3344,159 +3371,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "被写体マスクを追加"
-          }
-        }
-      }
-    },
-    "develop.mask.unavailable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Masks can be added once the preview is ready"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "プレビューの生成後にマスクを追加できます"
-          }
-        }
-      }
-    },
-    "develop.mask.showOverlay" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Mask Overlay"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "マスクを表示"
-          }
-        }
-      }
-    },
-    "develop.mask.invert" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invert"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "反転"
-          }
-        }
-      }
-    },
-    "develop.mask.feather" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Feather"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "フェザー"
-          }
-        }
-      }
-    },
-    "develop.mask.enabled" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable Mask"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このマスクを有効にする"
-          }
-        }
-      }
-    },
-    "develop.mask.density" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Density"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "濃度"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.limitReached" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cannot add more brush strokes. Create a new layer instead."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "これ以上ブラシストロークを追加できません。新しいレイヤーを作成してください。"
-          }
-        }
-      }
-    },
-    "develop.mask.delete" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Mask"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "マスクを削除"
-          }
-        }
-      }
-    },
-    "develop.mask.defaultName" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gradient %1$lld"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "グラデーション %1$lld"
           }
         }
       }
@@ -3722,6 +3596,227 @@
         }
       }
     },
+    "develop.mask.brush.defaultName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush %1$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラシ %1$lld"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.eraser" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eraser"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消しゴム"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.hardness" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hardness"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "硬さ"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to paint. Press [ or ] to resize the brush."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ドラッグして描画。[ ] キーでサイズ変更"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.limitReached" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot add more brush strokes. Create a new layer instead."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これ以上ブラシストロークを追加できません。新しいレイヤーを作成してください。"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.opacity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opacity"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不透明度"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.paintMode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paint Mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラシで編集"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.size" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サイズ"
+          }
+        }
+      }
+    },
+    "develop.mask.brush.undo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo Brush Stroke"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラシ操作を元に戻す"
+          }
+        }
+      }
+    },
+    "develop.mask.defaultName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gradient %1$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グラデーション %1$lld"
+          }
+        }
+      }
+    },
+    "develop.mask.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを削除"
+          }
+        }
+      }
+    },
+    "develop.mask.density" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Density"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "濃度"
+          }
+        }
+      }
+    },
+    "develop.mask.enabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Mask"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このマスクを有効にする"
+          }
+        }
+      }
+    },
     "develop.mask.falloff" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3735,6 +3830,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "フォールオフ"
+          }
+        }
+      }
+    },
+    "develop.mask.feather" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feather"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フェザー"
+          }
+        }
+      }
+    },
+    "develop.mask.invert" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invert"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "反転"
           }
         }
       }
@@ -3769,23 +3898,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輝度上限"
-          }
-        }
-      }
-    },
-    "develop.mask.smoothness" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smoothness"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スムーズネス"
           }
         }
       }
@@ -3841,19 +3953,36 @@
         }
       }
     },
-    "develop.mask.unsupported" : {
+    "develop.mask.showOverlay" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Created in a newer version of ShootLog"
+            "value" : "Show Mask Overlay"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しいバージョンのShootLogで作られたマスクです"
+            "value" : "マスクを表示"
+          }
+        }
+      }
+    },
+    "develop.mask.smoothness" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smoothness"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スムーズネス"
           }
         }
       }
@@ -3892,104 +4021,36 @@
         }
       }
     },
-    "develop.preset.includeMasks" : {
+    "develop.mask.unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include masks"
+            "value" : "Masks can be added once the preview is ready"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "マスクを含める"
+            "value" : "プレビューの生成後にマスクを追加できます"
           }
         }
       }
     },
-    "develop.preset.applyWithMasks" : {
+    "develop.mask.unsupported" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apply with Masks"
+            "value" : "Created in a newer version of ShootLog"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "マスクを含めて適用"
-          }
-        }
-      }
-    },
-    "develop.preset.applyRelativeWithMasks" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply Relatively with Masks"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "マスクを含めて加算適用"
-          }
-        }
-      }
-    },
-    "develop.reset.confirmTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset all adjustments including masks?"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "マスクを含む全ての調整をリセットしますか？"
-          }
-        }
-      }
-    },
-    "develop.reset.confirmMessage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This will also delete all mask layers you've created. This action cannot be undone."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "作成したマスクレイヤーも全て削除されます。この操作は取り消せません。"
-          }
-        }
-      }
-    },
-    "develop.reset.confirmAction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "リセット"
+            "value" : "新しいバージョンのShootLogで作られたマスクです"
           }
         }
       }
@@ -4079,6 +4140,40 @@
         }
       }
     },
+    "develop.preset.applyRelativeWithMasks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply Relatively with Masks"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを含めて加算適用"
+          }
+        }
+      }
+    },
+    "develop.preset.applyWithMasks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply with Masks"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを含めて適用"
+          }
+        }
+      }
+    },
     "develop.preset.defaultName" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4126,6 +4221,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プリセットがありません"
+          }
+        }
+      }
+    },
+    "develop.preset.includeMasks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include masks"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを含める"
           }
         }
       }
@@ -4291,6 +4403,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "すべてリセット"
+          }
+        }
+      }
+    },
+    "develop.reset.confirmAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リセット"
+          }
+        }
+      }
+    },
+    "develop.reset.confirmMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will also delete all mask layers you've created. This action cannot be undone."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作成したマスクレイヤーも全て削除されます。この操作は取り消せません。"
+          }
+        }
+      }
+    },
+    "develop.reset.confirmTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset all adjustments including masks?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マスクを含む全ての調整をリセットしますか？"
           }
         }
       }
@@ -5641,6 +5804,7 @@
       }
     },
     "exif.label.aiCategory" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5725,6 +5889,7 @@
       }
     },
     "exif.label.colorMode" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6172,7 +6337,9 @@
         }
       }
     },
-    "K" : {},
+    "K" : {
+
+    },
     "menu.file.openFolder" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7742,6 +7909,9 @@
         }
       }
     },
+    "toolbar.subtitle.photoCount %@" : {
+
+    },
     "toolbar.subtitle.photoCount %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8490,6 +8660,80 @@
         }
       }
     },
+    "viewer.showInspector" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Inspector"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インスペクタを表示"
+          }
+        }
+      }
+    },
+    "viewer.zoom.fit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to Screen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面に合わせる"
+          }
+        }
+      }
+    },
+    "viewer.zoom.fitPercent %@" : {
+
+    },
+    "viewer.zoom.fitPercent %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit to Screen · %lld%%"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面に合わせる · %lld%%"
+          }
+        }
+      }
+    },
+    "viewer.zoom.percent %@" : {
+
+    },
+    "viewer.zoom.percent %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%%"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%%"
+          }
+        }
+      }
+    },
     "viewMode.fullscreen" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -8537,227 +8781,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "スライドショー"
-          }
-        }
-      }
-    },
-    "develop.mask.addBrush" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paint with Brush"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブラシで描く"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.defaultName" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Brush %1$lld"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブラシ %1$lld"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.paintMode" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paint Mask"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブラシで編集"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.eraser" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eraser"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "消しゴム"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.undo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Undo Brush Stroke"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブラシ操作を元に戻す"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.size" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Size"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "サイズ"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.hardness" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hardness"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "硬さ"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.opacity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opacity"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不透明度"
-          }
-        }
-      }
-    },
-    "develop.mask.brush.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drag to paint. Press [ or ] to resize the brush."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ドラッグして描画。[ ] キーでサイズ変更"
-          }
-        }
-      }
-    },
-    "viewer.showInspector" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Inspector"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "インスペクタを表示"
-          }
-        }
-      }
-    },
-    "viewer.zoom.fit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fit to Screen"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "画面に合わせる"
-          }
-        }
-      }
-    },
-    "viewer.zoom.fitPercent %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fit to Screen · %lld%%"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "画面に合わせる · %lld%%"
-          }
-        }
-      }
-    },
-    "viewer.zoom.percent %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld%%"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld%%"
           }
         }
       }
