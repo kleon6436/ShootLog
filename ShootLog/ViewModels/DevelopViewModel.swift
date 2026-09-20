@@ -244,6 +244,9 @@ final class DevelopViewModel {
     /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
     /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
     private var isRAWParameterDragging = false
+    /// ドラッグ終了通知の取りこぼし対策。`Slider` の `onEditingChanged(false)` が届かないと
+    /// ドラッグ状態が固着して `CIRAWFilter` 経路へ戻れなくなるため、一定時間で自動解除する。
+    private var dragWatchdogTask: Task<Void, Never>?
     /// プレビュー CGImage の色空間。`nil` で sRGB。P3 ディスプレイ編集時にビューアが載っている
     /// ディスプレイの色空間を `setPreviewColorSpace` で渡すと、P3 書き出しと画面の見えが一致する。
     private var previewColorSpace: CGColorSpace?
@@ -280,6 +283,8 @@ final class DevelopViewModel {
     /// テストから短縮できるようにインスタンス値で持つ。
     private let renderDebounce: Duration
     private let persistDebounce: Duration
+    /// ドラッグ終了を自動で確定させるまでの待ち時間。テストから短縮できるようにインスタンス値で持つ。
+    private let dragWatchdogTimeout: Duration
     /// この画素数を超える表示領域の変化があったときだけ再デコードする。
     private static let displaySizeChangeThreshold: CGFloat = 32
     /// RAW の露出・WB を `CIRAWFilter` で再デコードする描画のデバウンス。標準チェーンより長く取る。
@@ -293,13 +298,15 @@ final class DevelopViewModel {
         maskGenerator: any SubjectMaskGenerating = VisionSubjectMaskGenerator.shared,
         content: ContentViewModel?,
         renderDebounce: Duration = .milliseconds(60),
-        persistDebounce: Duration = .milliseconds(500)
+        persistDebounce: Duration = .milliseconds(500),
+        dragWatchdogTimeout: Duration = .seconds(2)
     ) {
         self.engine = engine
         self.maskGenerator = maskGenerator
         self.content = content
         self.renderDebounce = renderDebounce
         self.persistDebounce = persistDebounce
+        self.dragWatchdogTimeout = dragWatchdogTimeout
         self.showsClippingWarnings = UserDefaults.standard.object(forKey: AppSettingsKeys.developClippingWarnings) as? Bool
             ?? AppSettingsKeys.developClippingWarningsDefault
     }
@@ -337,6 +344,8 @@ final class DevelopViewModel {
         maskRasterDecodeCache.removeAll()
         clearBrushTransientState()
         aiMaskGenerationFailureMessage = nil
+        dragWatchdogTask?.cancel()
+        dragWatchdogTask = nil
         isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
         asShotWhiteBalance = nil
@@ -387,12 +396,26 @@ final class DevelopViewModel {
 
     /// 露出・色温度・色かぶりのスライダーのドラッグ状態を伝える。
     /// ドラッグ中は RAW 再デコードを避けて標準チェーンで近似し、離した時点で `CIRAWFilter` 経路で描き直す。
+    /// `onEditingChanged(false)` が届かない場合に備え、ドラッグ開始からの経過時間で自動的に終了扱いにする。
     func setRAWParameterDragging(_ dragging: Bool) {
-        guard rawMappingActive, dragging != isRAWParameterDragging else { return }
-        isRAWParameterDragging = dragging
-        // ドラッグ終了時のみ再レンダー（開始時は didSet 側の描画に任せる）。
-        if !dragging, currentPhoto != nil, shouldRender {
-            scheduleRender()
+        guard rawMappingActive else { return }
+        if dragging {
+            // ドラッグ開始が連続で届いても監視が途切れないよう、状態変化の有無に関わらず張り直す。
+            dragWatchdogTask?.cancel()
+            dragWatchdogTask = Task { [weak self] in
+                guard let timeout = self?.dragWatchdogTimeout else { return }
+                try? await Task.sleep(for: timeout)
+                guard !Task.isCancelled else { return }
+                self?.setRAWParameterDragging(false)
+            }
+            isRAWParameterDragging = true
+        } else {
+            dragWatchdogTask?.cancel()
+            dragWatchdogTask = nil
+            guard isRAWParameterDragging else { return }
+            isRAWParameterDragging = false
+            // ドラッグ終了時のみ再レンダー（開始時は didSet 側の描画に任せる）。
+            if currentPhoto != nil, shouldRender { scheduleRender() }
         }
     }
 
@@ -1238,7 +1261,8 @@ final class DevelopViewModel {
         generation: Int
     ) async {
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
-        guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) else {
+        // ただしマスク編集中は例外。`previewImage` を消すと `canEditMasks` が落ちてマスクを再追加できなくなる。
+        guard !params.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect) || maskEditMode else {
             if generation == renderGeneration {
                 clearPreview()
                 scheduleHistogramOnly(generation: generation)
@@ -1268,8 +1292,9 @@ final class DevelopViewModel {
         isRendering = false
         guard let rendered else {
             // 一時的なレンダー失敗。誤ったパラメータのプレビューを残さず、ベース画像へ戻す。
-            previewImage = nil
-            maskEditMode = false
+            // マスク編集中は例外で直前のプレビューを残す。ここで捨てるとハンドルの座標基準
+            // （§1.5.2）が失われ、編集セッションごと抜けてしまう。
+            if !maskEditMode { previewImage = nil }
             histogram = nil
             return
         }
