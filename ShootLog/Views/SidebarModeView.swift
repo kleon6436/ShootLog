@@ -177,9 +177,9 @@ struct SidebarModeView: View {
             )
             // 編集タブはトーンカーブ・HSL のため広めに取る
             .inspectorColumnWidth(
-                min: vm.inspectorTab == .develop ? 260 : 180,
-                ideal: vm.inspectorTab == .develop ? 300 : 200,
-                max: vm.inspectorTab == .develop ? 420 : 320
+                min: vm.inspectorTab == .develop ? 260 : 240,
+                ideal: vm.inspectorTab == .develop ? 300 : 300,
+                max: vm.inspectorTab == .develop ? 420 : 400
             )
         }
         // ウィンドウタイトル＝開いている写真ソース、サブタイトル＝その枚数。

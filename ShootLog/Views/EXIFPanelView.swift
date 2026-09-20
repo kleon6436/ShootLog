@@ -44,7 +44,7 @@ struct EXIFPanelView: View {
         }
 
         ScrollView {
-            VStack(spacing: Spacing.large) {
+            VStack(spacing: Spacing.xLarge) {
                 EXIFFileCard(
                     fileName: vm.fileNameText,
                     dimensions: vm.dimensionsText,
@@ -87,7 +87,7 @@ struct EXIFPanelView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
                         Text(note)
-                            .font(.subheadline)
+                            .font(.body)
                     }
                     .contentCard()
                 }
@@ -169,7 +169,7 @@ private struct EXIFFileCard: View {
                             Text(format)
                         }
                     }
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .accessibilityElement(children: .combine)
                 }
@@ -193,13 +193,16 @@ private struct EXIFRowValueView: View {
         switch value {
         case .text(let text):
             Text(text)
-                .font(.subheadline)
+                .font(.body)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.2), value: text)
         case .badge(let text):
             Text(text)
-                .font(.subheadline)
+                .font(.body)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(.tint.opacity(0.15))
@@ -218,14 +221,16 @@ private struct EXIFGroupedRowsCard: View {
         if !rows.isEmpty {
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                    HStack {
+                    HStack(alignment: .firstTextBaseline) {
                         Text(row.label)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Spacer()
+                            .fixedSize()
+                        Spacer(minLength: Spacing.xLarge)
                         EXIFRowValueView(value: row.value)
                     }
-                    .frame(height: 30)
+                    .frame(minHeight: 30)
+                    .padding(.vertical, Spacing.xSmall)
                     .padding(.horizontal, Spacing.xLarge)
 
                     if index < rows.count - 1 {
@@ -245,7 +250,8 @@ private struct EXIFExposureGrid: View {
     let iso: String?
     let focalLength: String?
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: Spacing.small), count: 4)
+    // 幅が足りないときは 2 列に折り返す（インスペクタ最小幅でも値を切り詰めない）
+    private let columns = [GridItem(.adaptive(minimum: 62, maximum: 120), spacing: Spacing.small)]
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: Spacing.small) {
@@ -264,14 +270,16 @@ private struct EXIFExposureTile: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value ?? "—")
-                .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .contentTransition(.numericText())
                 .animation(.easeInOut(duration: 0.2), value: value)
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, Spacing.large)
+        .padding(.horizontal, Spacing.small)
         .padding(.vertical, Spacing.medium)
         .frame(maxWidth: .infinity)
         .contentCard(padding: 0)
@@ -298,7 +306,7 @@ private struct EXIFAISubjectCard: View {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.small) {
                     ForEach(categories, id: \.self) { category in
                         Text(category.displayName)
-                            .font(.caption)
+                            .font(.subheadline)
                             .lineLimit(1)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 3)
@@ -350,7 +358,8 @@ private struct EXIFQualityDiagnosisCard: View {
             ForEach(insights) { insight in
                 Label {
                     Text(insight.messageKey)
-                        .font(.caption)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(
                         systemName: insight.kind == .positive
@@ -409,7 +418,7 @@ private struct EXIFSuccessTagPicker: View {
                     onToggle(category)
                 } label: {
                     Text(category.displayName)
-                        .font(.caption)
+                        .font(.subheadline)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.xSmall)

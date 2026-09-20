@@ -163,6 +163,7 @@ private struct HUDButtonBody: View {
 //   CropMask                 … トリミング範囲外を覆うマスク。ライトでは背景が明るい分だけ薄くする
 //   CardShadow               … Elevation.card のドロップシャドウ色。ライト背景では影を弱める
 //   HUDHoverHighlight        … HUDボタンのホバーハイライト。ライトでは暗く、ダークでは明るく乗せる
+//   CardFill / CardBorder    … コンテンツ層カード（contentCard）の塗りと 0.5pt 輪郭。外観別に濃度を持つ
 //   OnAccent                 … アクセント色で塗り潰したボタン・チップの上に置く前景色（両外観とも白）。
 //                              .borderedProminent と同じ考え方で、塗り側がアクセントのときだけ使う
 //
@@ -179,10 +180,16 @@ private struct HUDButtonBody: View {
 
 extension View {
     // コンテンツ層のカード。.quaternary の塗り＋角丸 card。
+    // .quaternary の薄い塗りだけではダーク外観で境界がほぼ見えないため、
+    // 外観別に濃度を定めた CardFill と 0.5pt の CardBorder で輪郭を出す。
     func contentCard(padding: CGFloat = Spacing.large) -> some View {
         self
             .padding(padding)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.card))
+            .background(Color.cardFill, in: RoundedRectangle(cornerRadius: CornerRadius.card))
+            .overlay {
+                RoundedRectangle(cornerRadius: CornerRadius.card)
+                    .strokeBorder(Color.cardBorder, lineWidth: 0.5)
+            }
     }
 }
 
