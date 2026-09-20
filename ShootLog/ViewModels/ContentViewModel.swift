@@ -153,6 +153,8 @@ final class ContentViewModel {
     // Folder/Edit/PhotoActions extension から参照するため internal（既定アクセス）とする
     var modelContext: ModelContext?
     var bookmarkScopedURL: URL?
+    // configure は ContentView.onAppear のたびに呼ばれ得るため、起動時 GC の二重実行を防ぐ
+    private var hasCollectedOrphanedMaskRasters = false
     private var toastTask: Task<Void, Never>?
 
     // 段階挿入（先頭N件を即時表示し、残りを逐次insert）の残り分を処理するTask。
@@ -279,6 +281,16 @@ final class ContentViewModel {
         applyGeneralSettingsDefaults()
         loadHistories()
         loadDevelopPresets()
+        collectOrphanedMaskRastersOnce(in: context)
+    }
+
+    // 孤児になった MaskRaster の回収。全 DevelopSettings の fetch を伴うので起動時に1回だけ、
+    // かつ初期表示をブロックしないよう Task へ逃がす（ModelContext はスレッドセーフでないため
+    // detached にはせず MainActor 上で実行する）
+    private func collectOrphanedMaskRastersOnce(in context: ModelContext) {
+        guard !hasCollectedOrphanedMaskRasters else { return }
+        hasCollectedOrphanedMaskRasters = true
+        Task { MaskRasterGarbageCollector.collectAll(in: context) }
     }
 
     // 「一般」設定タブで指定された起動時の既定値を反映する

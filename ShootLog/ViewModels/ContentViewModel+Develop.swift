@@ -78,6 +78,15 @@ extension ContentViewModel {
         saveOrReportError(context)
     }
 
+    // AI マスクのラスタ（子 @Model の MaskRaster）を挿す親を用意して返す。
+    // updateDevelopParameters は中立の調整値では行を作らないため、マスク追加の時点では
+    // まだ DevelopSettings が存在しないことがある。ラスタは親なしでは cascade 削除に
+    // 乗らず孤児になるので、追加前にここで確実に作る
+    func developSettingsForMaskRaster() -> DevelopSettings? {
+        guard let context = modelContext, let photo = selectedPhoto else { return nil }
+        return developSettingsOrCreate(for: photo, context: context)
+    }
+
     // 現像調整を全リセットする。resetEdits()（回転・トリミング）とは独立
     func resetDevelop() {
         guard let context = modelContext, let settings = currentDevelopSettings else { return }

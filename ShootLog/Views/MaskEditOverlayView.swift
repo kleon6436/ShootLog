@@ -37,6 +37,17 @@ struct MaskEditOverlayView: View {
         return (id, mask)
     }
 
+    /// 選択中レイヤーが AI マスクなら、その ID と参照。
+    private var selectedAIMask: (id: UUID, reference: AIMaskReference)? {
+        guard let id = developViewModel.selectedMaskLayerID,
+              let layer = developViewModel.maskLayers.first(where: { $0.id == id }),
+              case .ai(let reference) = layer.source else { return nil }
+        return (id, reference)
+    }
+
+    /// ヒントラベルを画像上端から離す距離。
+    private static let hintTopInset: CGFloat = 24
+
     var body: some View {
         if let maskGeometry {
             ZStack {
@@ -58,8 +69,52 @@ struct MaskEditOverlayView: View {
                 if let selectedRadial {
                     radialHandles(id: selectedRadial.id, mask: selectedRadial.mask, geometry: maskGeometry)
                 }
+
+                if let selectedAIMask {
+                    aiRefineLayer(id: selectedAIMask.id, kind: selectedAIMask.reference.kind, geometry: maskGeometry)
+                }
             }
         }
+    }
+
+    /// AI マスク選択中に画像全体へ敷くクリック領域。クリックした位置のインスタンスだけへ
+    /// 絞り込んだマスクを作り直す。線形・放射状のハンドルとは `if case` で排他になるため、
+    /// ドラッグジェスチャーと競合しない（輝度レンジは幾何操作を持たないので何も出さない）。
+    @ViewBuilder
+    private func aiRefineLayer(id: UUID, kind: AIMaskKind, geometry: MaskGeometry) -> some View {
+        Rectangle()
+            .fill(.clear)
+            .contentShape(Rectangle())
+            .frame(width: geometry.imageFrame.width, height: geometry.imageFrame.height)
+            .position(x: geometry.imageFrame.midX, y: geometry.imageFrame.midY)
+            .onTapGesture { location in
+                // タップ位置はこの領域（= imageFrame）ローカル。MaskGeometry はコンテナ座標系を取る。
+                let display = CGPoint(
+                    x: location.x + geometry.imageFrame.minX,
+                    y: location.y + geometry.imageFrame.minY
+                )
+                let point = geometry.basePoint(fromDisplay: display)
+                Task { await refineAIMask(id: id, kind: kind, at: point) }
+            }
+            .disabled(developViewModel.isGeneratingAIMask)
+            .accessibilityHidden(true)
+
+        Text("develop.mask.ai.tapToRefine")
+            .font(.caption)
+            .padding(.horizontal, Spacing.medium)
+            .padding(.vertical, Spacing.xSmall)
+            .background(.regularMaterial, in: Capsule())
+            .position(x: geometry.imageFrame.midX, y: geometry.imageFrame.minY + Self.hintTopInset)
+            .allowsHitTesting(false)
+    }
+
+    /// 同じ種別・クリック位置指定でマスクを作り直し、成功したときだけ元のレイヤーを捨てる。
+    /// 失敗して何も残らない状態を作らないための順序で、`regenerateAIMask` と同じ契約。
+    private func refineAIMask(id: UUID, kind: AIMaskKind, at point: NormalizedPoint) async {
+        let before = developViewModel.maskLayers.count
+        await developViewModel.addAIMask(kind: kind, clickPoint: point)
+        guard developViewModel.maskLayers.count > before else { return }
+        developViewModel.removeMask(id: id)
     }
 
     @ViewBuilder

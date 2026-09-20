@@ -34,6 +34,7 @@ struct DevelopExporter: Sendable {
     ///   - jpegQuality: JPEG の圧縮品質（0.0〜1.0）。JPEG 以外では無視。
     ///   - usesToneMaskedColorGrading: カラーグレーディングへトーン域マスク方式を使うか。
     ///   - asShotWhiteBalance: 非 RAW の Custom / Auto 補正の基準に使う撮影時ホワイトバランス。
+    ///   - maskRasters: AI マスクの解決済みラスタ（`MaskRasterResolving.resolve` の戻り値）。
     ///   - superResolution: 指定すると現像結果を拡大してから書き出す。`renderFull` が既に回転を
     ///     焼き込むため、超解像エンジンへは常に `rotation: 0` を渡す。
     ///   - upscaleProgress: 超解像段の 0.0〜1.0 の進捗。現像段は速いため通知しない。
@@ -50,6 +51,7 @@ struct DevelopExporter: Sendable {
         usesManualLensCorrection: Bool = false,
         usesToneMaskedColorGrading: Bool = false,
         asShotWhiteBalance: WhiteBalanceSample? = nil,
+        maskRasters: [UUID: CGImage] = [:],
         superResolution: SuperResolutionRequest? = nil,
         currentFolder: URL?,
         folderPhotoURLs: [URL],
@@ -71,7 +73,7 @@ struct DevelopExporter: Sendable {
             usesManualLensCorrection: usesManualLensCorrection,
             usesToneMaskedColorGrading: usesToneMaskedColorGrading,
             asShotWhiteBalance: asShotWhiteBalance,
-            maskRasters: [:]
+            maskRasters: maskRasters
         ) else {
             // renderFull はキャンセル時も nil を返すため、キャンセル起因かを先に判定する
             try Task.checkCancellation()

@@ -309,6 +309,93 @@ struct DevelopExporterTests {
         #expect(try decodedColorSpaceName(of: destination) == (CGColorSpace.displayP3 as String))
     }
 
+    // MARK: - AI マスクのラスタ受け渡し
+
+    /// `renderFull` が受け取った引数を記録するだけのエンジン。
+    private actor SpyEngine: ImageDeveloping {
+        private(set) var receivedMaskRasters: [UUID: CGImage] = [:]
+        private(set) var renderFullCallCount = 0
+        private let output: CGImage
+
+        init(output: CGImage) { self.output = output }
+
+        func renderPreview(
+            url: URL, parameters: DevelopParameters, targetMaxPixelSize: CGFloat,
+            rotation: Int, cropRect: CGRect?, previewColorSpace: CGColorSpace?,
+            useRAWParameterMapping: Bool, usesManualLensCorrection: Bool,
+            usesToneMaskedColorGrading: Bool, asShotWhiteBalance: WhiteBalanceSample?,
+            maskRasters: [UUID: CGImage]
+        ) async -> CGImage? { output }
+
+        func renderFull(
+            url: URL, parameters: DevelopParameters, rotation: Int, cropRect: CGRect?,
+            outputColorSpace: CGColorSpace?, useRAWParameterMapping: Bool,
+            usesManualLensCorrection: Bool, usesToneMaskedColorGrading: Bool,
+            asShotWhiteBalance: WhiteBalanceSample?, maskRasters: [UUID: CGImage]
+        ) async -> CGImage? {
+            receivedMaskRasters = maskRasters
+            renderFullCallCount += 1
+            return output
+        }
+
+        nonisolated func isRAW(url: URL) -> Bool { false }
+    }
+
+    private func makeGrayImage(width: Int = 8, height: Int = 8) throws -> CGImage {
+        let pixels = [UInt8](repeating: 180, count: width * height)
+        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
+        return try #require(CGImage(
+            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8,
+            bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+        ))
+    }
+
+    @Test func exportForwardsMaskRastersToRenderFull() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 32, height: 32, to: sandbox.appendingPathComponent("m.png"))
+        let outDir = sandbox.appendingPathComponent("out", isDirectory: true)
+        try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+
+        let rasterID = UUID()
+        let rasters = [rasterID: try makeGrayImage()]
+        let engine = SpyEngine(output: try makeGrayImage(width: 32, height: 32))
+
+        try await DevelopExporter(engine: engine).export(
+            source: source, destination: outDir.appendingPathComponent("m_edited.tiff"),
+            parameters: .neutral, rotation: 0, cropRect: nil,
+            contentType: .tiff, jpegQuality: 1.0,
+            maskRasters: rasters,
+            currentFolder: nil, folderPhotoURLs: [source]
+        )
+
+        #expect(await engine.renderFullCallCount == 1)
+        let received = await engine.receivedMaskRasters
+        #expect(Set(received.keys) == [rasterID])
+        #expect(received[rasterID] === rasters[rasterID])
+    }
+
+    @Test func exportDefaultsToEmptyMaskRasters() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 32, height: 32, to: sandbox.appendingPathComponent("n.png"))
+        let outDir = sandbox.appendingPathComponent("out", isDirectory: true)
+        try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+
+        let engine = SpyEngine(output: try makeGrayImage(width: 32, height: 32))
+
+        try await DevelopExporter(engine: engine).export(
+            source: source, destination: outDir.appendingPathComponent("n_edited.tiff"),
+            parameters: .neutral, rotation: 0, cropRect: nil,
+            contentType: .tiff, jpegQuality: 1.0,
+            currentFolder: nil, folderPhotoURLs: [source]
+        )
+
+        #expect(await engine.receivedMaskRasters.isEmpty)
+    }
+
     // MARK: - メタデータ
 
     @Test func softwareTagIsPresent() {
