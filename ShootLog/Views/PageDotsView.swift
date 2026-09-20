@@ -14,7 +14,7 @@ struct PageDotsView: View {
             HStack(spacing: 5) {
                 ForEach(0..<total, id: \.self) { i in
                     Circle()
-                        .fill(i == current ? Color.onViewerCanvas : Color.onViewerCanvas.opacity(0.3))
+                        .fill(i == current ? Color.primary : Color.primary.opacity(0.4))
                         .frame(
                             width:  i == current ? 8 : 5,
                             height: i == current ? 8 : 5

@@ -24,11 +24,12 @@ struct PhotoListView: View {
     let contextMenuActions: PhotoContextMenuActions
 
     // minimum/maximum のみ指定し、閾値は意図的にハードコードしない（LazyVGridのadaptive挙動に一任）
-    private let columns = [GridItem(.adaptive(minimum: 110, maximum: 240), spacing: 8)]
+    // セル間隔(10) < 外周padding(Spacing.xLarge=12)で階層をつくる
+    private let columns = [GridItem(.adaptive(minimum: 120, maximum: 240), spacing: 10)]
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 8) {
+            LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(photos) { photo in
                     PhotoGridCell(
                         photo: photo,
@@ -39,7 +40,7 @@ struct PhotoListView: View {
                     }
                 }
             }
-            .padding(Spacing.xLarge) // 外周 > セル間隔(Spacing.medium)の階層をつくる
+            .padding(Spacing.xLarge)
         }
     }
 }
@@ -52,56 +53,62 @@ private struct PhotoGridCell: View {
     let actions: PhotoContextMenuActions
     let onSelect: () -> Void
     @State private var vm = PhotoThumbnailViewModel()
+    @State private var isHovering = false
 
     private var availability: PhotoActionAvailability {
         PhotoActionAvailability(photo: photo, hasExternalApps: !actions.externalApps.isEmpty)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            thumbnailView
-                .frame(maxWidth: .infinity)
-                .aspectRatio(3 / 2, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
-                .background {
-                    // 選択状態を面塗りでも識別できるようにする（ストロークのみだと暗い写真上で視認しづらいため）
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(Color.accentColor.opacity(0.15))
-                    }
-                }
-                .overlay {
-                    // Listが自動提供していた選択ハイライトの代替
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .strokeBorder(Color.accentColor, lineWidth: 2)
-                    }
-                }
-
-            HStack(spacing: 4) {
-                Text(photo.displayFileName)
-                    .font(.caption2)
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-
+        thumbnailView
+            .frame(maxWidth: .infinity)
+            .aspectRatio(3 / 2, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.thumbnail))
+            .overlay(alignment: .bottomTrailing) {
                 if photo.isFavorite {
-                    Image(systemName: "star.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.yellow)
-                        .accessibilityHidden(true) // 状態はセル全体のaccessibilityLabelで伝える
+                    favoriteBadge
                 }
-                Spacer(minLength: 0)
             }
-        }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect() } // Listの暗黙選択動作の代替
-        // メニュー項目自体は対象写真を選択してから実行するため、ここでは選択を先取りしない
-        // （メニューを開いただけで選択が動くのを避ける）
-        .contextMenu { contextMenuItems }
-        .accessibilityLabel(accessibilityLabelText)
-        .accessibilityAddTraits(.isButton)
-        .task { await vm.load(photo: photo) }
+            .overlay {
+                // 選択リングは画像の外側に2ptのギャップを空けて同心円状に描く（Listの選択ハイライトの代替）
+                if isSelected {
+                    RoundedRectangle(cornerRadius: CornerRadius.thumbnail + 2)
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .padding(-2)
+                }
+            }
+            .scaleEffect(isHovering ? 1.03 : 1)
+            // .elevation(.card)相当のシャドウをホバー時のみ適用する（選択変更では動かさないためisHoveringにだけ紐付ける）
+            .shadow(
+                color: isHovering ? Elevation.card.color : .clear,
+                radius: isHovering ? Elevation.card.radius : 0,
+                x: 0,
+                y: isHovering ? Elevation.card.yOffset : 0
+            )
+            .animation(.easeOut(duration: 0.15), value: isHovering)
+            .onHover { isHovering = $0 }
+            .contentShape(Rectangle())
+            .onTapGesture { onSelect() } // Listの暗黙選択動作の代替
+            // メニュー項目自体は対象写真を選択してから実行するため、ここでは選択を先取りしない
+            // （メニューを開いただけで選択が動くのを避ける）
+            .contextMenu { contextMenuItems }
+            .help(photo.displayFileName) // キャプション行を廃止したため、ファイル名はツールチップで提供する
+            .accessibilityLabel(accessibilityLabelText)
+            .accessibilityAddTraits(.isButton)
+            .task { await vm.load(photo: photo) }
+    }
+
+    private var favoriteBadge: some View {
+        Circle()
+            .fill(Color.black.opacity(0.45))
+            .frame(width: 18, height: 18)
+            .overlay {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.yellow)
+            }
+            .padding(5)
+            .accessibilityHidden(true) // 状態はセル全体のaccessibilityLabelで伝える
     }
 
     // 型チェックの負荷を避けるため、メニュー本体は body から切り出す

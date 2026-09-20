@@ -7,8 +7,15 @@ import SwiftUI
 struct MaskSectionView: View {
     @Bindable var developViewModel: DevelopViewModel
 
+    /// 折りたたみ時にレイヤー数を示す。0 件のときは何も出さない。
+    private var layerCountSummary: String? {
+        let count = developViewModel.maskLayers.count
+        guard count > 0 else { return nil }
+        return String(localized: "develop.section.summary.maskLayers \(count)")
+    }
+
     var body: some View {
-        DevelopSectionCard("develop.section.masks") {
+        DevelopSectionCard("develop.section.masks", id: "masks", summary: layerCountSummary) {
             addButtons
 
             if !developViewModel.canEditMasks {

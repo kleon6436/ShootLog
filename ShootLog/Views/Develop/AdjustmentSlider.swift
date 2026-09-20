@@ -2,6 +2,10 @@ import SwiftUI
 
 /// 現像パネルの調整スライダー 1 行。ラベル + 現在値 + スライダー。
 /// 値ラベルをクリックすると中立値へ戻す。
+///
+/// 入力・キーボード操作・アクセシビリティはネイティブの `Slider` のまま保ち、
+/// 中立値からの振れ幅を示すバイポーラなトラックだけを背面に描く
+/// （`WhiteBalanceSection.GradientSlider` と同じ重ね方）。
 struct AdjustmentSlider: View {
     let label: LocalizedStringKey
     @Binding var value: Double
@@ -11,10 +15,27 @@ struct AdjustmentSlider: View {
     /// ドラッグ開始で `true`、終了で `false`。RAW の露出・WB の 2 段階描画に使う。
     var onEditingChanged: (Bool) -> Void = { _ in }
 
+    private static let trackHeight: CGFloat = 4
+
     private var isModified: Bool { abs(value - neutral) > 0.0001 }
 
     private var formattedValue: String {
         value.formatted(.number.precision(.fractionLength(fractionDigits)))
+    }
+
+    /// トラック上でアクセントを塗る区間。中立値が範囲の中央なら中央から、
+    /// 0...100 のような片側レンジなら左端から伸びる。
+    private var fillFractions: (start: CGFloat, end: CGFloat) {
+        let span = range.upperBound - range.lowerBound
+        guard span > 0 else { return (0, 0) }
+        let neutralFraction = fraction(of: neutral, span: span)
+        let valueFraction = fraction(of: value, span: span)
+        return (min(neutralFraction, valueFraction), max(neutralFraction, valueFraction))
+    }
+
+    private func fraction(of raw: Double, span: Double) -> CGFloat {
+        let clamped = min(max(raw, range.lowerBound), range.upperBound)
+        return CGFloat((clamped - range.lowerBound) / span)
     }
 
     var body: some View {
@@ -35,12 +56,34 @@ struct AdjustmentSlider: View {
                 .disabled(!isModified)
                 .help("develop.slider.resetValue.help")
             }
-            Slider(value: $value, in: range, onEditingChanged: onEditingChanged)
-                .controlSize(.small)
+            ZStack {
+                track
+                Slider(value: $value, in: range, onEditingChanged: onEditingChanged)
+                    .controlSize(.small)
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(label)
         .accessibilityValue(formattedValue)
         .accessibilityHint("develop.slider.resetValue.help")
+    }
+
+    private var track: some View {
+        GeometryReader { proxy in
+            let fractions = fillFractions
+            let width = proxy.size.width
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: Self.trackHeight)
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: max(0, (fractions.end - fractions.start) * width), height: Self.trackHeight)
+                    .offset(x: fractions.start * width)
+            }
+            .frame(width: width, height: proxy.size.height, alignment: .center)
+        }
+        .frame(height: Self.trackHeight)
+        .accessibilityHidden(true)
     }
 }
