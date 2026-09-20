@@ -83,7 +83,10 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     // MARK: 色
 
     /// 色温度。as-shot（撮影時ホワイトバランス）からのオフセット（範囲目安 -100...100）。
-    /// schema v3以前の永続値を再現するため残す。新規編集は `whiteBalance` を使う。
+    /// schema v3以前の永続値を再現するため残す。グローバル編集では非推奨で、新規編集は
+    /// `whiteBalance` を使う。一方 ローカル調整（`LocalAdjustments.temperature` / `.tint`）では
+    /// この相対 2 値が現行の唯一の WB 経路である（局所段の入力は既にグローバル WB 適用済みで、
+    /// 絶対 Kelvin / as-shot 基準が意味を持たないため）。
     var temperature: Double = 0
     var tint: Double = 0
     var whiteBalance: WhiteBalanceSettings = .neutral
@@ -133,6 +136,11 @@ struct DevelopParameters: Codable, Equatable, Sendable {
     var lensVignette: Double = 0
     /// 手動の色収差補正量（-100...100）。同上。`corrected` の chromaticAberration に対応。
     var lensChromaticAberration: Double = 0
+
+    // MARK: ローカル調整（マスク）
+
+    /// 描画順。index 0 が最下層、下から累積適用。
+    var masks: [MaskLayer] = []
 
     /// すべて既定値の中立状態。
     static let neutral = DevelopParameters()
@@ -281,6 +289,14 @@ extension DevelopParameters {
         result.lensDistortion = Self.clampUnit(lensDistortion + delta.lensDistortion)
         result.lensVignette = Self.clampUnit(lensVignette + delta.lensVignette)
         result.lensChromaticAberration = Self.clampUnit(lensChromaticAberration + delta.lensChromaticAberration)
+
+        // マスクは追記。幾何値の加算は意味を持たない。同じプリセットを 2 回当てたときに
+        // id が重複して `Identifiable` の前提が崩れるため、追記側の id は再発行する。
+        result.masks = masks + delta.masks.map { layer in
+            var copy = layer
+            copy.id = UUID()
+            return copy
+        }
         return result
     }
 
@@ -399,6 +415,7 @@ extension DevelopParameters {
         case lensDistortion
         case lensVignette
         case lensChromaticAberration
+        case masks
     }
 
     /// HSL 配列を必ず 8 要素へ揃える。不足は 0 埋め、超過は切り捨てる。
@@ -497,5 +514,6 @@ extension DevelopParameters {
         lensDistortion = double(.lensDistortion)
         lensVignette = double(.lensVignette)
         lensChromaticAberration = double(.lensChromaticAberration)
+        masks = (try? container.decodeIfPresent([MaskLayer].self, forKey: .masks)) ?? []
     }
 }

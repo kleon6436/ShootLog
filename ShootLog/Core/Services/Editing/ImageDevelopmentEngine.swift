@@ -26,6 +26,8 @@ protocol ImageDeveloping: Sendable {
     ///     呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
     ///   - usesToneMaskedColorGrading: カラーグレーディングへトーン域マスク方式を使うか。
     ///   - asShotWhiteBalance: 非 RAW の Custom / Auto 補正の基準に使う撮影時ホワイトバランス。
+    ///   - maskRasters: AI マスクの解決済みラスタ。`@Model` を detached 側へ渡せないため、
+    ///     呼び出し側（MainActor）が `AIMaskReference.rasterID` をキーにした値として渡す。
     func renderPreview(
         url: URL,
         parameters: DevelopParameters,
@@ -36,7 +38,8 @@ protocol ImageDeveloping: Sendable {
         useRAWParameterMapping: Bool,
         usesManualLensCorrection: Bool,
         usesToneMaskedColorGrading: Bool,
-        asShotWhiteBalance: WhiteBalanceSample?
+        asShotWhiteBalance: WhiteBalanceSample?,
+        maskRasters: [UUID: CGImage]
     ) async -> CGImage?
 
     /// 書き出し用にフル解像度で現像して返す。`EditInfo` 由来の回転・トリミングもここで焼き込む。
@@ -50,6 +53,7 @@ protocol ImageDeveloping: Sendable {
     ///     呼び出し側で織り込んだ、手動レンズ補正の最終適用可否。
     ///   - usesToneMaskedColorGrading: カラーグレーディングへトーン域マスク方式を使うか。
     ///   - asShotWhiteBalance: 非 RAW の Custom / Auto 補正の基準に使う撮影時ホワイトバランス。
+    ///   - maskRasters: AI マスクの解決済みラスタ。`renderPreview` と同じ意味。
     func renderFull(
         url: URL,
         parameters: DevelopParameters,
@@ -59,7 +63,24 @@ protocol ImageDeveloping: Sendable {
         useRAWParameterMapping: Bool,
         usesManualLensCorrection: Bool,
         usesToneMaskedColorGrading: Bool,
-        asShotWhiteBalance: WhiteBalanceSample?
+        asShotWhiteBalance: WhiteBalanceSample?,
+        maskRasters: [UUID: CGImage]
+    ) async -> CGImage?
+
+    /// 有効なマスクの合成結果を赤く着色した、マスク可視化用のオーバーレイ画像を返す
+    /// （Capture One の "Display Mask" 相当）。アルファにマスク値が入るのでそのまま重ねられる。
+    ///
+    /// 回転・トリミングは `renderPreview` と同じ経路で焼き込むため、表示中のプレビューと
+    /// 位置が原理的にずれない。SwiftUI 側の幾何計算はハンドルだけに限定される（§1.5.4）。
+    /// 有効なマスクが 1 枚も無いときは `nil`。
+    func renderMaskOverlay(
+        url: URL,
+        parameters: DevelopParameters,
+        targetMaxPixelSize: CGFloat,
+        rotation: Int,
+        cropRect: CGRect?,
+        useRAWParameterMapping: Bool,
+        maskRasters: [UUID: CGImage]
     ) async -> CGImage?
 
     /// 拡張子から RAW かどうかを判定する。
@@ -71,6 +92,16 @@ protocol ImageDeveloping: Sendable {
 
 extension ImageDeveloping {
     func asShotNeutral(for url: URL) async -> WhiteBalanceSample? { nil }
+
+    func renderMaskOverlay(
+        url: URL,
+        parameters: DevelopParameters,
+        targetMaxPixelSize: CGFloat,
+        rotation: Int,
+        cropRect: CGRect?,
+        useRAWParameterMapping: Bool,
+        maskRasters: [UUID: CGImage]
+    ) async -> CGImage? { nil }
 }
 
 /// `DevelopParameters` を実ファイルへ適用して CGImage を生成するエンジン。
@@ -225,7 +256,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         useRAWParameterMapping: Bool = false,
         usesManualLensCorrection: Bool = false,
         usesToneMaskedColorGrading: Bool = false,
-        asShotWhiteBalance: WhiteBalanceSample? = nil
+        asShotWhiteBalance: WhiteBalanceSample? = nil,
+        maskRasters: [UUID: CGImage] = [:]
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
@@ -251,7 +283,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             skipExposureAndWhiteBalance: rawParameters != nil,
             applyManualLensCorrection: usesManualLensCorrection,
             usesToneMaskedColorGrading: usesToneMaskedColorGrading,
-            asShotWhiteBalance: asShotWhiteBalance
+            asShotWhiteBalance: asShotWhiteBalance,
+            maskRasters: maskRasters
         )
     }
 
@@ -292,7 +325,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         useRAWParameterMapping: Bool = false,
         usesManualLensCorrection: Bool = false,
         usesToneMaskedColorGrading: Bool = false,
-        asShotWhiteBalance: WhiteBalanceSample? = nil
+        asShotWhiteBalance: WhiteBalanceSample? = nil,
+        maskRasters: [UUID: CGImage] = [:]
     ) async -> CGImage? {
         let raw = isRAW(url: url)
         let rawParameters = (raw && useRAWParameterMapping) ? parameters : nil
@@ -311,8 +345,88 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             skipExposureAndWhiteBalance: rawParameters != nil,
             applyManualLensCorrection: usesManualLensCorrection,
             usesToneMaskedColorGrading: usesToneMaskedColorGrading,
-            asShotWhiteBalance: asShotWhiteBalance
+            asShotWhiteBalance: asShotWhiteBalance,
+            maskRasters: maskRasters
         )
+    }
+
+    /// 有効なマスクの合成結果を赤く着色したオーバーレイを返す。マスクが無ければ `nil`。
+    ///
+    /// ベースデコードは `renderPreview` と同じキーで引くため、プレビュー描画済みの写真では
+    /// 再デコードが起きない。現像チェーンは通さず、マスク画像だけを回転・トリミングする。
+    func renderMaskOverlay(
+        url: URL,
+        parameters: DevelopParameters,
+        targetMaxPixelSize: CGFloat,
+        rotation: Int = 0,
+        cropRect: CGRect? = nil,
+        useRAWParameterMapping: Bool = false,
+        maskRasters: [UUID: CGImage] = [:]
+    ) async -> CGImage? {
+        let layers = parameters.masks.filter(\.isEnabled)
+        guard !layers.isEmpty else { return nil }
+
+        let rawParameters = (isRAW(url: url) && useRAWParameterMapping) ? parameters : nil
+        let boundedDecodeTarget = Self.previewDecodeTarget(
+            targetMaxPixelSize,
+            cropRect: cropRect,
+            hasRAWParameters: rawParameters != nil
+        )
+        guard let base = await baseImage(
+            url: url, targetMaxPixelSize: boundedDecodeTarget, rawParameters: rawParameters
+        ) else { return nil }
+        guard !Task.isCancelled else { return nil }
+
+        let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
+            guard !Task.isCancelled else { return nil }
+            let extent = CIImage(cgImage: base).extent
+            let union = Self.unionMask(of: layers, baseExtent: extent, maskRasters: maskRasters)
+            return Self.finalize(
+                Self.tintedRed(union),
+                rotation: rotation,
+                cropRect: cropRect,
+                outputColorSpace: Self.defaultOutputColorSpace
+            )
+        }
+        return await withTaskCancellationHandler {
+            await handle.value
+        } onCancel: {
+            handle.cancel()
+        }
+    }
+
+    /// 各レイヤーのマスクを成分ごとの最大値で重ねる（和集合）。
+    private static func unionMask(
+        of layers: [MaskLayer],
+        baseExtent: CGRect,
+        maskRasters: [UUID: CGImage]
+    ) -> CIImage {
+        var union: CIImage?
+        for layer in layers {
+            let mask = DefaultMaskCompositor.maskImage(
+                for: layer, baseExtent: baseExtent, maskRasters: maskRasters
+            )
+            guard let current = union else {
+                union = mask
+                continue
+            }
+            let filter = CIFilter.maximumCompositing()
+            filter.inputImage = mask
+            filter.backgroundImage = current
+            union = filter.outputImage ?? current
+        }
+        return (union ?? CIImage(color: .clear)).cropped(to: baseExtent)
+    }
+
+    /// マスク値 m（全チャンネル）を premultiplied な赤（R = m, A = m）へ写す。
+    private static func tintedRed(_ mask: CIImage) -> CIImage {
+        mask.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: 1, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 1),
+            "inputBiasVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+        ])
     }
 
     /// 明示指定が無いときの出力色空間。
@@ -643,29 +757,22 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         skipExposureAndWhiteBalance: Bool,
         applyManualLensCorrection: Bool,
         usesToneMaskedColorGrading: Bool,
-        asShotWhiteBalance: WhiteBalanceSample?
+        asShotWhiteBalance: WhiteBalanceSample?,
+        maskRasters: [UUID: CGImage]
     ) async -> CGImage? {
         let handle = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard !Task.isCancelled else { return nil }
             let source = CIImage(cgImage: base)
-            var image = DevelopPipeline.apply(
+            let image = DevelopPipeline.apply(
                 parameters, to: source, isRAW: isRAW, cache: cache,
                 skipExposureAndWhiteBalance: skipExposureAndWhiteBalance,
                 applyManualLensCorrection: applyManualLensCorrection,
                 usesToneMaskedColorGrading: usesToneMaskedColorGrading,
-                asShotWhiteBalance: asShotWhiteBalance
+                asShotWhiteBalance: asShotWhiteBalance,
+                maskRasters: maskRasters
             )
-            // 回転 → トリミングの順。cropRect は「回転後に表示されている画像」基準の正規化矩形なので、
-            // 先に回転を焼き込んでから同じ割合で切り抜くと、ユーザーが画面で見た構図と一致する。
-            image = applyRotation(rotation, to: image)
-            image = applyCrop(cropRect, to: image)
-            guard !Task.isCancelled else { return nil }
-
-            let rect = image.extent.integral
-            guard !rect.isEmpty, !rect.isInfinite else { return nil }
-            // 作業空間（linearSRGB）から指定の出力空間へ変換して実体化する。
-            return sharedContext.createCGImage(
-                image, from: rect, format: .RGBA8, colorSpace: outputColorSpace
+            return finalize(
+                image, rotation: rotation, cropRect: cropRect, outputColorSpace: outputColorSpace
             )
         }
         return await withTaskCancellationHandler {
@@ -673,6 +780,28 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         } onCancel: {
             handle.cancel()
         }
+    }
+
+    /// 回転・トリミングを焼き込んで CGImage として実体化する。現像プレビューとマスク可視化で
+    /// 同じ関数を通すことで、オーバーレイの位置がプレビューとずれないようにする。
+    ///
+    /// 回転 → トリミングの順。cropRect は「回転後に表示されている画像」基準の正規化矩形なので、
+    /// 先に回転を焼き込んでから同じ割合で切り抜くと、ユーザーが画面で見た構図と一致する。
+    private static func finalize(
+        _ image: CIImage,
+        rotation: Int,
+        cropRect: CGRect?,
+        outputColorSpace: CGColorSpace
+    ) -> CGImage? {
+        let cropped = applyCrop(cropRect, to: applyRotation(rotation, to: image))
+        guard !Task.isCancelled else { return nil }
+
+        let rect = cropped.extent.integral
+        guard !rect.isEmpty, !rect.isInfinite else { return nil }
+        // 作業空間（linearSRGB）から指定の出力空間へ変換して実体化する。
+        return sharedContext.createCGImage(
+            cropped, from: rect, format: .RGBA8, colorSpace: outputColorSpace
+        )
     }
 
     /// 正規化トリミング矩形（左上原点、回転後の画像基準）を CIImage の座標系（左下原点）へ

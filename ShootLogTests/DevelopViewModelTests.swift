@@ -48,6 +48,28 @@ struct DevelopViewModelTests {
         private var lastPreviewColorSpaceValue: CGColorSpace?
         var lastPreviewColorSpace: CGColorSpace? { lock.withLock { lastPreviewColorSpaceValue } }
 
+        private var maskOverlayCalls = 0
+        private var lastMaskOverlayParams: DevelopParameters?
+        var maskOverlayStub: CGImage?
+        var maskOverlayCallCount: Int { lock.withLock { maskOverlayCalls } }
+        var lastMaskOverlayParameters: DevelopParameters? { lock.withLock { lastMaskOverlayParams } }
+
+        func renderMaskOverlay(
+            url: URL,
+            parameters: DevelopParameters,
+            targetMaxPixelSize: CGFloat,
+            rotation: Int,
+            cropRect: CGRect?,
+            useRAWParameterMapping: Bool,
+            maskRasters: [UUID: CGImage]
+        ) async -> CGImage? {
+            lock.withLock {
+                maskOverlayCalls += 1
+                lastMaskOverlayParams = parameters
+            }
+            return maskOverlayStub
+        }
+
         func renderPreview(
             url: URL,
             parameters: DevelopParameters,
@@ -58,7 +80,8 @@ struct DevelopViewModelTests {
             useRAWParameterMapping: Bool,
             usesManualLensCorrection: Bool,
             usesToneMaskedColorGrading: Bool,
-            asShotWhiteBalance: WhiteBalanceSample?
+            asShotWhiteBalance: WhiteBalanceSample?,
+            maskRasters: [UUID: CGImage]
         ) async -> CGImage? {
             let delay = lock.withLock { previewDelayMilliseconds }
             if delay > 0 {
@@ -90,7 +113,8 @@ struct DevelopViewModelTests {
             useRAWParameterMapping: Bool,
             usesManualLensCorrection: Bool,
             usesToneMaskedColorGrading: Bool,
-            asShotWhiteBalance: WhiteBalanceSample?
+            asShotWhiteBalance: WhiteBalanceSample?,
+            maskRasters: [UUID: CGImage]
         ) async -> CGImage? {
             lock.withLock {
                 lastUsesManualLensCorrectionValue = usesManualLensCorrection
@@ -307,7 +331,7 @@ struct DevelopViewModelTests {
         vm.parameters = updated
         await settle(120)
 
-        #expect(settings.schemaVersion == 5)
+        #expect(settings.schemaVersion == 6)
         #expect(engine.lastUsesToneMaskedColorGrading)
     }
 
@@ -1244,5 +1268,159 @@ struct DevelopViewModelTests {
 
         #expect(vm.histogram != nil)
         #expect(vm.previewImage == nil)
+    }
+
+    // MARK: - マスク（ローカル調整）
+
+    /// プレビューが出ている（= `canEditMasks`）状態の ViewModel を用意する。
+    private func makeViewModelWithPreview(engine: SpyEngine) async -> DevelopViewModel {
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/mask.jpg")), displaySize: CGSize(width: 800, height: 600))
+        var parameters = DevelopParameters.neutral
+        parameters.exposure = 1
+        vm.parameters = parameters
+        await settle()
+        return vm
+    }
+
+    @Test func maskEditModeCannotBeEnabledWithoutPreview() {
+        let engine = SpyEngine()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        vm.maskEditMode = true
+
+        #expect(vm.maskEditMode == false)
+        #expect(vm.canEditMasks == false)
+    }
+
+    @Test func maskEditModeIsExclusiveWithBeforeAndSplitCompare() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        #expect(vm.canEditMasks)
+
+        vm.maskEditMode = true
+        #expect(vm.maskEditMode)
+
+        vm.isShowingBefore = true
+        #expect(vm.maskEditMode == false)
+
+        vm.maskEditMode = true
+        #expect(vm.isShowingBefore == false)
+
+        vm.isComparingSplit = true
+        #expect(vm.maskEditMode == false)
+
+        vm.maskEditMode = true
+        #expect(vm.isComparingSplit == false)
+    }
+
+    @Test func addLinearGradientMaskAppendsLayer() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+
+        let id = try #require(vm.addLinearGradientMask())
+
+        #expect(vm.maskLayers.count == 1)
+        #expect(vm.parameters.masks.first?.id == id)
+        #expect(vm.selectedMaskLayerID == id)
+        if case .linearGradient = vm.parameters.masks[0].source {} else {
+            Issue.record("線形グラデーション以外の生成子が入っている")
+        }
+    }
+
+    @Test func addLinearGradientMaskIsNoOpWithoutPreview() {
+        let engine = SpyEngine()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        #expect(vm.addLinearGradientMask() == nil)
+        #expect(vm.maskLayers.isEmpty)
+    }
+
+    @Test func removeMaskDropsLayerAndSelection() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let id = try #require(vm.addLinearGradientMask())
+        vm.addLinearGradientMask()
+
+        vm.removeMask(id: id)
+
+        #expect(vm.maskLayers.count == 1)
+        #expect(vm.maskLayers.contains { $0.id == id } == false)
+        #expect(vm.selectedMaskLayerID != id)
+    }
+
+    @Test func updateMaskWritesThroughToParameters() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let id = try #require(vm.addLinearGradientMask())
+
+        vm.updateMask(id: id) { layer in
+            layer.isEnabled = false
+            layer.density = 42
+        }
+
+        let layer = try #require(vm.parameters.masks.first { $0.id == id })
+        #expect(layer.isEnabled == false)
+        #expect(layer.density == 42)
+    }
+
+    @Test func maskChangeSchedulesPreviewRender() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        let callsBeforeMask = engine.previewCallCount
+
+        vm.addLinearGradientMask()
+        await settle()
+
+        #expect(engine.previewCallCount > callsBeforeMask)
+        #expect(engine.lastParameters?.masks.count == 1)
+    }
+
+    @Test func maskOverlayRendersWhileEditingWithEnabledMask() async throws {
+        let engine = SpyEngine()
+        engine.maskOverlayStub = makeStubImage()
+        let vm = await makeViewModelWithPreview(engine: engine)
+
+        vm.maskEditMode = true
+        vm.addLinearGradientMask()
+        await settle(200)
+
+        #expect(engine.maskOverlayCallCount > 0)
+        #expect(engine.lastMaskOverlayParameters?.masks.count == 1)
+        #expect(vm.maskOverlayImage != nil)
+    }
+
+    @Test func leavingMaskEditModeClearsOverlay() async throws {
+        let engine = SpyEngine()
+        engine.maskOverlayStub = makeStubImage()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        vm.maskEditMode = true
+        vm.addLinearGradientMask()
+        await settle(200)
+        #expect(vm.maskOverlayImage != nil)
+
+        vm.maskEditMode = false
+        let callsAfterLeaving = engine.maskOverlayCallCount
+        await settle(200)
+
+        #expect(vm.maskOverlayImage == nil)
+        #expect(engine.maskOverlayCallCount == callsAfterLeaving)
+    }
+
+    @Test func maskOverlayIsNotRenderedWhenAllMasksDisabled() async throws {
+        let engine = SpyEngine()
+        engine.maskOverlayStub = makeStubImage()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        vm.maskEditMode = true
+        let id = try #require(vm.addLinearGradientMask())
+        await settle(200)
+
+        vm.updateMask(id: id) { $0.isEnabled = false }
+        await settle(200)
+
+        #expect(vm.maskOverlayImage == nil)
     }
 }

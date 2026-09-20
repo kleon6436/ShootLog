@@ -654,6 +654,78 @@ struct ImageDevelopmentEngineTests {
         #expect(delta > 3)
     }
 
+    // MARK: - マスク可視化
+
+    /// 全面 1 のマスク（`.none` を反転）を持つパラメータ。
+    private func parametersWithFullCoverageMask() -> DevelopParameters {
+        var parameters = DevelopParameters.neutral
+        parameters.masks = [
+            MaskLayer(
+                id: UUID(),
+                name: "test",
+                source: .none,
+                isInverted: true,
+                adjustments: LocalAdjustments(exposure: 1.0)
+            )
+        ]
+        return parameters
+    }
+
+    @Test func maskOverlayIsNilWithoutEnabledMasks() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+
+        #expect(await engine.renderMaskOverlay(
+            url: url, parameters: .neutral, targetMaxPixelSize: 256
+        ) == nil)
+
+        var disabled = parametersWithFullCoverageMask()
+        disabled.masks[0].isEnabled = false
+        #expect(await engine.renderMaskOverlay(
+            url: url, parameters: disabled, targetMaxPixelSize: 256
+        ) == nil)
+    }
+
+    @Test func maskOverlayMatchesPreviewGeometryAndIsRed() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+        let parameters = parametersWithFullCoverageMask()
+
+        let preview = try #require(
+            await engine.renderPreview(url: url, parameters: parameters, targetMaxPixelSize: 256)
+        )
+        let overlay = try #require(
+            await engine.renderMaskOverlay(url: url, parameters: parameters, targetMaxPixelSize: 256)
+        )
+
+        // 現像プレビューと同じ経路を通るので寸法が一致する（位置ずれが起きない条件）。
+        #expect(overlay.width == preview.width)
+        #expect(overlay.height == preview.height)
+
+        // 全面マスクなので赤が乗り、緑・青は乗らない。
+        let means = try meanChannels(of: overlay)
+        #expect(means.red > 200)
+        #expect(means.green < 20)
+        #expect(means.blue < 20)
+    }
+
+    @Test func maskOverlayFollowsRotationLikePreview() async throws {
+        let sandbox = try makeSandbox()
+        let url = try writePNG(width: 128, height: 96, in: sandbox)
+        let engine = makeEngine(in: sandbox)
+
+        let overlay = try #require(await engine.renderMaskOverlay(
+            url: url,
+            parameters: parametersWithFullCoverageMask(),
+            targetMaxPixelSize: 256,
+            rotation: 90
+        ))
+        #expect(overlay.width == 96)
+        #expect(overlay.height == 128)
+    }
+
     // MARK: - 失敗系
 
     @Test func missingFileReturnsNilInsteadOfCrashing() async throws {
