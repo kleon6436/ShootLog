@@ -91,17 +91,37 @@ final class DevelopViewModel {
                 maskOverlayTask?.cancel()
                 maskOverlayTask = nil
                 maskOverlayImage = nil
+                clearBrushTransientState()
             }
         }
     }
     /// 有効なマスクの合成結果を赤く着色したオーバーレイ。`maskEditMode` 中のみ非 nil。
     private(set) var maskOverlayImage: NSImage?
     /// UI のレイヤーリストで選択中のマスク。
-    var selectedMaskLayerID: UUID?
+    var selectedMaskLayerID: UUID? {
+        didSet {
+            guard selectedMaskLayerID != oldValue else { return }
+            // 切り替え前のレイヤーへ描き続ける事故を防ぐため、選択が変わったらペイントを切る。
+            isBrushPaintMode = false
+        }
+    }
+    /// ビューア上のドラッグをブラシのペイントとして解釈するか。
+    /// オーバーレイ（描画領域の出し分け）と現像パネル（ブラシ設定の開閉）で共有する。
+    var isBrushPaintMode = false
     /// AI マスクを生成中か（ボタンの無効化・スピナー表示用）。
     private(set) var isGeneratingAIMask = false
     /// 直近の AI マスク生成が失敗した理由。成功・写真切り替え・次の生成開始で消える。
     private(set) var aiMaskGenerationFailureMessage: String?
+    /// ブラシの半径。ベース空間の正規化座標（extent 短辺に対する比率）。
+    var brushRadius: Double = DevelopViewModel.defaultBrushRadius
+    /// ブラシの硬さ（0...100）。0 でソフト、100 でシャープ。
+    var brushHardness: Double = 50
+    /// ブラシの不透明度（0...100）。
+    var brushOpacity: Double = 100
+    /// true の間、次に描くストロークは消しゴム（減算）になる。
+    var isBrushEraserMode = false
+    /// ストローク上限に達して追加できなかったときのインライン通知。
+    private(set) var brushStrokeLimitReachedMessage: String?
     /// スプリット境界の位置。表示中画像矩形内の 0...1（左端=0、右端=1）。
     var splitPosition: CGFloat = 0.5
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
@@ -153,6 +173,12 @@ final class DevelopViewModel {
     /// `rasterID` をキーに保持する。ラスタの中身は生成時に確定し以後変わらない（再生成は
     /// 新しい `rasterID` を発行する）ので、ID 一致だけで再利用してよい。写真切り替えで捨てる。
     private var maskRasterDecodeCache: [UUID: CGImage] = [:]
+
+    /// ドラッグ中のストローク。確定（`endBrushStroke`）までレイヤーへは書き込まない。
+    private var activeBrushStroke: BrushStroke?
+    private var activeBrushLayerID: UUID?
+    /// ブラシ専用の Undo 履歴。永続化せずメモリ内だけで持つ（写真切り替えで破棄）。
+    private var brushUndoStack: [(layerID: UUID, previousBrushEdits: [BrushStroke])] = []
 
     private var currentPhoto: Photo?
     private var displaySize: CGSize = .zero
@@ -260,6 +286,7 @@ final class DevelopViewModel {
         selectedMaskLayerID = nil
         // 別写真のラスタが混入しないよう、写真ごとにデコード結果を捨てる。
         maskRasterDecodeCache.removeAll()
+        clearBrushTransientState()
         aiMaskGenerationFailureMessage = nil
         isRAWParameterDragging = false
         isRAW = photo.map { engine.isRAW(url: $0.fileURL) } ?? false
@@ -738,6 +765,29 @@ final class DevelopViewModel {
         return layer.id
     }
 
+    /// ブラシだけで描くマスクレイヤーを 1 枚追加し、選択したうえでペイントモードへ入る。
+    /// ベースは全面 0（`.none`）なので、追加直後は何も塗られていない状態から始まる。
+    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
+    @discardableResult
+    func addBrushMask() -> UUID? {
+        guard canEditMasks else { return nil }
+        let layer = MaskLayer(
+            id: UUID(),
+            name: String(
+                format: String(localized: "develop.mask.brush.defaultName"),
+                Int64(parameters.masks.count + 1)
+            ),
+            source: .none,
+            adjustments: LocalAdjustments()
+        )
+        var updated = parameters
+        updated.masks.append(layer)
+        parameters = updated
+        selectedMaskLayerID = layer.id
+        isBrushPaintMode = true
+        return layer.id
+    }
+
     /// 指定したマスクレイヤーを削除する。
     /// プレビューの有無でゲートしない。レンダー失敗などで `previewImage` が消えた状態から
     /// 抜け出す唯一の手段が削除のため。
@@ -747,6 +797,12 @@ final class DevelopViewModel {
         updated.masks.removeAll { $0.id == id }
         parameters = updated
         if selectedMaskLayerID == id { selectedMaskLayerID = nil }
+        // 消えたレイヤーを指す Undo エントリ・進行中ストロークは復元先が無い。
+        brushUndoStack.removeAll { $0.layerID == id }
+        if activeBrushLayerID == id {
+            activeBrushStroke = nil
+            activeBrushLayerID = nil
+        }
     }
 
     /// マスクレイヤーの表示順を並べ替える。index 0 が最下層のまま、配列の並びを直接操作する。
@@ -767,6 +823,100 @@ final class DevelopViewModel {
         transform(&updated.masks[index])
         guard updated != parameters else { return }
         parameters = updated
+    }
+
+    // MARK: - ブラシ
+
+    /// ブラシ半径として許容する範囲（ベース空間の正規化座標、短辺基準）。
+    static let brushRadiusRange: ClosedRange<Double> = 0.005...0.3
+
+    /// ブラシ半径の既定値。スライダーのリセット先も兼ねる。
+    static let defaultBrushRadius = 0.03
+
+    /// 点間引きのしきい値。ブラシ半径に対する比率と絶対上限の小さい方を使う。
+    ///
+    /// 比率だけだと大きなブラシで間引きが粗くなりすぎ、「ストローク形状の最大偏差が長辺の
+    /// 0.2% 以内」という受け入れ基準を割る（落とした点は直前の採用点から高々しきい値ぶん
+    /// しか離れていないので、しきい値がそのまま偏差の上界になる）。逆に絶対値だけだと
+    /// 細いブラシで無駄に点が増える。
+    private static let brushPointMinimumDistanceRatio = 0.15
+    /// 点間引きしきい値の絶対上限（正規化座標）。受け入れ基準の 0.2% をそのまま採る。
+    private static let brushPointMaximumSpacing = 0.002
+    /// 1 レイヤーあたりのストローク上限。超過時は自動ラスタ化せず警告だけ出す（OQ-4）。
+    private static let maxBrushStrokesPerLayer = 500
+    /// ブラシ Undo の履歴保持数。
+    private static let maxBrushUndoDepth = 20
+
+    /// 直前のブラシストロークを取り消せるか。
+    var canUndoBrushStroke: Bool { !brushUndoStack.isEmpty }
+
+    /// ドラッグ開始時に呼ぶ。新しいストロークを開始する。
+    /// - Parameters:
+    ///   - point: ベース空間の正規化座標（最初の点）。
+    ///   - layerID: ストロークを追加する対象レイヤー。
+    func beginBrushStroke(at point: NormalizedPoint, layerID: UUID) {
+        guard canEditMasks, parameters.masks.contains(where: { $0.id == layerID }) else { return }
+        activeBrushStroke = BrushStroke(
+            points: [BrushPoint(x: point.x, y: point.y)],
+            radius: brushRadius,
+            hardness: brushHardness,
+            opacity: brushOpacity,
+            isEraser: isBrushEraserMode
+        )
+        activeBrushLayerID = layerID
+    }
+
+    /// ドラッグ中に呼ぶ。直前の採用点から十分離れている場合だけ点を追加する。
+    func continueBrushStroke(at point: NormalizedPoint) {
+        guard var stroke = activeBrushStroke, let last = stroke.points.last else { return }
+        let dx = point.x - last.x
+        let dy = point.y - last.y
+        guard (dx * dx + dy * dy).squareRoot() > Self.brushPointSpacing(forRadius: stroke.radius) else { return }
+        stroke.points.append(BrushPoint(x: point.x, y: point.y))
+        activeBrushStroke = stroke
+    }
+
+    /// ドラッグ終了時に呼ぶ。ストロークを確定し、対象レイヤーの `brushEdits` へ追加する。
+    /// 上限に達している場合は追加せず、警告メッセージだけを出す（OQ-4: 自動ラスタ化はしない）。
+    func endBrushStroke() {
+        defer {
+            activeBrushStroke = nil
+            activeBrushLayerID = nil
+        }
+        guard let stroke = activeBrushStroke, let layerID = activeBrushLayerID,
+              let layer = parameters.masks.first(where: { $0.id == layerID }) else { return }
+        guard layer.brushEdits.count < Self.maxBrushStrokesPerLayer else {
+            brushStrokeLimitReachedMessage = String(localized: "develop.mask.brush.limitReached")
+            return
+        }
+        brushUndoStack.append((layerID: layerID, previousBrushEdits: layer.brushEdits))
+        if brushUndoStack.count > Self.maxBrushUndoDepth {
+            brushUndoStack.removeFirst()
+        }
+        updateMask(id: layerID) { $0.brushEdits.append(stroke) }
+        brushStrokeLimitReachedMessage = nil
+    }
+
+    /// 直前のブラシストロークを取り消す（非永続、ViewModel 内のみ）。
+    func undoLastBrushStroke() {
+        guard let last = brushUndoStack.popLast() else { return }
+        updateMask(id: last.layerID) { $0.brushEdits = last.previousBrushEdits }
+        brushStrokeLimitReachedMessage = nil
+    }
+
+    /// 指定半径での点間引きしきい値。
+    private static func brushPointSpacing(forRadius radius: Double) -> Double {
+        min(brushPointMinimumDistanceRatio * max(radius, brushRadiusRange.lowerBound), brushPointMaximumSpacing)
+    }
+
+    /// 進行中ストローク・Undo 履歴・警告を捨てる。写真切り替えやマスク編集終了で呼ぶ。
+    /// 別写真の `brushEdits` を誤って復元しないため、写真をまたいで持ち越してはならない。
+    private func clearBrushTransientState() {
+        activeBrushStroke = nil
+        activeBrushLayerID = nil
+        brushUndoStack.removeAll()
+        brushStrokeLimitReachedMessage = nil
+        isBrushPaintMode = false
     }
 
     // MARK: - AI マスク
