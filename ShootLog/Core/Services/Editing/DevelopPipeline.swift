@@ -139,6 +139,10 @@ enum DevelopPipeline {
         // 正規化座標の基準をずらさないようにするため（§1.4）。
         // 輝度レンジマスクの選択範囲が下のレイヤーの効果でずれないよう、輝度を読む対象は
         // ループ開始時点の画像に固定する。
+        // シャープ/ノイズ低減は extent を広げたり縮めたりするため、マスクの基準に使う前に
+        // 一度 `input.extent` へ正規化する（そうしないと輝度レンジマスクの `cropped(to:)` や
+        // 1 枚目レイヤーの合成背景が実データ範囲とずれ、境界に黒/透明の縁が混入しうる）。
+        image = image.extent == input.extent ? image : image.cropped(to: input.extent)
         let maskBaseImage = image
         for layer in parameters.masks where layer.isEnabled {
             image = maskCompositor.composeLayer(

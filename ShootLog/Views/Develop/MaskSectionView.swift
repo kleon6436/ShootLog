@@ -62,6 +62,10 @@ struct MaskSectionView: View {
                     developViewModel.addBrushMask()
                 }
             }
+            // AI マスク生成中は他種別の追加もブロックする。生成中に増えたレイヤーを
+            // `regenerateAIMask`/`refineAIMask` が「AI 生成の成功」と誤判定する競合を防ぐ
+            // （レビュー指摘）。
+            .disabled(developViewModel.isGeneratingAIMask)
 
             HStack(spacing: Spacing.small) {
                 Button("develop.mask.addForegroundSubject", systemImage: "person.and.background.dotted") {

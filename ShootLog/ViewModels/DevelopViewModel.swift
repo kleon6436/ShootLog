@@ -19,7 +19,10 @@ final class DevelopViewModel {
             guard !isApplyingLoadedState, parameters != oldValue else { return }
             scheduleRender()
             schedulePersist()
-            if maskEditMode { scheduleMaskOverlayRender() }
+            // マスクオーバーレイの可視化は `masks` にしか依存しないため、露出等の無関係な
+            // グローバル調整の変更では再合成しない（レビュー指摘: マスク編集中のスライダー
+            // ドラッグのたびに Core Image の別ラウンドトリップが走っていた）。
+            if maskEditMode, parameters.masks != oldValue.masks { scheduleMaskOverlayRender() }
         }
     }
 
@@ -557,6 +560,7 @@ final class DevelopViewModel {
         rawMappingActive = isRAW
         toneMaskedColorGradingActive = true
         selectedMaskLayerID = nil
+        clearBrushTransientState()
         undoParameters = nil
         canUndo = false
         if currentPhoto != nil, shouldRender {
@@ -941,8 +945,13 @@ final class DevelopViewModel {
     /// `.person` は「人物なし」を戻り値で判定できない（`SubjectMaskGenerating` の注記。
     /// 実測で confidence は常に 1.0）。したがって生成できたマスクは必ずレイヤーとして提示し、
     /// 不適切かどうかの判断は `removeMask(id:)` でユーザーに委ねる。
-    func addAIMask(kind: AIMaskKind, clickPoint: NormalizedPoint? = nil) async {
-        guard canEditMasks, !isGeneratingAIMask, let photo = currentPhoto else { return }
+    /// - Returns: 生成に成功した新規レイヤーの ID。失敗・早期リターン時は `nil`。
+    ///   `regenerateAIMask`/`refineAIMask` が「無関係な操作で `maskLayers.count` が
+    ///   たまたま増えた」ことを成功と誤判定しないよう、カウント比較ではなく戻り値で成否を伝える
+    ///   （レビュー指摘: AI 生成中に他種別マスクを追加されるとレイヤーを誤削除しうる）。
+    @discardableResult
+    func addAIMask(kind: AIMaskKind, clickPoint: NormalizedPoint? = nil) async -> UUID? {
+        guard canEditMasks, !isGeneratingAIMask, let photo = currentPhoto else { return nil }
 
         isGeneratingAIMask = true
         aiMaskGenerationFailureMessage = nil
@@ -969,7 +978,7 @@ final class DevelopViewModel {
             maskRasters: resolvedMaskRasters(for: params)
         ) else {
             aiMaskGenerationFailureMessage = String(localized: "develop.mask.ai.generationFailed")
-            return
+            return nil
         }
 
         // Vision の正規化座標は左下原点・y 上向き。`NormalizedPoint` とは y が逆。
@@ -984,15 +993,15 @@ final class DevelopViewModel {
             case .person: String(localized: "develop.mask.ai.noPersonFound")
             case .foregroundSubject: String(localized: "develop.mask.ai.noSubjectFound")
             }
-            return
+            return nil
         }
         // 生成中に写真が切り替わっていたら、別写真のラスタを貼らない。
-        guard currentPhoto?.id == photo.id else { return }
+        guard currentPhoto?.id == photo.id else { return nil }
 
         // DevelopSettingsの確保はVision成功後に行う。Vision失敗・写真切替などの早期returnで
         // 中立な空行が永続的に残るのを防ぐため（updateDevelopParametersの「中立状態では
         // 行を作らない」という不変条件に反しないようにする。レビュー指摘）。
-        guard let settings = content?.developSettingsForMaskRaster() else { return }
+        guard let settings = content?.developSettingsForMaskRaster() else { return nil }
 
         let rasterID = UUID()
         let raster = MaskRaster(id: rasterID, pngData: result.pngData, longEdge: result.longEdge)
@@ -1019,6 +1028,7 @@ final class DevelopViewModel {
         updated.masks.append(layer)
         parameters = updated
         selectedMaskLayerID = layer.id
+        return layer.id
     }
 
     /// このレイヤーが現行の Vision 世代と異なる世代で焼き込まれているか。UI の再生成導線の表示条件。
@@ -1040,9 +1050,9 @@ final class DevelopViewModel {
     func regenerateAIMask(id: UUID) async {
         guard let layer = maskLayers.first(where: { $0.id == id }),
               case .ai(let reference) = layer.source else { return }
-        let before = maskLayers.count
-        await addAIMask(kind: reference.kind)
-        guard maskLayers.count > before else { return }
+        // カウント比較ではなく戻り値の ID で成否判定する（レビュー指摘: 生成中に他種別の
+        // マスクが追加されると `maskLayers.count` の増減だけでは誤判定する）。
+        guard await addAIMask(kind: reference.kind) != nil else { return }
         removeMask(id: id)
     }
 

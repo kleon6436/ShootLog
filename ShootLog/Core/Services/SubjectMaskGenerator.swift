@@ -1,8 +1,11 @@
 import CoreGraphics
 import CoreImage
 import Foundation
+import OSLog
 import UniformTypeIdentifiers
 import Vision
+
+private let subjectMaskLogger = Logger(subsystem: "com.shootlog.app", category: "SubjectMaskGenerator")
 
 /// 被写体 / 人物マスクの生成結果。
 struct SubjectMaskResult: Sendable {
@@ -96,7 +99,15 @@ struct VisionSubjectMaskGenerator: SubjectMaskGenerating {
                 longEdge: encoded.longEdge,
                 instanceIndices: Array(instances)
             )
+        } catch is CancellationError {
+            // 写真切り替え等によるタスクキャンセル。呼び出し側は「被写体/人物が見つからなかった」
+            // メッセージを出すため、ログ・診断は不要（意図した中断であり異常ではない）。
+            return nil
         } catch {
+            // Vision 側の内部エラー。呼び出し側は戻り値の `nil` を「見つからなかった」としか
+            // 解釈できないため、せめて診断できるようログへ残す（レビュー指摘: 空 catch でエラー種別を
+            // 握りつぶすと、キャンセルや Vision の一時的な失敗も同じ誤ったメッセージになる）。
+            subjectMaskLogger.error("Vision instance mask request failed: \(error, privacy: .public)")
             return nil
         }
     }

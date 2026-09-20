@@ -335,6 +335,74 @@
         }
       }
     },
+    "a11y.mask.ai.refineArea" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI mask refine area"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AIマスクの絞り込み領域"
+          }
+        }
+      }
+    },
+    "a11y.mask.ai.refineArea.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pointer only. Tap a subject in the photo to narrow the mask."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ポインタ操作専用。写真内の被写体をクリックしてマスクを絞り込みます。"
+          }
+        }
+      }
+    },
+    "a11y.mask.brush.paintArea" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brush paint area"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブラシ描画領域"
+          }
+        }
+      }
+    },
+    "a11y.mask.brush.paintArea.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pointer only. Drag to paint or erase the mask."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ポインタ操作専用。ドラッグしてマスクを描画・消去します。"
+          }
+        }
+      }
+    },
     "a11y.mask.handle.start" : {
       "extractionState" : "manual",
       "localizations" : {
