@@ -29,7 +29,7 @@ struct MaskLayer: Codable, Equatable, Sendable, Identifiable {
     /// ユーザー編集可。既定は生成子から自動生成したローカライズ済みの名前。
     var name: String
     var source: MaskSource
-    /// 加算・減算のブラシ編集。Phase 3 まで常に空。
+    /// 加算・減算のブラシ編集。`source` と独立に重なるので、どの生成子にも足せる。
     var brushEdits: [BrushStroke] = []
     var isEnabled: Bool = true
     var isInverted: Bool = false

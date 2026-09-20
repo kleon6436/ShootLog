@@ -58,6 +58,9 @@ struct MaskSectionView: View {
                 Button("develop.mask.addLuminanceRange", systemImage: "circle.lefthalf.filled") {
                     developViewModel.addLuminanceRangeMask()
                 }
+                Button("develop.mask.addBrush", systemImage: "paintbrush.pointed") {
+                    developViewModel.addBrushMask()
+                }
             }
 
             HStack(spacing: Spacing.small) {
@@ -192,6 +195,7 @@ struct MaskSectionView: View {
 
         radialGradientSliders(id: id)
         luminanceRangeSliders(id: id)
+        brushEditor
 
         AdjustmentSlider(
             label: "develop.mask.density",
@@ -251,6 +255,56 @@ struct MaskSectionView: View {
                 value: luminanceBinding(id, \.smoothness, default: 30),
                 range: 0...100
             )
+        }
+    }
+
+    /// ブラシ編集。`brushEdits` はどのベース生成子にも重ねられるので、レイヤー種別で出し分けない。
+    /// 設定値はレイヤーではなく VM 側の「いま持っている筆」なので、`binding(_:_:default:)` ではなく
+    /// `@Bindable` 経由で直接束縛する。
+    @ViewBuilder
+    private var brushEditor: some View {
+        Toggle("develop.mask.brush.paintMode", isOn: $developViewModel.isBrushPaintMode)
+            .toggleStyle(.checkbox)
+            .disabled(!developViewModel.canEditMasks)
+
+        if developViewModel.isBrushPaintMode {
+            AdjustmentSlider(
+                label: "develop.mask.brush.size",
+                value: $developViewModel.brushRadius,
+                range: DevelopViewModel.brushRadiusRange,
+                neutral: DevelopViewModel.defaultBrushRadius,
+                fractionDigits: 3
+            )
+            AdjustmentSlider(
+                label: "develop.mask.brush.hardness",
+                value: $developViewModel.brushHardness,
+                range: 0...100,
+                neutral: 50
+            )
+            AdjustmentSlider(
+                label: "develop.mask.brush.opacity",
+                value: $developViewModel.brushOpacity,
+                range: 0...100,
+                neutral: 100
+            )
+
+            HStack(spacing: Spacing.small) {
+                Toggle("develop.mask.brush.eraser", isOn: $developViewModel.isBrushEraserMode)
+                    .toggleStyle(.checkbox)
+                Spacer(minLength: Spacing.small)
+                Button("develop.mask.brush.undo", systemImage: "arrow.uturn.backward") {
+                    developViewModel.undoLastBrushStroke()
+                }
+                .labelStyle(.iconOnly)
+                .disabled(!developViewModel.canUndoBrushStroke)
+            }
+        }
+
+        if let message = developViewModel.brushStrokeLimitReachedMessage {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

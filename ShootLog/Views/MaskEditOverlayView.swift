@@ -11,6 +11,11 @@ struct MaskEditOverlayView: View {
     let rotation: Int
     let cropRect: CGRect?
 
+    /// ブラシカーソルを描く位置（描画領域ローカル）。ホバーから外れたら `nil`。
+    @State private var brushCursorLocation: CGPoint?
+    /// ドラッグ 1 回につき `beginBrushStroke` を 1 度だけ呼ぶためのラッチ。
+    @State private var isBrushStrokeActive = false
+
     private var maskGeometry: MaskGeometry? {
         guard let previewImageSize = developViewModel.previewImage?.size else { return nil }
         return MaskGeometry(
@@ -45,8 +50,19 @@ struct MaskEditOverlayView: View {
         return (id, reference)
     }
 
+    /// ブラシでペイント中の対象レイヤー。削除直後など実体が無い ID は無効として扱う。
+    private var brushTargetID: UUID? {
+        guard developViewModel.isBrushPaintMode,
+              let id = developViewModel.selectedMaskLayerID,
+              developViewModel.maskLayers.contains(where: { $0.id == id }) else { return nil }
+        return id
+    }
+
     /// ヒントラベルを画像上端から離す距離。
     private static let hintTopInset: CGFloat = 24
+
+    /// `[` / `]` 1 打あたりのブラシ半径の変化率。太いブラシほど絶対量が増えるよう比率で持つ。
+    private static let brushRadiusKeyStepRatio = 0.15
 
     var body: some View {
         if let maskGeometry {
@@ -62,19 +78,122 @@ struct MaskEditOverlayView: View {
                         .accessibilityHidden(true)
                 }
 
-                if let selectedGradient {
-                    gradientHandles(id: selectedGradient.id, mask: selectedGradient.mask, geometry: maskGeometry)
-                }
+                // ペイント中は画像全面がブラシの入力領域になるので、ハンドル類とは排他にする。
+                if let brushTargetID {
+                    brushPaintLayer(id: brushTargetID, geometry: maskGeometry)
+                } else {
+                    if let selectedGradient {
+                        gradientHandles(id: selectedGradient.id, mask: selectedGradient.mask, geometry: maskGeometry)
+                    }
 
-                if let selectedRadial {
-                    radialHandles(id: selectedRadial.id, mask: selectedRadial.mask, geometry: maskGeometry)
-                }
+                    if let selectedRadial {
+                        radialHandles(id: selectedRadial.id, mask: selectedRadial.mask, geometry: maskGeometry)
+                    }
 
-                if let selectedAIMask {
-                    aiRefineLayer(id: selectedAIMask.id, kind: selectedAIMask.reference.kind, geometry: maskGeometry)
+                    if let selectedAIMask {
+                        aiRefineLayer(
+                            id: selectedAIMask.id,
+                            kind: selectedAIMask.reference.kind,
+                            geometry: maskGeometry
+                        )
+                    }
                 }
             }
         }
+    }
+
+    /// ブラシペイント中に画像全体へ敷く描画領域とカーソル。
+    ///
+    /// ジェスチャーとホバーは `.frame`/`.position` より **内側**（= 描画矩形そのもの）へ付ける。
+    /// `.position` を挟むと報告される座標の基準がコンテナ側へ移り、`imageFrame` の原点を
+    /// 足す換算とずれるため。ドラッグ中に呼ぶのは `continueBrushStroke` だけで、`parameters`
+    /// を書き換える API（`updateMask` 等）は呼ばない（ドラッグ中に再ラスタライズさせない契約）。
+    @ViewBuilder
+    private func brushPaintLayer(id: UUID, geometry: MaskGeometry) -> some View {
+        let frame = geometry.imageFrame
+
+        Rectangle()
+            .fill(.clear)
+            .contentShape(Rectangle())
+            .overlay { brushCursor(geometry: geometry) }
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location): brushCursorLocation = location
+                case .ended: brushCursorLocation = nil
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        brushCursorLocation = value.location
+                        let point = geometry.basePoint(fromDisplay: CGPoint(
+                            x: value.location.x + frame.minX,
+                            y: value.location.y + frame.minY
+                        ))
+                        if isBrushStrokeActive {
+                            developViewModel.continueBrushStroke(at: point)
+                        } else {
+                            isBrushStrokeActive = true
+                            developViewModel.beginBrushStroke(at: point, layerID: id)
+                        }
+                    }
+                    .onEnded { _ in
+                        isBrushStrokeActive = false
+                        developViewModel.endBrushStroke()
+                    }
+            )
+            .frame(width: frame.width, height: frame.height)
+            .position(x: frame.midX, y: frame.midY)
+            .focusable()
+            .focusEffectDisabled()
+            .onKeyPress("[") {
+                adjustBrushRadius(byRatio: -Self.brushRadiusKeyStepRatio)
+                return .handled
+            }
+            .onKeyPress("]") {
+                adjustBrushRadius(byRatio: Self.brushRadiusKeyStepRatio)
+                return .handled
+            }
+            .accessibilityHidden(true)
+
+        Text("develop.mask.brush.hint")
+            .font(.caption)
+            .padding(.horizontal, Spacing.medium)
+            .padding(.vertical, Spacing.xSmall)
+            .background(.regularMaterial, in: Capsule())
+            .position(x: frame.midX, y: frame.minY + Self.hintTopInset)
+            .allowsHitTesting(false)
+    }
+
+    /// マウス位置に重ねる筆先の輪郭。消しゴムは破線にして、色だけに頼らず区別する。
+    @ViewBuilder
+    private func brushCursor(geometry: MaskGeometry) -> some View {
+        if let brushCursorLocation {
+            // `BrushMaskRasterizer` は半径を extent 短辺に対する比率として解釈するので、
+            // 表示側も短辺基準で換算する（縦横で基準を変えると筆先が楕円に見える）。
+            let frame = geometry.imageFrame
+            let diameter = developViewModel.brushRadius * Double(min(frame.width, frame.height)) * 2
+
+            Circle()
+                .strokeBorder(
+                    Color.onViewerCanvas.opacity(0.9),
+                    style: StrokeStyle(
+                        lineWidth: 1.5,
+                        dash: developViewModel.isBrushEraserMode ? [4, 3] : []
+                    )
+                )
+                .frame(width: diameter, height: diameter)
+                .position(brushCursorLocation)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// ブラシ半径を比率で増減する。VM 側はクランプしないので、許容範囲へ収めるのは UI の責務。
+    private func adjustBrushRadius(byRatio ratio: Double) {
+        let range = DevelopViewModel.brushRadiusRange
+        let updated = developViewModel.brushRadius * (1 + ratio)
+        developViewModel.brushRadius = min(max(updated, range.lowerBound), range.upperBound)
     }
 
     /// AI マスク選択中に画像全体へ敷くクリック領域。クリックした位置のインスタンスだけへ
@@ -88,12 +207,10 @@ struct MaskEditOverlayView: View {
             .frame(width: geometry.imageFrame.width, height: geometry.imageFrame.height)
             .position(x: geometry.imageFrame.midX, y: geometry.imageFrame.midY)
             .onTapGesture { location in
-                // タップ位置はこの領域（= imageFrame）ローカル。MaskGeometry はコンテナ座標系を取る。
-                let display = CGPoint(
-                    x: location.x + geometry.imageFrame.minX,
-                    y: location.y + geometry.imageFrame.minY
-                )
-                let point = geometry.basePoint(fromDisplay: display)
+                // `.onTapGesture` は `.position` より外側に付いているため、`location` は
+                // 既にコンテナ座標系で報告される（`MaskGradientHandleView.onDrag` と同じ構造。
+                // 座標系のズレバグでオフセットを二重加算していたため撤去、Phase 3レビューで発覚）。
+                let point = geometry.basePoint(fromDisplay: location)
                 Task { await refineAIMask(id: id, kind: kind, at: point) }
             }
             .disabled(developViewModel.isGeneratingAIMask)

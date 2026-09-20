@@ -10,7 +10,7 @@ import Foundation
 /// 合成順は `MaskLayer` のドキュメントに書かれた契約どおり:
 /// ```
 /// base  = source が生成するグレースケール（none は全面 0）
-/// brush = brushEdits を順に適用（Phase 3 まで常に空）
+/// brush = brushEdits を順に適用（isEraser は減算、それ以外は加算）
 /// m = clamp(base + brush, 0, 1)
 /// m = isInverted ? (1 - m) : m
 /// m = m * (density / 100)
@@ -82,6 +82,13 @@ enum MaskImageGenerator {
         }
 
         var mask = baseImage(for: layer.source, in: baseExtent, sourceImage: sourceImage, maskRasters: maskRasters)
+        if let brush = BrushMaskRasterizer.rasterize(layer.brushEdits, baseExtent: baseExtent) {
+            // ブラシは符号付き（消しゴムが負）。クランプ前に足すので、生成子が作ったベースを
+            // 消しゴムで削れる（AI マスクのはみ出しをブラシで消す、が成立する）。
+            mask = mask.applyingFilter("CIAdditionCompositing", parameters: [
+                kCIInputBackgroundImageKey: brush
+            ])
+        }
         mask = clampedToUnitInterval(mask)
         if layer.isInverted {
             mask = inverted(mask)

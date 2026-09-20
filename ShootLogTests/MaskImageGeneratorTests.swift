@@ -38,6 +38,7 @@ struct MaskImageGeneratorTests {
 
     private func makeLayer(
         source: MaskSource,
+        brushEdits: [BrushStroke] = [],
         isInverted: Bool = false,
         density: Double = 100,
         feather: Double = 0
@@ -46,6 +47,7 @@ struct MaskImageGeneratorTests {
             id: UUID(),
             name: "test",
             source: source,
+            brushEdits: brushEdits,
             isInverted: isInverted,
             density: density,
             feather: feather,
@@ -558,5 +560,120 @@ struct MaskImageGeneratorTests {
         #expect(mask.extent == Self.extent)
         #expect(sample(mask, x: 25, y: 25, context: context) > 0.99)
         #expect(sample(mask, x: 75, y: 75, context: context) < 0.001)
+    }
+
+    // MARK: - ブラシ編集
+
+    /// 画像中央を水平に横切る半径 5px のストローク。
+    private func brushStroke(
+        from start: (Double, Double) = (0.2, 0.5),
+        to end: (Double, Double) = (0.8, 0.5),
+        radius: Double = 0.05,
+        opacity: Double = 100,
+        isEraser: Bool = false
+    ) -> BrushStroke {
+        BrushStroke(
+            points: [BrushPoint(x: start.0, y: start.1), BrushPoint(x: end.0, y: end.1)],
+            radius: radius,
+            hardness: 100,
+            opacity: opacity,
+            isEraser: isEraser
+        )
+    }
+
+    @Test("source が .none でも brushEdits だけでマスクが立つ")
+    func brushOnlyLayerProducesMask() {
+        let context = makeContext()
+        let mask = generate(makeLayer(source: .none, brushEdits: [brushStroke()]))
+
+        #expect(mask.extent == Self.extent)
+        #expect(sample(mask, x: 50, y: 50, context: context) > 0.99)
+        #expect(sample(mask, x: 50, y: 80, context: context) < 0.01)
+        #expect(sample(mask, x: 5, y: 50, context: context) < 0.01)
+    }
+
+    @Test("生成子のベースへブラシを足すと両方の効果が合成される")
+    func brushIsAddedOnTopOfGeneratedBase() {
+        let context = makeContext()
+        let base = generate(makeLayer(source: horizontalGradient))
+        let painted = generate(makeLayer(
+            source: horizontalGradient,
+            brushEdits: [brushStroke(from: (0.1, 0.5), to: (0.2, 0.5))]
+        ))
+
+        // ブラシが通った場所はベースに加算されて飽和する（ベース値は 1 より十分小さい）。
+        #expect(sample(base, x: 15, y: 50, context: context) < 0.3)
+        #expect(sample(painted, x: 15, y: 50, context: context) > 0.99)
+
+        // ブラシから離れた場所はベースのまま。
+        for point in [(15, 80), (60, 50), (90, 50)] {
+            let expected = sample(base, x: point.0, y: point.1, context: context)
+            #expect(abs(sample(painted, x: point.0, y: point.1, context: context) - expected) < 0.02)
+        }
+    }
+
+    @Test("生成子のベースを消しゴムストロークで削れる")
+    func eraserStrokeSubtractsFromGeneratedBase() {
+        let context = makeContext()
+        // 右端に近いほどベース値が高い。そこを消しゴムで横切る。
+        let base = generate(makeLayer(source: horizontalGradient))
+        let erased = generate(makeLayer(
+            source: horizontalGradient,
+            brushEdits: [brushStroke(from: (0.8, 0.5), to: (0.9, 0.5), isEraser: true)]
+        ))
+
+        #expect(sample(base, x: 85, y: 50, context: context) > 0.9)
+        #expect(sample(erased, x: 85, y: 50, context: context) < 0.01)
+        // 消しゴムが通っていない場所はベースのまま。
+        let untouched = sample(base, x: 85, y: 80, context: context)
+        #expect(abs(sample(erased, x: 85, y: 80, context: context) - untouched) < 0.02)
+    }
+
+    @Test("不透明度の低い消しゴムはベースを部分的に削る")
+    func partialOpacityEraserReducesGeneratedBase() {
+        let context = makeContext()
+        let base = generate(makeLayer(source: horizontalGradient))
+        let erased = generate(makeLayer(
+            source: horizontalGradient,
+            brushEdits: [brushStroke(from: (0.8, 0.5), to: (0.9, 0.5), opacity: 40, isEraser: true)]
+        ))
+
+        let expected = sample(base, x: 85, y: 50, context: context) - 0.4
+        #expect(abs(sample(erased, x: 85, y: 50, context: context) - expected) < 0.03)
+    }
+
+    @Test("AIマスクのはみ出しを消しゴムで削れる")
+    func eraserStrokeRefinesAIMask() {
+        let context = makeContext()
+        let rasterID = UUID()
+        let reference = AIMaskReference(
+            rasterID: rasterID, kind: .foregroundSubject, instanceIndices: [0],
+            visionRevision: 1, bakedLongEdge: 8, bakedAt: .now
+        )
+        let layer = makeLayer(
+            source: .ai(reference),
+            brushEdits: [brushStroke(from: (0.2, 0.5), to: (0.8, 0.5), isEraser: true)]
+        )
+
+        let mask = generate(layer, maskRasters: [rasterID: makeGrayscaleCGImage(value: 1)])
+
+        #expect(sample(mask, x: 50, y: 50, context: context) < 0.01)
+        #expect(sample(mask, x: 50, y: 80, context: context) > 0.99)
+    }
+
+    @Test("ブラシの合成はクランプ → 反転 → 濃度の順に入る")
+    func brushIsCompositedBeforeInvertAndDensity() {
+        let context = makeContext()
+        let mask = generate(makeLayer(
+            source: .none,
+            brushEdits: [brushStroke()],
+            isInverted: true,
+            density: 50
+        ))
+
+        // ブラシの芯: 1 → 反転で 0。
+        #expect(sample(mask, x: 50, y: 50, context: context) < 0.01)
+        // ブラシの外: 0 → 反転で 1 → 濃度 50% で 0.5。
+        #expect(abs(sample(mask, x: 50, y: 80, context: context) - 0.5) < 0.02)
     }
 }
