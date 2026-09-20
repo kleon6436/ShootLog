@@ -60,6 +60,10 @@ struct AdjustmentSlider: View {
                 track
                 Slider(value: $value, in: range, onEditingChanged: onEditingChanged)
                     .controlSize(.small)
+                    // ネイティブ Slider 自身のトラック塗り（最小値から現在値までを塗る）を消す。
+                    // 中立値からの振れ幅を示す `track` と二重表示になり、特にマイナス側では
+                    // 「値を戻しても青い帯が広がったまま」に見えていた（実機報告）。
+                    .tint(.clear)
             }
         }
         .accessibilityElement(children: .combine)
