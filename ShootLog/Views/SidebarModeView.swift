@@ -28,7 +28,7 @@ struct SidebarModeView: View {
             // トースト（お気に入り登録など）
             if let toast = vm.toastMessage {
                 ToastView(message: toast)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, toastBottomInset)
                     .transition(.opacity)
             }
         }
@@ -138,7 +138,9 @@ struct SidebarModeView: View {
             onCropCancel: { vm.isCropMode = false }
         )
         .background(Color.viewerCanvas)
-        .overlay(alignment: .bottomTrailing) {
+        // 編集ツールバーはビューア下端の中央。右下だと写真の右下隅と重なりやすく、
+        // 中央下は macOS 標準のフローティングコントロール（写真.app等）と同じ置き方になる
+        .overlay(alignment: .bottom) {
             if vm.selectedPhoto != nil {
                 EditorToolbarView(
                     editInfo: vm.currentEditInfo,
@@ -155,6 +157,15 @@ struct SidebarModeView: View {
                 )
             }
         }
+        // 表示位置（何枚中の何枚目か）はビューア右上。編集ツールバーと上下で役割を分ける
+        .overlay(alignment: .topTrailing) {
+            if vm.selectedPhoto != nil {
+                CounterBadge(text: vm.visibleCounterText, font: .caption)
+                    .accessibilityLabel(positionAccessibilityLabel)
+                    .padding(.top, 14)
+                    .padding(.trailing, 16)
+            }
+        }
         .inspector(isPresented: $vm.isEXIFPanelVisible) {
             InspectorTabContainer(
                 sidebarViewModel: vm,
@@ -166,11 +177,48 @@ struct SidebarModeView: View {
             )
             // 編集タブはトーンカーブ・HSL のため広めに取る
             .inspectorColumnWidth(
-                min: vm.inspectorTab == .develop ? 260 : 180,
-                ideal: vm.inspectorTab == .develop ? 300 : 200,
-                max: vm.inspectorTab == .develop ? 420 : 320
+                min: vm.inspectorTab == .develop ? 260 : 240,
+                ideal: vm.inspectorTab == .develop ? 300 : 300,
+                max: vm.inspectorTab == .develop ? 420 : 400
             )
         }
+        // ウィンドウタイトル＝開いている写真ソース、サブタイトル＝その枚数。
+        // NavigationSplitView では詳細側に付けたタイトルがウィンドウタイトルになる
+        .navigationTitle(Text(verbatim: windowTitle))
+        .navigationSubtitle(windowSubtitle)
+    }
+
+    // MARK: - ウィンドウタイトル
+
+    private var windowTitle: String {
+        switch vm.content.currentPhotoSource {
+        case .folder(let url):
+            url.lastPathComponent
+        case .photosLibrary:
+            String(localized: "toolbar.title.photosLibrary")
+        case nil:
+            // アプリ名は固有名詞のためローカライズ対象にしない
+            "ShootLog"
+        }
+    }
+
+    // 写真ソース未選択のときはサブタイトルを出さない（「0枚」を見せても情報にならない）
+    private var windowSubtitle: Text {
+        guard vm.content.currentPhotoSource != nil else { return Text(verbatim: "") }
+        return Text("toolbar.subtitle.photoCount \(vm.photos.count)")
+    }
+
+    // VoiceOver では「3 / 12」のスラッシュが意味を成さないため、位置と総数を文章で読み上げる。
+    // 絞り込みで選択中写真が一覧から外れている間は位置を偽らず、表示そのまま（—）を読ませる
+    private var positionAccessibilityLabel: Text {
+        guard let index = vm.visibleIndex else { return Text(verbatim: vm.visibleCounterText) }
+        return Text("a11y.viewer.position \(index + 1) \(vm.visiblePhotos.count)")
+    }
+
+    // トーストがビューア下端中央の編集ツールバーと重ならないよう、表示中はその上へ退避させる。
+    // 内訳: ボタン高さ32 + 上下余白8 + 下端余白20 + 間隔12
+    private var toastBottomInset: CGFloat {
+        vm.selectedPhoto != nil ? 72 : 20
     }
 
     // 選択中写真に対する操作可否。外部アプリ一覧の照会（Launch Services）はここでは不要なので
@@ -203,18 +251,19 @@ struct SidebarModeView: View {
     // 標準ツールバーの中身。
     // サイドバートグルは OS 標準ボタンを外して独自ボタン1つに統一しているため常時表示する。
     // 配置は Xcode 同様の位置連動を得るため .navigation（サイドバー領域の先頭）とし、
-    // フォルダを開くボタンをその右隣の独立ボタンとして続け、他のアイテムは .primaryAction に置く
+    // 「フォルダを開く」まで含めて1クラスタにする。末尾側は役割ごとに
+    // 「表示モード」「絞り込み」「その他の操作」の3クラスタへ分け、
+    // macOS 26 では ToolbarSpacer(.fixed) で明示的に離してガラスのまとまりを分ける
+    // （macOS 15 では区切りが入らず同じ順序で素直に並ぶ）
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+        ToolbarItemGroup(placement: .navigation) {
             Button(action: toggleSidebar) {
                 Image(systemName: "sidebar.left")
             }
             .help(isSidebarShown ? "sidebar.toggle.hide.help" : "sidebar.toggle.show.help")
             .accessibilityLabel(isSidebarShown ? "sidebar.toggle.hide" : "sidebar.toggle.show")
-        }
 
-        ToolbarItem(placement: .navigation) {
             Button { vm.openFolder() } label: {
                 Image(systemName: "folder.badge.plus")
             }
@@ -222,9 +271,17 @@ struct SidebarModeView: View {
             .accessibilityLabel("common.openFolder")
         }
 
+        // クラスタA: 表示モード切替（セグメント）
         ToolbarItemGroup(placement: .primaryAction) {
             ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
+        }
 
+        if #available(macOS 26, *) {
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
+
+        // クラスタB: 一覧の絞り込み（お気に入り・AIカテゴリ）
+        ToolbarItemGroup(placement: .primaryAction) {
             FavoritesOnlyToggleButton(
                 showFavoritesOnly: $vm.showFavoritesOnly,
                 isDisabled: vm.photos.isEmpty
@@ -237,7 +294,12 @@ struct SidebarModeView: View {
             )
         }
 
-        // 「フォルダを開く」は.navigation配置の独立ボタンとして持つため、共有グループには渡さない
+        if #available(macOS 26, *) {
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
+
+        // クラスタC: 分析・外部アプリ・設定。
+        // 「フォルダを開く」は.navigationクラスタに持つため、共有グループには渡さない
         ViewerToolbarTrailingGroup(
             isPhotosEmpty: vm.photos.isEmpty,
             hasSelectedPhoto: vm.selectedPhoto != nil,

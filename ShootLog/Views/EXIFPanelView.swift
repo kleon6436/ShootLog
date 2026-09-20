@@ -1,6 +1,8 @@
 import SwiftUI
 
-// 右の標準インスペクタに表示する EXIF パネル。
+// 右の標準インスペクタに表示する情報パネル。
+// 設定画面と同じ `Form(.grouped)` + `Section` + `LabeledContent` に統一し、
+// 「セクション見出し → ラベル左・値右の行」という 1 種類の並びだけで構成する。
 // 幅・背景材質・区切り線は `.inspector` 側（SidebarModeView）が担当する
 struct EXIFPanelView: View {
     var photo: Photo?
@@ -10,216 +12,291 @@ struct EXIFPanelView: View {
     var body: some View {
         let vm = EXIFPanelViewModel(photo: photo)
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.medium) {
-                EXIFCard {
-                    EXIFRow(label: "exif.label.fileName", value: vm.fileNameText)
-                    EXIFRow(label: "exif.label.dimensions", value: vm.dimensionsText, isNumeric: true)
-                    EXIFRow(label: "exif.label.fileSize", value: vm.fileSizeText, isNumeric: true)
-                }
-                EXIFCard {
-                    EXIFRow(label: "exif.label.camera", value: vm.cameraModelText)
-                    EXIFRow(label: "exif.label.lens", value: vm.lensModelText)
-                }
-                EXIFCard {
-                    EXIFRow(label: "exif.label.aperture", value: vm.apertureText, isNumeric: true)
-                    EXIFRow(label: "exif.label.shutterSpeed", value: vm.shutterSpeedText, isNumeric: true)
-                    EXIFRow(label: "exif.label.iso", value: vm.isoText, isNumeric: true)
-                    EXIFRow(label: "exif.label.focalLength", value: vm.focalLengthText, isNumeric: true)
-                }
-                EXIFCard {
-                    EXIFRow(label: "exif.label.shootingDate", value: vm.shootingDateText)
+        if vm.photo == nil {
+            ContentUnavailableView("exif.empty.noSelection", systemImage: "info.circle")
+        } else {
+            Form {
+                fileSection(vm)
+                cameraSection(vm)
+                exposureSection(vm)
+                captureSection(vm)
+                aiSubjectSection(vm)
+                qualityDiagnosisSection(vm)
+                ratingSection(vm)
+                noteSection(vm)
+            }
+            .formStyle(.grouped)
+        }
+    }
 
-                    // カラーモード（Sigma fp L 等）。"Off" / nil は非表示
-                    if let mode = vm.colorModeText {
-                        EXIFColorModeBadge(mode: mode)
-                    }
-                }
+    // MARK: - セクション
 
-                // AI分類（未分類時は非表示）
-                if !vm.aiCategories.isEmpty {
-                    EXIFCard {
-                        EXIFAICategoryBadges(categories: vm.aiCategories)
-                    }
+    @ViewBuilder
+    private func fileSection(_ vm: EXIFPanelViewModel) -> some View {
+        Section("exif.section.file") {
+            if let fileName = vm.fileNameText {
+                LabeledContent("exif.label.fileName") {
+                    EXIFValueText(fileName, truncation: .middle)
                 }
+            }
+            if let dimensions = vm.dimensionsText {
+                LabeledContent("exif.label.dimensions") { EXIFValueText(dimensions, numeric: true) }
+            }
+            if let fileSize = vm.fileSizeText {
+                LabeledContent("exif.label.fileSize") { EXIFValueText(fileSize, numeric: true) }
+            }
+            if let format = Self.formatText(for: vm.photo) {
+                LabeledContent("exif.label.format") { EXIFValueText(format) }
+            }
+        }
+    }
 
-                // AI画質診断（未診断・指摘0件は非表示。判定と指摘生成は
-                // EXIFPanelViewModel.qualityDiagnosisContent に集約）
-                if let content = vm.qualityDiagnosisContent {
-                    EXIFCard {
-                        EXIFQualityDiagnosisCard(
-                            overallScore: content.diagnosis.aestheticsScore,
-                            insights: content.insights
-                        )
-                    }
+    @ViewBuilder
+    private func cameraSection(_ vm: EXIFPanelViewModel) -> some View {
+        if vm.cameraModelText != nil || vm.lensModelText != nil {
+            Section("exif.section.camera") {
+                if let camera = vm.cameraModelText {
+                    LabeledContent("exif.label.camera") { EXIFValueText(camera) }
                 }
-
-                // お気に入り状態
-                EXIFCard {
-                    EXIFFavoriteRow(isFavorite: vm.isFavorite)
+                if let lens = vm.lensModelText {
+                    LabeledContent("exif.label.lens") { EXIFValueText(lens) }
                 }
+            }
+        }
+    }
 
-                // メモ
-                if let note = vm.noteText {
-                    EXIFCard {
-                        Text("exif.label.note").font(.caption).foregroundStyle(.secondary)
-                        Text(note).font(.subheadline)
-                    }
+    // 露出 4 項目は未取得でも "—" で行を残し、行数が写真ごとに変わらないようにする
+    @ViewBuilder
+    private func exposureSection(_ vm: EXIFPanelViewModel) -> some View {
+        Section("exif.section.exposure") {
+            LabeledContent("exif.label.aperture") { EXIFValueText(vm.apertureText ?? "—", numeric: true) }
+            LabeledContent("exif.label.shutterSpeed") { EXIFValueText(vm.shutterSpeedText ?? "—", numeric: true) }
+            LabeledContent("exif.label.iso") { EXIFValueText(vm.isoText ?? "—", numeric: true) }
+            LabeledContent("exif.label.focalLength") { EXIFValueText(vm.focalLengthText ?? "—", numeric: true) }
+        }
+    }
+
+    @ViewBuilder
+    private func captureSection(_ vm: EXIFPanelViewModel) -> some View {
+        let whiteBalance = whiteBalanceText(vm)
+        if vm.shootingDateText != nil || whiteBalance != nil || vm.colorModeText != nil {
+            Section("exif.section.capture") {
+                if let shootingDate = vm.shootingDateText {
+                    LabeledContent("exif.label.shootingDate") { EXIFValueText(shootingDate, numeric: true) }
                 }
-
-                // 成功要因タグ（写真未選択時は非表示）
-                if vm.photo != nil {
-                    EXIFCard {
-                        Text("exif.label.successTags").font(.caption).foregroundStyle(.secondary)
-                        EXIFSuccessTagPicker(
-                            selectedTags: vm.successTags,
-                            onToggle: onToggleTag
-                        )
+                if let whiteBalance {
+                    LabeledContent("exif.label.whiteBalance") { EXIFValueText(whiteBalance, numeric: true) }
+                }
+                if let colorMode = vm.colorModeText {
+                    LabeledContent("exif.label.colorMode") {
+                        Text(colorMode)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.tint.opacity(0.15))
+                            .foregroundStyle(.tint)
+                            .clipShape(Capsule())
                     }
                 }
             }
-            .padding(Spacing.large)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func aiSubjectSection(_ vm: EXIFPanelViewModel) -> some View {
+        if !vm.aiCategories.isEmpty {
+            Section {
+                EXIFChipFlow(categories: vm.aiCategories)
+                    // .combine が各チップの Text を結合して読み上げる（"人物, 動物"）。
+                    // 固定 accessibilityLabel を付けるとこの結合結果が上書きされ、カテゴリ名が読まれなくなるため付けない
+                    .accessibilityElement(children: .combine)
+            } header: {
+                Text("exif.label.aiSubject")
+            } footer: {
+                Text("exif.label.aiOnDevice")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func qualityDiagnosisSection(_ vm: EXIFPanelViewModel) -> some View {
+        if let content = vm.qualityDiagnosisContent {
+            Section {
+                LabeledContent("exif.label.qualityScore") {
+                    EXIFScoreRing(overallScore: content.diagnosis.aestheticsScore)
+                }
+                ForEach(content.insights) { insight in
+                    Label {
+                        Text(insight.messageKey)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(
+                            systemName: insight.kind == .positive
+                                ? "checkmark.circle.fill"
+                                : "exclamationmark.triangle.fill"
+                        )
+                        // good/bad 状態を示す意味的ステータス色。SwiftUI のセマンティック動的カラーで
+                        // light/dark 自動対応しており、生の RGB リテラル直書きではないため CLAUDE.md 色規約の対象外
+                        .foregroundStyle(insight.kind == .positive ? .green : .orange)
+                    }
+                }
+            } header: {
+                Text("exif.label.qualityDiagnosis")
+            } footer: {
+                Text("exif.label.qualityDiagnosisAxes")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func ratingSection(_ vm: EXIFPanelViewModel) -> some View {
+        Section("exif.section.rating") {
+            LabeledContent("exif.label.favorite") {
+                HStack(spacing: Spacing.xSmall) {
+                    Image(systemName: vm.isFavorite ? "star.fill" : "star")
+                        .foregroundStyle(vm.isFavorite ? .yellow : .secondary)
+                    Text(vm.isFavorite ? "exif.favorite.registered" : "exif.favorite.unregistered")
+                        .foregroundStyle(vm.isFavorite ? .primary : .secondary)
+                }
+            }
+            VStack(alignment: .leading, spacing: Spacing.small) {
+                Text("exif.label.successTags")
+                EXIFSuccessTagPicker(selectedTags: vm.successTags, onToggle: onToggleTag)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func noteSection(_ vm: EXIFPanelViewModel) -> some View {
+        if let note = vm.noteText {
+            Section("exif.label.note") {
+                Text(note)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    // MARK: - 派生値
+
+    // 撮影時ホワイトバランス（Kelvin）は develop.whiteBalance.* の既存ステータス語
+    // （撮影時/推定）を埋め込んだ 1 文にまとめる。語順の言語差に対応するため
+    // 位置指定プレースホルダー経由（exif.value.whiteBalance）で組み立てる
+    private func whiteBalanceText(_ vm: EXIFPanelViewModel) -> String? {
+        guard let kelvin = vm.photo?.asShotTemperatureKelvin else { return nil }
+        let isEstimated = vm.photo?.asShotWhiteBalanceIsEstimated ?? false
+        let statusWord = isEstimated
+            ? String(localized: "develop.whiteBalance.estimated")
+            : String(localized: "develop.whiteBalance.mode.asShot")
+        return String(localized: "exif.value.whiteBalance \(statusWord) \(Int(kelvin.rounded()))")
+    }
+
+    // ファイル拡張子からおおまかなフォーマット表示名を導く。ファイル拡張子自体と
+    // 同様に非ローカライズ対象（CLAUDE.md「ローカライズしないもの」）。
+    // NSString/URL に頼らず Swift 標準ライブラリのみで拡張子を取り出す
+    private static func formatText(for photo: Photo?) -> String? {
+        guard let name = photo?.displayFileName else { return nil }
+        let components = name.split(separator: ".")
+        guard components.count > 1, let last = components.last else { return nil }
+        let ext = last.lowercased()
+        let rawExtensions: Set<String> = ["nef", "dng", "arw", "cr3", "raf"]
+        if rawExtensions.contains(ext) { return "RAW" }
+        switch ext {
+        case "jpg", "jpeg": return "JPEG"
+        case "heic": return "HEIC"
+        case "tiff": return "TIFF"
+        case "png": return "PNG"
+        default: return ext.uppercased()
+        }
     }
 }
 
 // MARK: - Helper Views
 
-// EXIF情報グループを角丸カードとして視覚的に区切るラッパー
-// （左サイドバーのサムネイルカードと視覚言語を揃えるため）
-private struct EXIFCard<Content: View>: View {
-    @ViewBuilder let content: () -> Content
+// LabeledContent の値側テキスト。右寄せ・2 行まで折り返し・選択可を全行で揃える
+private struct EXIFValueText: View {
+    let text: String
+    var numeric = false
+    var truncation: Text.TruncationMode = .tail
+
+    init(_ text: String, numeric: Bool = false, truncation: Text.TruncationMode = .tail) {
+        self.text = text
+        self.numeric = numeric
+        self.truncation = truncation
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.small) {
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.medium)
-        // インスペクタ自体が Material 背景を持つため、カードにも Material を重ねると
-        // ライトモードで境界が消える。コンテンツ層には塗りで階層を付ける
-        // （AnalysisView のセクションカードと同じ視覚言語）
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: CornerRadius.medium))
+        Text(text)
+            .monospacedDigit()
+            .multilineTextAlignment(.trailing)
+            .lineLimit(truncation == .middle ? 1 : 2)
+            .truncationMode(truncation)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+            .contentTransition(numeric ? .numericText() : .opacity)
+            .animation(.easeInOut(duration: 0.2), value: text)
     }
 }
 
-private struct EXIFRow: View {
-    let label: LocalizedStringKey
-    let value: String?
-    // 数値系の行（絞り・SS・ISO・焦点距離）は numericText トランジションを使う
-    var isNumeric: Bool = false
-
-    var body: some View {
-        if let value {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
-                    .contentTransition(isNumeric ? .numericText() : .opacity)
-                    .animation(.easeInOut(duration: 0.2), value: value)
-            }
-        }
-    }
-}
-
-private struct EXIFColorModeBadge: View {
-    let mode: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("exif.label.colorMode")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(mode)
-                .font(.subheadline)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(.tint.opacity(0.15))
-                .foregroundStyle(.tint)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-        }
-    }
-}
-
-private struct EXIFAICategoryBadges: View {
+// 被写体カテゴリなど表示専用のチップ列
+private struct EXIFChipFlow: View {
     let categories: [AISubjectCategory]
     private let columns = [GridItem(.adaptive(minimum: 70), spacing: Spacing.small)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("exif.label.aiCategory")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.small) {
-                ForEach(categories, id: \.self) { category in
-                    Text(category.displayName)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.15))
-                        .foregroundStyle(.tint)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
+        LazyVGrid(columns: columns, alignment: .leading, spacing: Spacing.small) {
+            ForEach(categories, id: \.self) { category in
+                Text(category.displayName)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(.tint.opacity(0.18))
+                    .foregroundStyle(.tint)
+                    .clipShape(Capsule())
             }
         }
-        // .combine が見出し + 各バッジのTextを結合して読み上げる（"AI分類, 人物, 動物"）。
-        // 固定accessibilityLabelを付けるとこの結合結果が上書きされ、カテゴリ名が読まれなくなるため付けない
-        .accessibilityElement(children: .combine)
     }
 }
 
-// AI画質診断結果（統合スコア + 良い点/改善ポイントの箇条書き）
-private struct EXIFQualityDiagnosisCard: View {
+// AI 画質診断の統合スコア（0-100）。小さなリングと数値を 1 行の値として出す
+private struct EXIFScoreRing: View {
     let overallScore: Double?
-    let insights: [PhotoQualityInsight]
 
     // aiAestheticsOverallScore は 0...1 で永続化されているため、分かりやすい 0-100 表現に変換する
     private var scorePercent: Int? {
         overallScore.map { Int(($0 * 100).rounded()) }
     }
 
+    private var ringColor: Color {
+        guard let scorePercent else { return .secondary }
+        if scorePercent >= 70 { return .green }
+        if scorePercent >= 40 { return .orange }
+        return .red
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.small) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("exif.label.qualityDiagnosis")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
+        HStack(spacing: Spacing.small) {
+            ZStack {
+                Circle()
+                    .stroke(.quaternary, lineWidth: 3)
                 if let scorePercent {
-                    // 見出しと結合して読み上げられるため、裸の数値のままだと意味が伝わらない。
-                    // 子要素側にラベルを付けることで .combine の結合結果に単位付きの文言が載る
-                    Text(String(scorePercent))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("a11y.exif.qualityDiagnosis.score \(scorePercent)")
+                    Circle()
+                        .trim(from: 0, to: CGFloat(scorePercent) / 100)
+                        .stroke(ringColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
                 }
             }
-            ForEach(insights) { insight in
-                Label {
-                    Text(insight.messageKey)
-                        .font(.caption)
-                } icon: {
-                    Image(
-                        systemName: insight.kind == .positive
-                            ? "checkmark.circle.fill"
-                            : "exclamationmark.triangle.fill"
-                    )
-                    // good/bad状態を示す意味的ステータス色。SwiftUIのセマンティック動的カラーで
-                    // light/dark自動対応しており、生のRGBリテラル直書きではないためCLAUDE.md色規約の対象外
-                    .foregroundStyle(insight.kind == .positive ? .green : .orange)
-                }
-            }
+            .frame(width: 18, height: 18)
+            Text(scorePercent.map(String.init) ?? "—")
+                .monospacedDigit()
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("exif.label.qualityScore")
+        .accessibilityValue(scorePercent.map { Text("a11y.exif.qualityDiagnosis.score \($0)") } ?? Text(verbatim: "—"))
     }
 }
 
-// 成功要因タグの複数選択トグル。パネル幅が可変（180〜300pt）のため折り返しグリッドで配置する
+// 成功要因タグの複数選択トグル。パネル幅が可変のため折り返しグリッドで配置する
 private struct EXIFSuccessTagPicker: View {
     let selectedTags: [SuccessTagCategory]
     let onToggle: (SuccessTagCategory) -> Void
@@ -234,34 +311,19 @@ private struct EXIFSuccessTagPicker: View {
                     onToggle(category)
                 } label: {
                     Text(category.displayName)
-                        .font(.caption)
+                        .font(.subheadline)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.xSmall)
                         .padding(.horizontal, Spacing.small)
-                        .background(isSelected ? AnyShapeStyle(.tint.opacity(0.2)) : AnyShapeStyle(.quaternary))
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.small))
+                        .background(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(Color.onAccent) : AnyShapeStyle(.secondary))
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("a11y.exif.successTag \(category.displayName)")
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
-        }
-    }
-}
-
-private struct EXIFFavoriteRow: View {
-    let isFavorite: Bool
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: isFavorite ? "star.fill" : "star")
-                .foregroundStyle(isFavorite ? .yellow : .secondary)
-                .font(.subheadline)
-            Text(isFavorite ? "exif.favorite.registered" : "exif.favorite.unregistered")
-                .font(.subheadline)
-                .foregroundStyle(isFavorite ? .primary : .secondary)
         }
     }
 }

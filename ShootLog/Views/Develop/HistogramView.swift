@@ -6,13 +6,10 @@ struct HistogramView: View {
     let data: HistogramData?
     var showsClippingWarnings = true
 
-    private let height: CGFloat = 72
+    private let height: CGFloat = 68
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: CornerRadius.small)
-                .fill(.quaternary.opacity(0.4))
-
             if let data {
                 Canvas { context, size in
                     draw(channel: data.red, color: .red, in: &context, size: size)
@@ -36,7 +33,10 @@ struct HistogramView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .frame(height: height)
+        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.card))
+        .contentCard(padding: 0)
         .accessibilityLabel("develop.histogram")
         .accessibilityHidden(data == nil)
     }

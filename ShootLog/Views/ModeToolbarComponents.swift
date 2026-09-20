@@ -52,7 +52,10 @@ struct FavoritesOnlyToggleButton: View {
 
     var body: some View {
         Button { showFavoritesOnly.toggle() } label: {
+            // ONのときだけ黄色にする。写真.app・Finderのタグと同じ「お気に入り＝黄色」の意味付けで、
+            // 絞り込みが効いていることを記号の形（star/star.fill）と色の二重で伝える
             Image(systemName: showFavoritesOnly ? "star.fill" : "star")
+                .foregroundStyle(showFavoritesOnly ? Color.yellow : Color.primary)
         }
         .help("toolbar.favoritesOnly")
         .accessibilityLabel("toolbar.favoritesOnly")
@@ -80,11 +83,45 @@ struct AICategoryFilterMenu: View {
                 }
             }
         } label: {
-            Image(systemName: selectedCategories.isEmpty ? "tag" : "tag.fill")
+            // 絞り込み中はメニューを開かなくても対象が分かるよう、記号に加えて選択内容を短く添える
+            if selectedCategories.isEmpty {
+                Image(systemName: "tag")
+            } else {
+                Label {
+                    Text(selectionSummary)
+                } icon: {
+                    Image(systemName: "tag.fill")
+                }
+            }
         }
         .help("toolbar.aiCategoryFilter.help")
-        .accessibilityLabel("toolbar.aiCategoryFilter.help")
+        .accessibilityLabel(accessibilityLabelText)
         .disabled(isDisabled || (availableCategories.isEmpty && selectedCategories.isEmpty))
+    }
+
+    // 選択中カテゴリを availableCategories の安定した宣言順に並べ直す。
+    // Set の列挙順は不定なので、ラベルの文言が再描画のたびに入れ替わらないようにする
+    private var orderedSelection: [AISubjectCategory] {
+        let ordered = availableCategories.filter { selectedCategories.contains($0) }
+        guard ordered.isEmpty else { return ordered }
+        // 絞り込み中にフォルダを切り替えた直後など、availableCategories に含まれない選択が残る場合の保険
+        return AISubjectCategory.allCases.filter { selectedCategories.contains($0) }
+    }
+
+    // 「風景」「風景 · 2」のような短い要約。ツールバーの幅を圧迫しないよう先頭1件＋件数に留める
+    private var selectionSummary: String {
+        guard let first = orderedSelection.first else { return "" }
+        let name = String(localized: first.displayName)
+        guard selectedCategories.count > 1 else { return name }
+        return String(localized: "toolbar.aiCategoryFilter.summary \(name) \(selectedCategories.count)")
+    }
+
+    // VoiceOver では記号が読まれないため、絞り込み中は何で絞っているかまで読み上げる
+    private var accessibilityLabelText: Text {
+        if selectedCategories.isEmpty {
+            return Text("toolbar.aiCategoryFilter.help")
+        }
+        return Text("a11y.toolbar.aiCategoryFilter \(selectionSummary)")
     }
 
     private func binding(for category: AISubjectCategory) -> Binding<Bool> {
@@ -185,13 +222,19 @@ struct UpscaleButton: View {
     }
 }
 
-// 黒背景HUD右下のインデックスカウンター。外側のpaddingは呼び出し側で付与する
+// 「3 / 12」形式のインデックスカウンター。外側のpaddingは呼び出し側で付与する。
+// fullscreen/slideshowの黒背景HUDと、サイドバーモードのビューア右上で共有する
 struct CounterBadge: View {
     let text: String
+    // サイドバーモードのビューアは通常のウィンドウ内なので Dynamic Type に乗る .caption を渡す。
+    // 黒背景HUD（fullscreen/slideshow）は固定サイズの HUDTypography を使うため既定値のままにする
+    var font: Font = HUDTypography.label
 
     var body: some View {
         Text(text)
-            .font(HUDTypography.label)
+            .font(font)
+            // 写真送りで桁が変わっても badge の幅が揺れないようにする
+            .monospacedDigit()
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .glassOrMaterialCapsule()

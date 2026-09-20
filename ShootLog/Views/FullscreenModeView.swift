@@ -30,7 +30,7 @@ struct FullscreenModeView: View {
 
     // HUD内のフォーカス対象
     private enum HUDControl: Hashable {
-        case previous, next, favorite, rotate, upscale, close
+        case previous, next, favorite, rotate, upscale, info, close
     }
 
     // ダブルクリック時に切り替えるズーム倍率
@@ -149,29 +149,18 @@ struct FullscreenModeView: View {
                 .disabled(!canGoNext)
                 .accessibilityHidden(!canGoNext)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 24)
     }
 
-    // 上部 HUD: お気に入り・回転（左上） / 閉じる（右上）
+    // 上部 HUD: ズーム表示（左上） / お気に入り・回転・超解像・インスペクタ・閉じるのグラスクラスタ（右上）
     private var topHUD: some View {
         VStack {
-            HStack(spacing: 14) {
-                FavoriteButton(isFavorite: vm.selectedPhoto?.isFavorite ?? false) {
-                    vm.noteUserActivity()
-                    vm.toggleFavorite()
+            HStack {
+                if vm.selectedPhoto != nil {
+                    zoomIndicatorCapsule
                 }
-                .focused($focusedHUDControl, equals: .favorite)
-
-                RotateButton { rotateSelectedPhoto() }
-                    .focused($focusedHUDControl, equals: .rotate)
-
-                UpscaleButton { vm.presentUpscaleExport() }
-                    .focused($focusedHUDControl, equals: .upscale)
-
                 Spacer()
-
-                CloseButton { vm.switchToSidebar() }
-                    .focused($focusedHUDControl, equals: .close)
+                topRightControlCluster
             }
             .padding(.horizontal, 12)
             .padding(.top, 10)
@@ -179,19 +168,128 @@ struct FullscreenModeView: View {
         }
     }
 
-    // 下部: ページドット + カウンター（お気に入りのみ表示の絞り込みを反映する）
+    // 右上のグラスクラスタ本体（お気に入り・回転・超解像・インスペクタ表示 / 閉じる）
+    private var topRightControlClusterContent: some View {
+        HStack(spacing: 2) {
+            HUDClusterButton(
+                systemImage: vm.selectedPhoto?.isFavorite == true ? "star.fill" : "star",
+                tint: vm.selectedPhoto?.isFavorite == true ? Color.yellow : Color.onViewerCanvasSecondary,
+                accessibilityLabel: vm.selectedPhoto?.isFavorite == true ? "viewer.favorite.remove" : "viewer.favorite.add"
+            ) {
+                vm.noteUserActivity()
+                vm.toggleFavorite()
+            }
+            .focused($focusedHUDControl, equals: .favorite)
+
+            HUDClusterButton(systemImage: "rotate.right", accessibilityLabel: "a11y.toolbar.rotate") {
+                rotateSelectedPhoto()
+            }
+            .help("toolbar.rotate.help")
+            .focused($focusedHUDControl, equals: .rotate)
+
+            HUDClusterButton(systemImage: "wand.and.sparkles", accessibilityLabel: "a11y.toolbar.upscale") {
+                vm.noteUserActivity()
+                vm.presentUpscaleExport()
+            }
+            .help("toolbar.upscale.help")
+            .focused($focusedHUDControl, equals: .upscale)
+
+            HUDClusterButton(systemImage: "info.circle", accessibilityLabel: "viewer.showInspector") {
+                showInspectorInSidebar()
+            }
+            .focused($focusedHUDControl, equals: .info)
+
+            Divider()
+                .frame(width: 1, height: 18)
+
+            HUDClusterButton(systemImage: "xmark", accessibilityLabel: "viewer.backToSidebar") {
+                vm.switchToSidebar()
+            }
+            .focused($focusedHUDControl, equals: .close)
+        }
+    }
+
+    @ViewBuilder
+    private var topRightControlCluster: some View {
+        if #available(macOS 26, *) {
+            GlassEffectContainer {
+                topRightControlClusterContent
+                    .glassEffect(in: Capsule())
+            }
+        } else {
+            topRightControlClusterContent
+                .glassOrMaterialCapsule()
+        }
+    }
+
+    // 左上のズーム表示（fit表示の実寸%、またはズーム後の実寸%）
+    private var zoomIndicatorCapsule: some View {
+        zoomIndicatorLabel
+            .font(.caption)
+            .monospacedDigit()
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .glassOrMaterialCapsule()
+    }
+
+    @ViewBuilder
+    private var zoomIndicatorLabel: some View {
+        if isZoomFit {
+            if let fitDisplayPercent {
+                Text("viewer.zoom.fitPercent \(fitDisplayPercent)")
+            } else {
+                Text("viewer.zoom.fit")
+            }
+        } else {
+            Text("viewer.zoom.percent \(currentDisplayPercent)")
+        }
+    }
+
+    // 下部: 左=EXIFキャプション / 中央=ページドット+カウンターのグラスカプセル
+    // （お気に入りのみ表示の絞り込みを反映する）
     private var bottomHUD: some View {
         VStack {
             Spacer()
-            HStack {
-                Spacer()
-                PageDotsView(current: vm.visibleIndex, total: vm.visiblePhotos.count)
-                Spacer()
-                CounterBadge(text: vm.visibleCounterText)
-                    .padding(.trailing, 14)
+            ZStack {
+                HStack {
+                    Spacer()
+                    bottomCenterCapsule
+                    Spacer()
+                }
+                HStack {
+                    if let exifCaption {
+                        EXIFCaptionCapsule(content: exifCaption)
+                            .padding(.leading, 14)
+                    }
+                    Spacer()
+                }
             }
             .padding(.bottom, 10)
         }
+    }
+
+    /// 位置が特定できないとき（絞り込みで選択写真が非表示など）は表示文字列をそのまま読む。
+    private var counterAccessibilityLabel: Text {
+        if let index = vm.visibleIndex {
+            return Text("a11y.viewer.position \(index + 1) \(vm.visiblePhotos.count)")
+        }
+        return Text(vm.visibleCounterText)
+    }
+
+    private var bottomCenterCapsule: some View {
+        HStack(spacing: 12) {
+            PageDotsView(current: vm.visibleIndex, total: vm.visiblePhotos.count)
+            Text(vm.visibleCounterText)
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+                // "3 / 12" のスラッシュ表記は VoiceOver に伝わらないため文で読ませる
+                .accessibilityLabel(counterAccessibilityLabel)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 36)
+        .glassOrMaterialCapsule()
     }
 
     // MARK: - 派生値
@@ -273,6 +371,56 @@ struct FullscreenModeView: View {
         )
     }
 
+    // fit倍率（ズーム操作前の初期表示）かどうか。ZoomPanGeometry.minScaleがfitの下限＝基準値のため、
+    // 実効スケールがそれ以下ならfit表示中とみなす
+    private var isZoomFit: Bool {
+        effectiveScale <= ZoomPanGeometry.minScale
+    }
+
+    // fit表示時、実寸(100%)に対して何%で表示されているか。画像の実ピクセルサイズが
+    // まだ判明していない場合（表示直後等）はnilを返し、パーセント無しの表示にフォールバックする
+    private var fitDisplayPercent: Int? {
+        guard rotationAdjustedPixelSize.width > 0, fittedImageSize.width > 0 else { return nil }
+        return Int(((fittedImageSize.width / rotationAdjustedPixelSize.width) * 100).rounded())
+    }
+
+    // 現在の実効ズーム倍率を、実寸(100%)基準のパーセントに変換したもの
+    private var currentDisplayPercent: Int {
+        guard let fitDisplayPercent else {
+            return Int((effectiveScale * 100).rounded())
+        }
+        return Int((CGFloat(fitDisplayPercent) * effectiveScale).rounded())
+    }
+
+    // 下部左のEXIFキャプション表示内容。EXIF未取得の写真では表示しない
+    private var exifCaption: EXIFCaptionContent? {
+        guard let photo = vm.selectedPhoto, photo.exifFetchedAt != nil else { return nil }
+        let panelVM = EXIFPanelViewModel(photo: photo)
+
+        // アパーチャ・ISOはEXIFパネルの表示（ラベル併記前提の書式）と異なり、
+        // ラベル無しの短い書式（f/8, ISO 100）が必要なためここで組み立てる。
+        // シャッタースピード・焦点距離はEXIFパネルと同じ書式で問題ないため流用する
+        var segments: [String] = []
+        if let aperture = photo.aperture {
+            segments.append("f/" + aperture.formatted(.number.precision(.fractionLength(1)).grouping(.never)))
+        }
+        if let shutterSpeedText = panelVM.shutterSpeedText {
+            segments.append(shutterSpeedText)
+        }
+        if let iso = photo.iso {
+            segments.append("ISO \(iso)")
+        }
+        if let focalLengthText = panelVM.focalLengthText {
+            segments.append(focalLengthText)
+        }
+
+        return EXIFCaptionContent(
+            fileName: panelVM.fileNameText ?? "",
+            summary: segments.joined(separator: " · "),
+            cameraModel: panelVM.cameraModelText
+        )
+    }
+
     // MARK: - ジェスチャー
 
     private var magnifyGesture: some Gesture {
@@ -332,6 +480,13 @@ struct FullscreenModeView: View {
         vm.rotateSelectedPhoto()
         // 回転でfit時の表示サイズが変わるため、ズーム/パンの蓄積量をリセットする
         resetZoom()
+    }
+
+    // インスペクタ付きのサイドバーモードへ戻る（右上クラスタのinfoボタン用）
+    private func showInspectorInSidebar() {
+        vm.noteUserActivity()
+        vm.content.isInspectorVisible = true
+        vm.switchToSidebar()
     }
 
     private func resetZoom() {
@@ -434,33 +589,68 @@ private struct NavButton: View {
     }
 }
 
-private struct FavoriteButton: View {
-    let isFavorite: Bool
+// 右上グラスクラスタ内のアイコンボタン。背景はクラスタ全体（capsule）が担うため、
+// 個々のボタンは円形グラスを持たない（NavButton等とは異なる）
+private struct HUDClusterButton: View {
+    let systemImage: String
+    var tint: Color = Color.onViewerCanvasSecondary
+    let accessibilityLabel: LocalizedStringKey
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: isFavorite ? "star.fill" : "star")
-                .foregroundStyle(isFavorite ? Color.yellow : Color.onViewerCanvasSecondary)
-                .frame(width: 44, height: 44)
-                .glassOrMaterialCircle()
+            Image(systemName: systemImage)
+                .foregroundStyle(tint)
+                .frame(width: 40, height: 36)
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-        .accessibilityLabel(isFavorite ? "viewer.favorite.remove" : "viewer.favorite.add")
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
-private struct CloseButton: View {
-    let action: () -> Void
+// 下部左のEXIFキャプション表示内容
+private struct EXIFCaptionContent {
+    let fileName: String
+    // "f/8 · 1/250 s · ISO 100 · 35 mm" 形式（欠損する項目は自動的に省かれる）
+    let summary: String
+    let cameraModel: String?
+}
+
+private struct EXIFCaptionCapsule: View {
+    let content: EXIFCaptionContent
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(Color.onViewerCanvasSecondary)
-                .frame(width: 44, height: 44)
-                .glassOrMaterialCircle()
+        HStack(spacing: 8) {
+            Text(content.fileName)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+
+            if !content.summary.isEmpty {
+                CaptionSeparator()
+                Text(content.summary)
+                    .font(.caption)
+                    .monospacedDigit()
+            }
+
+            if let cameraModel = content.cameraModel, !cameraModel.isEmpty {
+                CaptionSeparator()
+                Text(cameraModel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
-        .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
-        .accessibilityLabel("viewer.backToSidebar")
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 14)
+        .frame(height: 36)
+        .glassOrMaterialCapsule()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct CaptionSeparator: View {
+    var body: some View {
+        Divider()
+            .frame(width: 1, height: 12)
     }
 }

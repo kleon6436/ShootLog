@@ -234,14 +234,16 @@ struct DevelopViewModelTests {
     private func makeViewModel(
         engine: SpyEngine,
         maskGenerator: SpyMaskGenerator = SpyMaskGenerator(),
-        content: ContentViewModel? = nil
+        content: ContentViewModel? = nil,
+        dragWatchdogTimeout: Duration = .seconds(2)
     ) -> DevelopViewModel {
         DevelopViewModel(
             engine: engine,
             maskGenerator: maskGenerator,
             content: content,
             renderDebounce: .milliseconds(5),
-            persistDebounce: .milliseconds(10)
+            persistDebounce: .milliseconds(10),
+            dragWatchdogTimeout: dragWatchdogTimeout
         )
     }
 
@@ -1270,6 +1272,51 @@ struct DevelopViewModelTests {
         #expect(engine.lastRAWMapping == true)    // 離したら CIRAWFilter 経路で描き直す
     }
 
+    @Test func dragWithoutEditingChangedFalseEventuallyResumesRAWMapping() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+
+        let vm = makeViewModel(engine: engine, content: content, dragWatchdogTimeout: .milliseconds(30))
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        vm.setRAWParameterDragging(true)
+        var params = vm.parameters
+        params.exposure = 1.5
+        vm.parameters = params
+        await settle()
+        #expect(engine.lastRAWMapping == false)
+
+        // ドラッグ終了通知が届かないままタイムアウトを迎えると、ウォッチドッグが RAW 委譲へ戻す。
+        await settle(300)
+        #expect(engine.lastRAWMapping == true)
+    }
+
+    @Test func repeatedDragStartKeepsWatchdogAlive() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, _, photo) = try makeRAWContentViewModel(schemaVersion: 2)
+
+        let vm = makeViewModel(engine: engine, content: content, dragWatchdogTimeout: .milliseconds(30))
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        // Slider が true を連続発火しても、ウォッチドッグは消えず張り直される。
+        vm.setRAWParameterDragging(true)
+        vm.setRAWParameterDragging(true)
+        var params = vm.parameters
+        params.exposure = 1.5
+        vm.parameters = params
+        await settle()
+        #expect(engine.lastRAWMapping == false)
+
+        await settle(300)
+        #expect(engine.lastRAWMapping == true)
+    }
+
     @Test func switchingPhotoDiscardsStalePreview() async throws {
         let engine = SpyEngine()
         engine.stub = makeStubImage()
@@ -1448,6 +1495,58 @@ struct DevelopViewModelTests {
         #expect(vm.maskLayers.count == 1)
         #expect(vm.maskLayers.contains { $0.id == id } == false)
         #expect(vm.selectedMaskLayerID != id)
+    }
+
+    @Test func removeMaskWhileNeutralKeepsPreviewEditable() async throws {
+        let engine = SpyEngine()
+        let vm = await makeViewModelWithPreview(engine: engine)
+        vm.maskEditMode = true
+
+        // マスク以外の調整を無くし、マスクを消すと完全な無調整に戻る状態を作る。
+        var params = vm.parameters
+        params.exposure = 0
+        vm.parameters = params
+        await settle()
+
+        let id = try #require(vm.addLinearGradientMask())
+        await settle()
+
+        vm.removeMask(id: id)
+        await settle()
+
+        #expect(vm.parameters.isNeutral)
+        #expect(vm.maskEditMode)
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+        #expect(vm.addLinearGradientMask() != nil)
+    }
+
+    /// 実機報告の再現条件そのもの: `maskEditMode`（オーバーレイ表示トグル）を一切オンにせず、
+    /// 無調整の写真でマスクセクションを開いて追加・削除するだけのフロー。
+    /// `maskEditMode` に依存する保護だけでは、このフローでは効かない。
+    @Test func removeMaskWithoutMaskEditModeKeepsPreviewEditable() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/mask2.jpg")), displaySize: CGSize(width: 800, height: 600))
+
+        // マスクセクションを開いたタイミングの動作を模倣。
+        vm.prepareMaskEditingPreviewIfNeeded()
+        await settle()
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+
+        let id = try #require(vm.addLinearGradientMask())
+        await settle()
+
+        vm.removeMask(id: id)
+        await settle()
+
+        #expect(vm.parameters.isNeutral)
+        #expect(vm.maskEditMode == false)
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+        #expect(vm.addLinearGradientMask() != nil)
     }
 
     @Test func updateMaskWritesThroughToParameters() async throws {

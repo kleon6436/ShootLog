@@ -19,6 +19,10 @@ enum CornerRadius {
     static let medium: CGFloat = 8
     static let large: CGFloat = 12
     static let pill: CGFloat = 20
+    // サムネイル画像の角丸。選択リング（外側）は thumbnail + リングのギャップ幅で同心にする
+    static let thumbnail: CGFloat = 6
+    // インスペクタ・空状態・現像セクションなどコンテンツ層のカード
+    static let card: CGFloat = 10
 }
 
 // MARK: - 余白
@@ -159,11 +163,35 @@ private struct HUDButtonBody: View {
 //   CropMask                 … トリミング範囲外を覆うマスク。ライトでは背景が明るい分だけ薄くする
 //   CardShadow               … Elevation.card のドロップシャドウ色。ライト背景では影を弱める
 //   HUDHoverHighlight        … HUDボタンのホバーハイライト。ライトでは暗く、ダークでは明るく乗せる
+//   CardFill / CardBorder    … コンテンツ層カード（contentCard）の塗りと 0.5pt 輪郭。外観別に濃度を持つ
+//   OnAccent                 … アクセント色で塗り潰したボタン・チップの上に置く前景色（両外観とも白）。
+//                              .borderedProminent と同じ考え方で、塗り側がアクセントのときだけ使う
 //
 // 写真ビューアの背景は以前 .black 固定だったが、その上に重ねる Material /
 // Liquid Glass がシステム外観に追従するため、ライトモードでは「明るい背景に
 // 白い前景」という判読不能な組み合わせが生じていた。背景側も外観追従にすることで、
 // Material / Glass は自動的に正しい明度で描画され、前景色の指定だけで整合が取れる。
+
+// MARK: - コンテンツ層のカード
+//
+// 機能層（ツールバー・フローティング操作・HUD・進捗・Toast）は Liquid Glass / Material、
+// コンテンツ層（インスペクタのカード・リスト行・現像セクション・履歴行）は塗りで階層を付ける。
+// カードにグラスは使わない（CLAUDE.md「色の扱い」）。
+
+extension View {
+    // コンテンツ層のカード。.quaternary の塗り＋角丸 card。
+    // .quaternary の薄い塗りだけではダーク外観で境界がほぼ見えないため、
+    // 外観別に濃度を定めた CardFill と 0.5pt の CardBorder で輪郭を出す。
+    func contentCard(padding: CGFloat = Spacing.large) -> some View {
+        self
+            .padding(padding)
+            .background(Color.cardFill, in: RoundedRectangle(cornerRadius: CornerRadius.card))
+            .overlay {
+                RoundedRectangle(cornerRadius: CornerRadius.card)
+                    .strokeBorder(Color.cardBorder, lineWidth: 0.5)
+            }
+    }
+}
 
 // MARK: - リキッドグラスヘルパー（同一モジュール内で使用可能）
 //
