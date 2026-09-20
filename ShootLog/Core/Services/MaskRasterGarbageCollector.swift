@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let maskRasterGCLogger = Logger(subsystem: "com.shootlog.app", category: "MaskRasterGarbageCollector")
 
 /// `AIMaskReference.rasterID`（JSON blob 内）から到達できなくなった `MaskRaster` を掃除する。
 ///
@@ -17,7 +20,13 @@ enum MaskRasterGarbageCollector {
         let allSettings = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
         let deletedCount = allSettings.reduce(0) { $0 + collect(for: $1, in: context) }
         if deletedCount > 0 {
-            try? context.save()
+            do {
+                try context.save()
+            } catch {
+                // 保存失敗はここでしか検知できない（GC が孤児レコード掃除の唯一の経路のため、
+                // 繰り返し失敗すると `MaskRaster` blob が無制限に蓄積しうる。レビュー指摘）。
+                maskRasterGCLogger.error("Failed to save after collectAll: \(error, privacy: .public)")
+            }
         }
         return deletedCount
     }
@@ -32,7 +41,11 @@ enum MaskRasterGarbageCollector {
         guard let settings = all.first(where: { $0.photoID == photoID }) else { return 0 }
         let deletedCount = collect(for: settings, in: context)
         if deletedCount > 0 {
-            try? context.save()
+            do {
+                try context.save()
+            } catch {
+                maskRasterGCLogger.error("Failed to save after collect(forPhotoID:): \(error, privacy: .public)")
+            }
         }
         return deletedCount
     }

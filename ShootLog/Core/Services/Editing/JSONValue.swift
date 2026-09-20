@@ -5,6 +5,10 @@ import Foundation
 /// Swift 標準ライブラリには `AnyCodable` 相当が無く、`Decoder` から「未知キー配下の生バイト列」を
 /// 取り出す API も無い。`MaskSource.unrecognized` が未知のマスク種別のペイロードを失わずに
 /// 再エンコードするために、JSON の構造をそのまま値として持ち回る。
+///
+/// 数値は常に `Double` として保持するため、2^53 を超える精度が必要な整数（例: ナノ秒
+/// タイムスタンプ）が含まれる場合は精度が丸められる。現時点で `MaskSource` の未知ペイロードに
+/// そのような値は存在しないが、「失わずに再エンコードする」という保証は数値の整数精度には及ばない。
 enum JSONValue: Codable, Equatable, Sendable {
     case string(String)
     case number(Double)

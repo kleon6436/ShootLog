@@ -102,6 +102,28 @@ struct MaskGeometry: Equatable, Sendable {
         imageFrame.contains(point)
     }
 
+    /// ベース空間（回転・トリミング前、`BrushMaskRasterizer` の半径解釈と同じ「短辺 = 1」の
+    /// 正規化）の距離 1 単位に対応する、表示座標系（コンテナ座標系）の pt 数。
+    ///
+    /// `brushRadius` はベース空間の正規化座標で持つため、トリミングでズームインした写真では
+    /// ベース空間の短辺と表示中プレビューの短辺の拡大率が一致しない。カーソル円の見た目を
+    /// 実際に塗られる範囲と一致させるため、`baseAspectRatio` と同じ「短辺 = 1 のピクセル空間」
+    /// 経由でクロップ・回転の逆写像を通してから換算する（レビュー指摘）。
+    /// x/y 方向でスケールが異なりうる（非正方形画像・矩形トリミング）ため平均を近似値として返す。
+    var displayPointsPerBaseShortEdgeUnit: CGFloat {
+        let baseRatio = baseAspectRatio.isFinite && baseAspectRatio > 0 ? baseAspectRatio : 1
+        let pixelWidth = baseRatio >= 1 ? baseRatio : 1
+        let pixelHeight = baseRatio >= 1 ? 1 : 1 / baseRatio
+
+        let center = displayPoint(fromBase: NormalizedPoint(x: 0.5, y: 0.5))
+        let alongX = displayPoint(fromBase: NormalizedPoint(x: 0.5 + 1 / pixelWidth, y: 0.5))
+        let alongY = displayPoint(fromBase: NormalizedPoint(x: 0.5, y: 0.5 + 1 / pixelHeight))
+
+        let scaleX = hypot(alongX.x - center.x, alongX.y - center.y)
+        let scaleY = hypot(alongY.x - center.x, alongY.y - center.y)
+        return (scaleX + scaleY) / 2
+    }
+
     /// 表示点（コンテナ座標系）をベース空間の正規化座標へ変換する。
     /// 画像領域の外側はクランプせず外挿するため、0...1 の外へ出ることがある。
     func basePoint(fromDisplay point: CGPoint) -> NormalizedPoint {

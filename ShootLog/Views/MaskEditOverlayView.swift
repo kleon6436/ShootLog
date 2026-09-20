@@ -154,7 +154,10 @@ struct MaskEditOverlayView: View {
                 adjustBrushRadius(byRatio: Self.brushRadiusKeyStepRatio)
                 return .handled
             }
-            .accessibilityHidden(true)
+            // フリーハンド操作自体の VoiceOver 代替は無いが、領域を隠さず「ポインタ操作専用」で
+            // あることを伝える（レビュー指摘: 完全非表示だと VoiceOver から存在ごと消えていた）。
+            .accessibilityLabel(Text("a11y.mask.brush.paintArea"))
+            .accessibilityHint(Text("a11y.mask.brush.paintArea.hint"))
 
         Text("develop.mask.brush.hint")
             .font(.caption)
@@ -169,10 +172,11 @@ struct MaskEditOverlayView: View {
     @ViewBuilder
     private func brushCursor(geometry: MaskGeometry) -> some View {
         if let brushCursorLocation {
-            // `BrushMaskRasterizer` は半径を extent 短辺に対する比率として解釈するので、
-            // 表示側も短辺基準で換算する（縦横で基準を変えると筆先が楕円に見える）。
-            let frame = geometry.imageFrame
-            let diameter = developViewModel.brushRadius * Double(min(frame.width, frame.height)) * 2
+            // `BrushMaskRasterizer` は半径をベース空間（回転・トリミング前）の extent 短辺に
+            // 対する比率として解釈する。表示中プレビューの短辺をそのまま使うとトリミングで
+            // ズームインした写真でカーソルサイズが実際の塗り範囲とずれるため、
+            // `MaskGeometry` 経由でクロップ・回転の拡大率を考慮した換算値を使う（レビュー指摘）。
+            let diameter = developViewModel.brushRadius * Double(geometry.displayPointsPerBaseShortEdgeUnit) * 2
 
             Circle()
                 .strokeBorder(
@@ -214,7 +218,10 @@ struct MaskEditOverlayView: View {
                 Task { await refineAIMask(id: id, kind: kind, at: point) }
             }
             .disabled(developViewModel.isGeneratingAIMask)
-            .accessibilityHidden(true)
+            // フリーハンド操作自体の VoiceOver 代替は無いが、領域を隠さず「ポインタ操作専用」で
+            // あることを伝える（`brushPaintLayer` と同じ理由、レビュー指摘）。
+            .accessibilityLabel(Text("a11y.mask.ai.refineArea"))
+            .accessibilityHint(Text("a11y.mask.ai.refineArea.hint"))
 
         Text("develop.mask.ai.tapToRefine")
             .font(.caption)
@@ -227,10 +234,9 @@ struct MaskEditOverlayView: View {
 
     /// 同じ種別・クリック位置指定でマスクを作り直し、成功したときだけ元のレイヤーを捨てる。
     /// 失敗して何も残らない状態を作らないための順序で、`regenerateAIMask` と同じ契約。
+    /// カウント比較ではなく戻り値の ID で成否判定する（`regenerateAIMask` と同じ理由）。
     private func refineAIMask(id: UUID, kind: AIMaskKind, at point: NormalizedPoint) async {
-        let before = developViewModel.maskLayers.count
-        await developViewModel.addAIMask(kind: kind, clickPoint: point)
-        guard developViewModel.maskLayers.count > before else { return }
+        guard await developViewModel.addAIMask(kind: kind, clickPoint: point) != nil else { return }
         developViewModel.removeMask(id: id)
     }
 
@@ -417,7 +423,7 @@ private struct MaskGradientHandleView: View {
 
     var body: some View {
         ZStack {
-            Color.clear.frame(width: 36, height: 36)  // 大きいタップ領域
+            Color.clear.frame(width: 44, height: 44)  // HIG 最小タップ領域（44x44pt）
             Circle()
                 .fill(Color.onViewerCanvas)
                 .frame(width: 12, height: 12)
