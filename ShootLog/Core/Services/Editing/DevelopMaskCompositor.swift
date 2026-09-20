@@ -91,15 +91,17 @@ struct DefaultMaskCompositor: MaskCompositing {
     /// 解決済みラスタを織り込んだマスク画像。合成と可視化（`renderMaskOverlay`）で
     /// 同じ規則を通すため、ここが唯一の入口になる。
     ///
-    /// Phase 1a では `.ai` ソースが `MaskImageGenerator` の時点で全面 0 のため素通しする。
-    /// Phase 2 で `rasterID` の解決を足すときも、辞書に無い ID は全面 0（＝レイヤーを描画から
-    /// 外す）として扱うこと。黙って全面 1 にすると写真全体へ調整が効いてしまう（§3.2.1）。
+    /// `.ai` ソースは `maskRasters` から `rasterID` で引いたラスタを `baseExtent` へ拡大して
+    /// 使う（`MaskImageGenerator.aiMaskImage`）。辞書に無い ID は全面 0（＝レイヤーを描画から
+    /// 外す）として扱われる。黙って全面 1 にすると写真全体へ調整が効いてしまう（§3.2.1）。
     static func maskImage(
         for layer: MaskLayer,
         baseExtent: CGRect,
         maskRasters: [UUID: CGImage],
         sourceImage: CIImage?
     ) -> CIImage {
-        MaskImageGenerator.maskImage(for: layer, baseExtent: baseExtent, sourceImage: sourceImage)
+        MaskImageGenerator.maskImage(
+            for: layer, baseExtent: baseExtent, sourceImage: sourceImage, maskRasters: maskRasters
+        )
     }
 }

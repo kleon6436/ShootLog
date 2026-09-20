@@ -68,12 +68,20 @@ enum MaskImageGenerator {
     ///   - baseExtent: マスクを載せる画像の extent（ピクセル座標）。
     ///   - sourceImage: 輝度レンジマスクが輝度を読む元画像。幾何ベースの生成子では使わない。
     ///     `nil` かつ輝度レンジマスクの場合は全面 0（画像が無ければ選択しようがない）。
-    static func maskImage(for layer: MaskLayer, baseExtent: CGRect, sourceImage: CIImage?) -> CIImage {
+    ///   - maskRasters: AIマスク（`.ai`ソース）が参照する解決済みラスタ（`AIMaskReference.rasterID`
+    ///     で引ける）。辞書に無い`rasterID`は全面0として扱う（§3.2.1、写真全体へ誤って
+    ///     効かせないための安全側フォールバック）。
+    static func maskImage(
+        for layer: MaskLayer,
+        baseExtent: CGRect,
+        sourceImage: CIImage?,
+        maskRasters: [UUID: CGImage] = [:]
+    ) -> CIImage {
         guard baseExtent.width > 0, baseExtent.height > 0, !baseExtent.isInfinite else {
             return zeroImage.cropped(to: baseExtent)
         }
 
-        var mask = baseImage(for: layer.source, in: baseExtent, sourceImage: sourceImage)
+        var mask = baseImage(for: layer.source, in: baseExtent, sourceImage: sourceImage, maskRasters: maskRasters)
         mask = clampedToUnitInterval(mask)
         if layer.isInverted {
             mask = inverted(mask)
@@ -85,12 +93,13 @@ enum MaskImageGenerator {
 
     // MARK: - ベース生成子
 
-    /// 実装済みは線形（Phase 1a）・放射状（Phase 1b）・輝度レンジ（Phase 2b）。
-    /// AI（Phase 2）・未知の種別（前方互換、§3.5）はいずれも全面 0 を返す。
+    /// 実装済みは線形（Phase 1a）・放射状（Phase 1b）・輝度レンジ（Phase 2b）・AI（Phase 2）。
+    /// 未知の種別（前方互換、§3.5）は全面 0 を返す。
     private static func baseImage(
         for source: MaskSource,
         in extent: CGRect,
-        sourceImage: CIImage?
+        sourceImage: CIImage?,
+        maskRasters: [UUID: CGImage]
     ) -> CIImage {
         switch source {
         case .linearGradient(let gradient):
@@ -99,9 +108,47 @@ enum MaskImageGenerator {
             return radialGradientImage(gradient, in: extent)
         case .luminanceRange(let range):
             return luminanceRangeImage(range, in: extent, sourceImage: sourceImage)
-        case .none, .ai, .unrecognized:
+        case .ai(let reference):
+            return aiMaskImage(reference, in: extent, maskRasters: maskRasters)
+        case .none, .unrecognized:
             return zeroImage
         }
+    }
+
+    /// 解決済みラスタ（`bakedLongEdge` px のグレースケール PNG をデコードした `CGImage`）を
+    /// `baseExtent` へ拡大して返す。辞書に該当 `rasterID` が無ければ全面 0（§3.2.1）。
+    ///
+    /// ラスタは `bakedLongEdge`（既定 1024px）で焼き込まれており、実際の現像解像度
+    /// （`baseExtent`）より小さいのが通常。`CILanczosScaleTransform` で高品質に拡大する。
+    /// グレースケール `CGImage` を `CIImage(cgImage:)` へ通すと A=1・RGB=gray になるため、
+    /// 最後に他の生成子と同じ「RGB == A == m」の出力規約へ揃える。
+    private static func aiMaskImage(
+        _ reference: AIMaskReference,
+        in extent: CGRect,
+        maskRasters: [UUID: CGImage]
+    ) -> CIImage {
+        guard let cgImage = maskRasters[reference.rasterID] else { return zeroImage }
+        let source = CIImage(cgImage: cgImage)
+        guard source.extent.width > 0, source.extent.height > 0 else { return zeroImage }
+
+        let scaleX = extent.width / source.extent.width
+        let scaleY = extent.height / source.extent.height
+        let filter = CIFilter.lanczosScaleTransform()
+        filter.inputImage = source
+        filter.scale = Float(scaleY)
+        filter.aspectRatio = scaleY > 0 ? Float(scaleX / scaleY) : 1
+        guard let scaled = filter.outputImage else { return zeroImage }
+
+        let positioned = scaled.transformed(
+            by: CGAffineTransform(translationX: extent.origin.x, y: extent.origin.y)
+        )
+        return positioned.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: 1, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 1, y: 0, z: 0, w: 0),
+            "inputBVector": CIVector(x: 1, y: 0, z: 0, w: 0),
+            "inputAVector": CIVector(x: 1, y: 0, z: 0, w: 0),
+            "inputBiasVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+        ]).composited(over: zeroImage)
     }
 
     private static func linearGradientImage(_ gradient: LinearGradientMask, in extent: CGRect) -> CIImage {

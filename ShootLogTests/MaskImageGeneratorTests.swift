@@ -56,9 +56,25 @@ struct MaskImageGeneratorTests {
     private func generate(
         _ layer: MaskLayer,
         baseExtent: CGRect = MaskImageGeneratorTests.extent,
-        sourceImage: CIImage? = nil
+        sourceImage: CIImage? = nil,
+        maskRasters: [UUID: CGImage] = [:]
     ) -> CIImage {
-        MaskImageGenerator.maskImage(for: layer, baseExtent: baseExtent, sourceImage: sourceImage)
+        MaskImageGenerator.maskImage(
+            for: layer, baseExtent: baseExtent, sourceImage: sourceImage, maskRasters: maskRasters
+        )
+    }
+
+    /// 指定した明度（0...1）の単色グレースケール `CGImage` を作る（AIマスクのラスタを模す）。
+    private func makeGrayscaleCGImage(value: Double, size: Int = 8) -> CGImage {
+        let colorSpace = CGColorSpaceCreateDeviceGray()
+        let context = CGContext(
+            data: nil, width: size, height: size,
+            bitsPerComponent: 8, bytesPerRow: size,
+            space: colorSpace, bitmapInfo: CGImageAlphaInfo.none.rawValue
+        )!
+        context.setFillColor(gray: value, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        return context.makeImage()!
     }
 
     /// 左端 0 → 右端 1 の水平グラデーション。
@@ -335,11 +351,13 @@ struct MaskImageGeneratorTests {
 
     // MARK: - 未対応の生成子
 
-    @Test("未対応の生成子は例外を投げず全面 0 を返す")
+    @Test("未対応の生成子・未解決のAIラスタは例外を投げず全面 0 を返す")
     func unsupportedSourcesProduceEmptyMask() {
         let context = makeContext()
         let sources: [MaskSource] = [
             .none,
+            // maskRastersに対応するrasterIDが無い場合。§3.2.1の安全側フォールバック
+            // （黙って全面1にすると写真全体へ効いてしまう）。
             .ai(AIMaskReference(
                 rasterID: UUID(),
                 kind: .foregroundSubject,
@@ -357,6 +375,48 @@ struct MaskImageGeneratorTests {
                 #expect(sample(mask, x: point.0, y: point.1, context: context) < 0.001)
             }
         }
+    }
+
+    // MARK: - AIマスク（解決済みラスタ）
+
+    @Test("maskRastersに解決済みラスタがあれば、そのマスク値が反映される")
+    func aiMaskUsesResolvedRaster() {
+        let context = makeContext()
+        let rasterID = UUID()
+        // 明度0.75のグレースケールラスタ。ベース空間より小さい8x8のまま渡し、
+        // baseExtent(100x100)へ拡大されることも同時に確認する。
+        let cgImage = makeGrayscaleCGImage(value: 0.75)
+        let reference = AIMaskReference(
+            rasterID: rasterID, kind: .foregroundSubject, instanceIndices: [0],
+            visionRevision: 1, bakedLongEdge: 8, bakedAt: .now
+        )
+        let layer = makeLayer(source: .ai(reference))
+
+        let mask = generate(layer, maskRasters: [rasterID: cgImage])
+
+        #expect(mask.extent == Self.extent)
+        for point in [(10, 10), (50, 50), (90, 90)] {
+            let value = sample(mask, x: point.0, y: point.1, context: context)
+            #expect(abs(value - 0.75) < 0.05)
+        }
+    }
+
+    @Test("AIマスクにdensity/invertが正しく適用される")
+    func aiMaskRespectsCompositionOrder() {
+        let context = makeContext()
+        let rasterID = UUID()
+        let cgImage = makeGrayscaleCGImage(value: 0.8)
+        let reference = AIMaskReference(
+            rasterID: rasterID, kind: .person, instanceIndices: [0],
+            visionRevision: 1, bakedLongEdge: 8, bakedAt: .now
+        )
+        // isInverted: 0.8 -> 0.2、density 50: 0.2 * 0.5 = 0.1
+        let layer = makeLayer(source: .ai(reference), isInverted: true, density: 50)
+
+        let mask = generate(layer, maskRasters: [rasterID: cgImage])
+
+        let value = sample(mask, x: 50, y: 50, context: context)
+        #expect(abs(value - 0.1) < 0.05)
     }
 
     @Test("始点と終点が同じ線形グラデーションは全面 0 になる")
