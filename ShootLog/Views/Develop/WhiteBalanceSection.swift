@@ -182,8 +182,12 @@ struct WhiteBalanceSection: View {
                     gradient
                         .frame(height: 4)
                         .clipShape(Capsule())
+                    // ネイティブ Slider 自身のトラック塗り（最小値から現在値までアクセントカラー）を
+                    // 消す。背面のグラデーション（色温度・色かぶりの意味を持つ固定色）と二重表示に
+                    // なり、意図した見た目が隠れてしまうため（AdjustmentSlider と同じ対応）。
                     Slider(value: $value, in: range, onEditingChanged: onEditingChanged)
                         .controlSize(.small)
+                        .tint(.clear)
                 }
             }
             .accessibilityElement(children: valueField ? .contain : .combine)
