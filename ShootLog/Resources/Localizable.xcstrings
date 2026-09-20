@@ -238,6 +238,9 @@
         }
       }
     },
+    "a11y.exif.qualityDiagnosis.score %@" : {
+
+    },
     "a11y.exif.qualityDiagnosis.score %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6059,6 +6062,7 @@
       }
     },
     "exif.label.note" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6490,7 +6494,9 @@
         }
       }
     },
-    "K" : {},
+    "K" : {
+
+    },
     "menu.file.openFolder" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -8060,6 +8066,9 @@
         }
       }
     },
+    "toolbar.subtitle.photoCount %@" : {
+
+    },
     "toolbar.subtitle.photoCount %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8842,6 +8851,9 @@
         }
       }
     },
+    "viewer.zoom.fitPercent %@" : {
+
+    },
     "viewer.zoom.fitPercent %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8858,6 +8870,9 @@
           }
         }
       }
+    },
+    "viewer.zoom.percent %@" : {
+
     },
     "viewer.zoom.percent %lld" : {
       "extractionState" : "manual",
