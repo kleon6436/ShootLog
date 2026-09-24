@@ -169,6 +169,7 @@
 		CACF38A9BF6ADB3A8CA40083 /* DevelopPresetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DE986569CCC3B2BDC8D6B7 /* DevelopPresetBar.swift */; };
 		CBDAF543CB2081160C2A7E55 /* DevelopPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3742747134D20679C14E4098 /* DevelopPanelView.swift */; };
 		CD3FD57C1002536E3960BD4D /* SuperResolutionModelCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F0AB35DF7B72D28764D10A0 /* SuperResolutionModelCatalogTests.swift */; };
+		CDAD1AB0A7C87A64FB714AAB /* DevelopBaseDiskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FFA1825BA4C1B99F7F523A7 /* DevelopBaseDiskCache.swift */; };
 		CF708EBB7636E1B36D41EB7A /* BeforeAfterSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9D0C5A0EBD8E53502FE1DC /* BeforeAfterSplitView.swift */; };
 		D01EE381A52CE998F5939B62 /* LightroomAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2843453D7ECC555E294521C4 /* LightroomAdapter.swift */; };
 		D28DB6E2AD582B366940AA5B /* EditablePhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84404E85187227393FC4CA60 /* EditablePhotoView.swift */; };
@@ -276,6 +277,7 @@
 		3E683A1758973FA79257F860 /* CaptureOneAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureOneAdapter.swift; sourceTree = "<group>"; };
 		3EA753C93782AE9EA822AAF9 /* ShootLogTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShootLogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F2E6331152C93E5777951DD /* DevelopMaskCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopMaskCompositor.swift; sourceTree = "<group>"; };
+		3FFA1825BA4C1B99F7F523A7 /* DevelopBaseDiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopBaseDiskCache.swift; sourceTree = "<group>"; };
 		40631F5AD94C18E166DF3A55 /* SlideshowViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideshowViewModel.swift; sourceTree = "<group>"; };
 		40A5871EEFCC54199ECDA2F6 /* ViewModeProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModeProtocol.swift; sourceTree = "<group>"; };
 		40C45C35D791261F17559956 /* EXIFPanelViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EXIFPanelViewModelTests.swift; sourceTree = "<group>"; };
@@ -474,6 +476,7 @@
 				585C20D3702C08AF79A814DC /* ColorGrading.ci.metal */,
 				E4DCDB8D2E47872D66751BF7 /* ColorGradingFilter.swift */,
 				DEF90CB93E09859DDD45B7AC /* ColorTemperatureMetadata.swift */,
+				3FFA1825BA4C1B99F7F523A7 /* DevelopBaseDiskCache.swift */,
 				519DF2EE448A8C4BB95CFFDC /* DevelopColorSettings.swift */,
 				CA9FD1DF9230C5E0AA46A301 /* DevelopExporter.swift */,
 				3F2E6331152C93E5777951DD /* DevelopMaskCompositor.swift */,
@@ -892,6 +895,7 @@
 				48C094BCE4EF3730DEE6C693 /* CropViewModel.swift in Sources */,
 				4DE7D733692D9DF48CC9C6A4 /* CustomAppAdapter.swift in Sources */,
 				9CFF149BFE77B41B0D9B0F38 /* DesignSystem.swift in Sources */,
+				CDAD1AB0A7C87A64FB714AAB /* DevelopBaseDiskCache.swift in Sources */,
 				C21397C50209F6C8538598A3 /* DevelopColorSettings.swift in Sources */,
 				E4527913C2BE793C6FBDF1F4 /* DevelopExportSheet.swift in Sources */,
 				0E10ADC8AAE54EB8594762DA /* DevelopExportViewModel.swift in Sources */,

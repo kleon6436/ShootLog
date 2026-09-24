@@ -1,6 +1,5 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
-import CryptoKit
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -171,8 +170,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     private var baseImageCache: [BaseKey: CGImage] = [:]
     /// `baseImageCache` のアクセス順（先頭が最古）。上限超過時の LRU 退避に使う。
     private var baseCacheOrder: [BaseKey] = []
-    private let baseCacheDirectory: URL
-    private let baseCacheMaxBytes: Int
+    private let baseDiskCache: DevelopBaseDiskCache
     private var baseCacheWriteTasks: [UUID: Task<Void, Never>] = [:]
 
     private var asShotCache: [String: WhiteBalanceSample] = [:]
@@ -182,8 +180,10 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         baseCacheDirectory: URL = ImageDevelopmentEngine.defaultBaseCacheDirectory,
         baseCacheMaxBytes: Int = ImageDevelopmentEngine.storedBaseCacheMaxBytes
     ) {
-        self.baseCacheDirectory = baseCacheDirectory
-        self.baseCacheMaxBytes = max(0, baseCacheMaxBytes)
+        self.baseDiskCache = DevelopBaseDiskCache(
+            directory: baseCacheDirectory,
+            maxBytes: max(0, baseCacheMaxBytes)
+        )
     }
 
     // MARK: - RAW 判定
@@ -490,11 +490,9 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     /// 起動時に現像ベースキャッシュの中断ファイルを掃除し、容量上限まで削除する。
     func warmUpCaches() async {
-        let directory = baseCacheDirectory
-        let maxBytes = baseCacheMaxBytes
+        let diskCache = baseDiskCache
         await Task.detached(priority: .utility) {
-            ImageFileCache.prepare(directory: directory, extensions: ["png"])
-            ImageFileCache.evict(in: directory, maxBytes: maxBytes)
+            diskCache.warmUp()
         }.value
     }
 
@@ -505,33 +503,18 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         baseCacheOrder.removeAll()
         asShotCache.removeAll()
         asShotCacheOrder.removeAll()
-        let directory = baseCacheDirectory
+        let diskCache = baseDiskCache
         await Task.detached(priority: .utility) {
-            guard let files = try? FileManager.default.contentsOfDirectory(
-                at: directory, includingPropertiesForKeys: nil
-            ) else { return }
-            for file in files { try? FileManager.default.removeItem(at: file) }
+            diskCache.removeAll()
         }.value
     }
 
-    /// テストが非同期ディスク書き込みの完了を待つためのフック。
-    func waitForBaseCacheWritesForTesting() async {
-        let tasks = Array(baseCacheWriteTasks.values)
-        for task in tasks {
-            await task.value
-        }
-    }
-
-    func asShotCacheCountForTesting() -> Int {
-        asShotCache.count
-    }
-
     private func readDiskBase(for key: BaseKey) async -> CGImage? {
-        let directory = baseCacheDirectory
+        let diskCache = baseDiskCache
         let diskKey = Self.diskKey(for: key)
         let task: Task<CGImage?, Never> = Task.detached(priority: .utility) {
             guard !Task.isCancelled else { return nil }
-            return ImageFileCache.read(forKey: diskKey, extensions: ["png"], in: directory)
+            return diskCache.read(forKey: diskKey)
         }
         return await withTaskCancellationHandler {
             await task.value
@@ -542,8 +525,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
 
     private func scheduleDiskBaseWrite(_ image: CGImage, for key: BaseKey) {
         let id = UUID()
-        let directory = baseCacheDirectory
-        let maxBytes = baseCacheMaxBytes
+        let diskCache = baseDiskCache
         let diskKey = Self.diskKey(for: key)
         let engine = self
         let task = Task.detached(priority: .utility) {
@@ -551,13 +533,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
                 Task { await engine.finishBaseCacheWrite(id) }
             }
             guard !Task.isCancelled else { return }
-            ImageFileCache.prepare(directory: directory, extensions: ["png"])
-            guard ImageFileCache.write(
-                image,
-                type: "public.png" as CFString,
-                to: ImageFileCache.fileURL(forKey: diskKey, extension: "png", in: directory)
-            ) else { return }
-            ImageFileCache.evict(in: directory, maxBytes: maxBytes)
+            diskCache.write(image, forKey: diskKey)
         }
         baseCacheWriteTasks[id] = task
     }
@@ -608,8 +584,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     }
 
     private static func diskKey(for key: BaseKey) -> String {
-        let source = "\(key.path)|\(key.modifiedAt)|\(key.sizeBucket)"
-        return SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
+        DevelopBaseDiskCache.key(path: key.path, modifiedAt: key.modifiedAt, sizeBucket: key.sizeBucket)
     }
 
     static func shouldUseDiskBaseCache(bucket: Int, rawParameters: DevelopParameters?) -> Bool {
@@ -803,5 +778,22 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         return oriented.transformed(
             by: CGAffineTransform(translationX: -oriented.extent.minX, y: -oriented.extent.minY)
         )
+    }
+}
+
+// MARK: - テスト用フック
+
+extension ImageDevelopmentEngine {
+
+    /// テストが非同期ディスク書き込みの完了を待つためのフック。
+    func waitForBaseCacheWritesForTesting() async {
+        let tasks = Array(baseCacheWriteTasks.values)
+        for task in tasks {
+            await task.value
+        }
+    }
+
+    func asShotCacheCountForTesting() -> Int {
+        asShotCache.count
     }
 }
