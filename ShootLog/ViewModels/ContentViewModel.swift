@@ -48,7 +48,7 @@ final class ContentViewModel {
     /// バックグラウンドのAIラベリングの残件数。0 のとき表示しない。
     private(set) var aiLabelingRemaining = 0
     /// バックグラウンドの画質診断の残件数。0 のとき表示しない。
-    /// 更新は ContentViewModel+QualityDiagnosis.swift 側で行うため internal とする
+    /// 更新は ContentViewModelQualityDiagnosis.swift 側で行うため internal とする
     var aiQualityDiagnosisRemaining = 0
     /// バックグラウンドのEXIF先読みの残件数。0 のとき表示しない。
     private(set) var exifPrefetchRemaining = 0
@@ -65,7 +65,7 @@ final class ContentViewModel {
     // キャンセル済みバッチから遅れて届く画質診断結果・進捗を無視するための世代番号。
     var aiQualityDiagnosisToken = 0
     // 画質診断の実行主体。通常は共有インスタンスを使い、テストではスタブ入りの生成器へ差し替える。
-    // 処理本体は ContentViewModel+QualityDiagnosis.swift 側にある
+    // 処理本体は ContentViewModelQualityDiagnosis.swift 側にある
     @ObservationIgnored
     var qualityDiagnosisGenerator: PhotoQualityDiagnosisGenerator = .shared
     // キャンセル済みバッチから遅れて届くEXIF先読み結果・進捗を無視するための世代番号。
@@ -95,7 +95,7 @@ final class ContentViewModel {
     var isCropMode: Bool = false
 
     // 現像書き出し。ジョブは超解像と同じくフォルダを閉じる／アプリ終了時のみ中断する。
-    // ContentViewModel+DevelopExport.swift から参照するため internal
+    // ContentViewModelDevelopExport.swift から参照するため internal
     var isDevelopExportPresented: Bool = false
     var developExportViewModel: DevelopExportViewModel?
     var developExportTask: Task<Void, Never>?
@@ -105,18 +105,18 @@ final class ContentViewModel {
     var currentDevelopSettings: DevelopSettings?
 
     // 現像調整プリセット（写真をまたいで共有）。configure(context:) でロードする。
-    // ContentViewModel+DevelopPreset.swift から更新する
+    // ContentViewModelDevelopPreset.swift から更新する
     var developPresets: [DevelopPreset] = []
 
     // AI超解像書き出し。ジョブ（Task）はモード切替・写真選択変更をまたいで継続し、
     // currentFolderURLの変更（フォルダを閉じる）またはアプリ終了時にのみ中断する。
-    // ContentViewModel+Upscale.swift から参照するため internal とする
+    // ContentViewModelUpscale.swift から参照するため internal とする
     var isUpscaleExportPresented: Bool = false
     var upscaleExportViewModel: UpscaleExportViewModel?
     var upscaleExportTask: Task<Void, Never>?
 
     // 超解像書き出し専用の入力ファイルの読み取りアクセス。フォルダ全体の bookmarkScopedURL
-    // （ContentViewModel+Folder.swift、フォルダ切替のたびに解放される）とは独立して保持し、
+    // （ContentViewModelFolder.swift、フォルダ切替のたびに解放される）とは独立して保持し、
     // 書き出し処理中にフォルダ側のスコープ解放の影響を受けないようにする
     var upscaleInputAccessURL: URL?
 

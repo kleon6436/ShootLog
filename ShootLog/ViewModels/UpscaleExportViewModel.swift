@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 import UniformTypeIdentifiers
 
-// AI超解像書き出しシートの状態管理。実処理はContentViewModel+Upscale.swiftが
+// AI超解像書き出しシートの状態管理。実処理はContentViewModelUpscale.swiftが
 // SuperResolutionEngineを呼び出して駆動し、進捗はAsyncStream<Double>経由でここへ流し込む
 @Observable
 @MainActor
@@ -176,7 +176,7 @@ final class UpscaleExportViewModel {
         acceptsDownscaledProcessing = true
     }
 
-    // ContentViewModel+Upscale.swiftが処理開始時に代入し、cancel()から参照できるようにする
+    // ContentViewModelUpscale.swiftが処理開始時に代入し、cancel()から参照できるようにする
     private var task: Task<Void, Never>?
 
     func attach(task: Task<Void, Never>) {

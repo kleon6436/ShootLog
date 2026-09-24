@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 import UniformTypeIdentifiers
 
-/// 現像書き出しシートの状態管理。実処理は `ContentViewModel+DevelopExport.swift` が
+/// 現像書き出しシートの状態管理。実処理は `ContentViewModelDevelopExport.swift` が
 /// `DevelopExporter` を呼んで駆動する。
 @Observable
 @MainActor

@@ -4,7 +4,7 @@ import Foundation
 import ImageIO
 
 // 現像書き出しジョブの所有・NSSavePanel 提示・入力ファイルのセキュリティスコープ管理。
-// 超解像書き出し（ContentViewModel+Upscale.swift）と同じ設計で、フォルダを閉じる／
+// 超解像書き出し（ContentViewModelUpscale.swift）と同じ設計で、フォルダを閉じる／
 // アプリ終了時にのみ中断する
 extension ContentViewModel {
 
@@ -183,7 +183,7 @@ extension ContentViewModel {
     }
 
     // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体のスコープとは独立して確保する
-    // （ContentViewModel+Upscale.swift の beginUpscaleInputAccess と同じ方式）
+    // （ContentViewModelUpscale.swift の beginUpscaleInputAccess と同じ方式）
     private func beginDevelopExportInputAccess(for url: URL) throws {
         endDevelopExportInputAccess()
         let bookmark = try url.bookmarkData(

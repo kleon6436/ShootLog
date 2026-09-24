@@ -2,13 +2,13 @@ import Foundation
 import SwiftData
 
 // RAW 現像 / 非破壊カラー編集の調整値の永続化を担当する。
-// 回転・トリミング（ContentViewModel+Edit.swift）とは独立して扱う
+// 回転・トリミング（ContentViewModelEdit.swift）とは独立して扱う
 extension ContentViewModel {
     // MARK: - Develop
 
     // 選択中写真の DevelopSettings を SwiftData から取得する（なければ nil）
     // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadEditInfo と同じ
-    // 「全件 fetch して first(where:)」パターンを踏襲する（ContentViewModel+Edit.swift参照）
+    // 「全件 fetch して first(where:)」パターンを踏襲する（ContentViewModelEdit.swift参照）
     func loadDevelopSettings(for photo: Photo) {
         guard let context = modelContext else { return }
         let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
