@@ -127,7 +127,7 @@ actor AILabelingGenerator {
         let batchID = UUID()
         activeBatchID = batchID
         activeProgress = progress
-        let orderedTargets = Self.prioritizedTargets(targets, around: selectedIndex)
+        let orderedTargets = PrioritizedBatchRunner.prioritized(targets, around: selectedIndex)
         let imageProvider = self.imageProvider
         let classifier = self.classifier
         generationTask = Task.detached(priority: .utility) { [weak self] in
@@ -159,29 +159,6 @@ actor AILabelingGenerator {
         activeProgress = nil
     }
 
-    private static func prioritizedTargets(
-        _ targets: [AILabelingTarget],
-        around selectedIndex: Int?
-    ) -> [AILabelingTarget] {
-        guard let selectedIndex, targets.indices.contains(selectedIndex) else { return targets }
-
-        var result: [AILabelingTarget] = []
-        result.reserveCapacity(targets.count)
-        for distance in 0..<targets.count {
-            let next = selectedIndex + distance
-            if targets.indices.contains(next) {
-                result.append(targets[next])
-            }
-
-            guard distance > 0 else { continue }
-            let previous = selectedIndex - distance
-            if targets.indices.contains(previous) {
-                result.append(targets[previous])
-            }
-        }
-        return result
-    }
-
     private static func generate(
         _ targets: [AILabelingTarget],
         imageProvider: any AILabelingImageProviding,
@@ -189,79 +166,21 @@ actor AILabelingGenerator {
         progress: @escaping @Sendable (Int, Int) -> Void,
         onResult: @escaping @Sendable (URL, VisionLabelClassification?) -> Void
     ) async -> Bool {
-        let total = targets.count
-        guard total > 0 else {
-            progress(0, 0)
-            return true
-        }
-
-        guard !Task.isCancelled else { return false }
-        let firstTarget = targets[0]
-        let firstResult = await Self.classify(
-            firstTarget,
-            imageProvider: imageProvider,
-            classifier: classifier
-        )
-        guard !Task.isCancelled else { return false }
-        onResult(firstTarget.url, firstResult)
-
-        var completed = 1
-        progress(completed, total)
-        var nextIndex = 1
-        let workerCount = min(
-            total - nextIndex,
-            max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
-        )
-
-        guard workerCount > 0 else { return true }
-
-        await withTaskGroup(of: Bool.self) { group in
-            for _ in 0..<workerCount {
-                let target = targets[nextIndex]
-                nextIndex += 1
-                group.addTask(priority: .utility) {
-                    guard !Task.isCancelled else { return false }
-                    let result = await Self.classify(
-                        target,
-                        imageProvider: imageProvider,
-                        classifier: classifier
-                    )
-                    guard !Task.isCancelled else { return false }
-                    onResult(target.url, result)
-                    await Task.yield()
-                    return true
-                }
+        await PrioritizedBatchRunner.run(
+            items: targets,
+            maxWorkers: max(2, ProcessInfo.processInfo.activeProcessorCount - 2),
+            progress: progress,
+            process: { target in
+                let result = await Self.classify(
+                    target,
+                    imageProvider: imageProvider,
+                    classifier: classifier
+                )
+                guard !Task.isCancelled else { return false }
+                onResult(target.url, result)
+                return true
             }
-
-            while let _ = await group.next() {
-                guard !Task.isCancelled else {
-                    group.cancelAll()
-                    break
-                }
-
-                completed += 1
-                progress(completed, total)
-                if nextIndex < total {
-                    let target = targets[nextIndex]
-                    nextIndex += 1
-                    group.addTask(priority: .utility) {
-                        guard !Task.isCancelled else { return false }
-                        let result = await Self.classify(
-                            target,
-                            imageProvider: imageProvider,
-                            classifier: classifier
-                        )
-                        guard !Task.isCancelled else { return false }
-                        onResult(target.url, result)
-                        await Task.yield()
-                        return true
-                    }
-                }
-            }
-        }
-
-        guard !Task.isCancelled else { return false }
-        return completed == total
+        )
     }
 
     private static func classify(

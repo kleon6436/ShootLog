@@ -28,7 +28,7 @@ actor PreviewGenerator {
         let batchID = UUID()
         activeBatchID = batchID
         activeProgress = progress
-        let orderedURLs = Self.prioritizedURLs(urls, around: selectedIndex)
+        let orderedURLs = PrioritizedBatchRunner.prioritized(urls, around: selectedIndex)
         let store = store
         generationTask = Task.detached(priority: .utility) { [weak self] in
             _ = await Self.generate(
@@ -58,94 +58,27 @@ actor PreviewGenerator {
         activeProgress = nil
     }
 
-    private static func prioritizedURLs(_ urls: [URL], around selectedIndex: Int?) -> [URL] {
-        guard let selectedIndex, urls.indices.contains(selectedIndex) else { return urls }
-
-        var result: [URL] = []
-        result.reserveCapacity(urls.count)
-        for distance in 0..<urls.count {
-            let next = selectedIndex + distance
-            if urls.indices.contains(next) {
-                result.append(urls[next])
-            }
-
-            guard distance > 0 else { continue }
-            let previous = selectedIndex - distance
-            if urls.indices.contains(previous) {
-                result.append(urls[previous])
-            }
-        }
-        return result
-    }
-
     private static func generate(
         _ urls: [URL],
         snapshots: [URL: FileAttributesSnapshot],
         store: any PreviewProxyProviding,
         progress: @escaping @Sendable (Int, Int) -> Void
     ) async -> Bool {
-        let total = urls.count
-        guard total > 0 else {
-            progress(0, 0)
-            return true
-        }
-
-        guard !Task.isCancelled else { return false }
-        _ = await store.generate(for: urls[0], snapshot: snapshots[urls[0]])
-        guard !Task.isCancelled else { return false }
-
-        var completed = 1
-        progress(completed, total)
-        var nextIndex = 1
-        let workerCount = min(
-            total - nextIndex,
-            max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
-        )
-
-        guard workerCount > 0 else {
-            await store.evictToLimit()
-            return true
-        }
-
-        await withTaskGroup(of: Bool.self) { group in
-            for _ in 0..<workerCount {
-                let url = urls[nextIndex]
-                nextIndex += 1
-                group.addTask(priority: .utility) {
-                    guard !Task.isCancelled else { return false }
-                    let didGenerate = await store.generate(for: url, snapshot: snapshots[url])
-                    await Task.yield()
-                    return didGenerate
-                }
-            }
-
-            while let _ = await group.next() {
-                guard !Task.isCancelled else {
-                    group.cancelAll()
-                    break
-                }
-
-                completed += 1
-                progress(completed, total)
+        await PrioritizedBatchRunner.run(
+            items: urls,
+            maxWorkers: max(2, ProcessInfo.processInfo.activeProcessorCount - 2),
+            progress: progress,
+            onCompleted: { completed in
                 if completed.isMultiple(of: evictionInterval) {
                     await store.evictToLimit()
                 }
-
-                if nextIndex < total {
-                    let url = urls[nextIndex]
-                    nextIndex += 1
-                    group.addTask(priority: .utility) {
-                        guard !Task.isCancelled else { return false }
-                        let didGenerate = await store.generate(for: url, snapshot: snapshots[url])
-                        await Task.yield()
-                        return didGenerate
-                    }
-                }
+            },
+            onFinished: {
+                await store.evictToLimit()
+            },
+            process: { url in
+                await store.generate(for: url, snapshot: snapshots[url])
             }
-        }
-
-        guard !Task.isCancelled else { return false }
-        await store.evictToLimit()
-        return completed == total
+        )
     }
 }

@@ -31,7 +31,7 @@ actor PhotoCaptionGenerator {
         let batchID = UUID()
         activeBatchID = batchID
         activeProgress = progress
-        let orderedURLs = Self.prioritizedURLs(urls, around: selectedIndex)
+        let orderedURLs = PrioritizedBatchRunner.prioritized(urls, around: selectedIndex)
         let imageLoader = ImageLoader.shared
         generationTask = Task.detached(priority: .utility) { [weak self] in
             _ = await Self.generate(
@@ -61,94 +61,24 @@ actor PhotoCaptionGenerator {
         activeProgress = nil
     }
 
-    private static func prioritizedURLs(_ urls: [URL], around selectedIndex: Int?) -> [URL] {
-        guard let selectedIndex, urls.indices.contains(selectedIndex) else { return urls }
-
-        var result: [URL] = []
-        result.reserveCapacity(urls.count)
-        for distance in 0..<urls.count {
-            let next = selectedIndex + distance
-            if urls.indices.contains(next) {
-                result.append(urls[next])
-            }
-
-            guard distance > 0 else { continue }
-            let previous = selectedIndex - distance
-            if urls.indices.contains(previous) {
-                result.append(urls[previous])
-            }
-        }
-        return result
-    }
-
     private static func generate(
         _ urls: [URL],
         imageLoader: ImageLoader,
         progress: @escaping @Sendable (Int, Int) -> Void,
         onResult: @escaping @Sendable (URL, String?) -> Void
     ) async -> Bool {
-        let total = urls.count
-        guard total > 0 else {
-            progress(0, 0)
-            return true
-        }
-
-        guard !Task.isCancelled else { return false }
-        let firstURL = urls[0]
-        let firstResult = await Self.caption(firstURL, imageLoader: imageLoader)
-        guard !Task.isCancelled else { return false }
-        onResult(firstURL, firstResult)
-
-        var completed = 1
-        progress(completed, total)
-        var nextIndex = 1
-        // Foundation Modelsのオンデバイス推論はVision分類より重いため、CPU数の1/4に絞る。
-        let workerCount = min(
-            total - nextIndex,
-            max(1, ProcessInfo.processInfo.activeProcessorCount / 4)
+        await PrioritizedBatchRunner.run(
+            items: urls,
+            // Foundation Modelsのオンデバイス推論はVision分類より重いため、CPU数の1/4に絞る。
+            maxWorkers: max(1, ProcessInfo.processInfo.activeProcessorCount / 4),
+            progress: progress,
+            process: { url in
+                let result = await Self.caption(url, imageLoader: imageLoader)
+                guard !Task.isCancelled else { return false }
+                onResult(url, result)
+                return true
+            }
         )
-
-        guard workerCount > 0 else { return true }
-
-        await withTaskGroup(of: Bool.self) { group in
-            for _ in 0..<workerCount {
-                let url = urls[nextIndex]
-                nextIndex += 1
-                group.addTask(priority: .utility) {
-                    guard !Task.isCancelled else { return false }
-                    let result = await Self.caption(url, imageLoader: imageLoader)
-                    guard !Task.isCancelled else { return false }
-                    onResult(url, result)
-                    await Task.yield()
-                    return true
-                }
-            }
-
-            while let _ = await group.next() {
-                guard !Task.isCancelled else {
-                    group.cancelAll()
-                    break
-                }
-
-                completed += 1
-                progress(completed, total)
-                if nextIndex < total {
-                    let url = urls[nextIndex]
-                    nextIndex += 1
-                    group.addTask(priority: .utility) {
-                        guard !Task.isCancelled else { return false }
-                        let result = await Self.caption(url, imageLoader: imageLoader)
-                        guard !Task.isCancelled else { return false }
-                        onResult(url, result)
-                        await Task.yield()
-                        return true
-                    }
-                }
-            }
-        }
-
-        guard !Task.isCancelled else { return false }
-        return completed == total
     }
 
     private static func caption(
