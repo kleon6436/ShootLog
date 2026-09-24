@@ -97,7 +97,7 @@ struct VisionAILabelingClassifier: AILabelingClassifying {
 actor AILabelingGenerator {
     static let shared = AILabelingGenerator()
     static let currentSchemaVersion = 2
-    private static let decodeThrottle = AIBackgroundDecodeThrottle(maxConcurrent: 2)
+    private static let decodeThrottle = ImageDecodeThrottle(maxConcurrent: 2)
 
     private let imageProvider: any AILabelingImageProviding
     private let classifier: any AILabelingClassifying
@@ -280,46 +280,5 @@ actor AILabelingGenerator {
 
         guard let image else { return nil }
         return classifier.classify(image)
-    }
-}
-
-/// AIバックグラウンド処理の画像デコード同時実行数を絞る。
-/// `AILabelingGenerator` と `PhotoQualityDiagnosisGenerator` がそれぞれ独立したインスタンスで使う。
-actor AIBackgroundDecodeThrottle {
-    private let maxConcurrent: Int
-    private var active = 0
-    private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
-
-    init(maxConcurrent: Int) {
-        self.maxConcurrent = maxConcurrent
-    }
-
-    func acquire() async throws {
-        guard active >= maxConcurrent else {
-            active += 1
-            return
-        }
-        let id = UUID()
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                waiters[id] = continuation
-            }
-        } onCancel: {
-            Task { await self.cancelWaiter(id) }
-        }
-    }
-
-    private func cancelWaiter(_ id: UUID) {
-        guard let continuation = waiters.removeValue(forKey: id) else { return }
-        continuation.resume(throwing: CancellationError())
-    }
-
-    func release() {
-        if let (id, continuation) = waiters.first {
-            waiters.removeValue(forKey: id)
-            continuation.resume()
-        } else {
-            active -= 1
-        }
     }
 }

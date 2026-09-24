@@ -24,7 +24,7 @@ actor PhotoQualityDiagnosisGenerator {
     static let shared = PhotoQualityDiagnosisGenerator()
     static let currentSchemaVersion = 1
     // 被写体認識と同時に走るため、CPU/GPU競合が体感速度に出るなら両者でのスロットル統合を検討する。
-    private static let decodeThrottle = AIBackgroundDecodeThrottle(maxConcurrent: 2)
+    private static let decodeThrottle = ImageDecodeThrottle(maxConcurrent: 2)
 
     private let imageProvider: any AILabelingImageProviding
     private let diagnoser: any PhotoQualityDiagnosing

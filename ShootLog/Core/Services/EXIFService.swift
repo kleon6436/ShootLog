@@ -11,7 +11,7 @@ actor EXIFService {
     static let defaultBatchConcurrency = 6
 
     // 一括取得の同時実行数を決める。ネットワークボリューム上の写真では
-    // サムネイル取得（ImageLoader の ThumbnailThrottle）と同じ「一般」設定タブの値へ揃え、
+    // サムネイル取得（ImageLoader のネットワーク用 ImageDecodeThrottle）と同じ「一般」設定タブの値へ揃え、
     // 同時 I/O 本数が過剰にならないようにする（未設定時は 0 が返るため既定値へフォールバック）
     nonisolated static func recommendedBatchConcurrency(for url: URL?) -> Int {
         guard let url, url.isOnNetworkVolume else { return defaultBatchConcurrency }
