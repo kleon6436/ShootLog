@@ -171,7 +171,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 
 ビューア高解像度表示と現像編集の体感速度を上げるため、固定解像度のプレビュープロキシを永続キャッシュする。
 
-- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC 品質0.9（失敗時 JPEG）で `~/Library/Caches/com.shootlog.app/previews-v1/` へ、CGImage を `NSCache` へ。ファイル名は `sha256(url + mtime + size + proxyLongEdge)` で原本差し替え・解像度変更時に自動失効。上限 `previewCacheMaxBytes`（既定4GiB）を超えたらキャッシュファイルの mtime 昇順で削除。生成は埋め込みプレビュー優先、不足時のみ元画像からダウンサンプル。内部 `DecodeThrottle`（`max(2, コア数)`）でビューアの対話要求とバックグラウンド生成が同一デコード枠を共有する。
+- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC 品質0.9（失敗時 JPEG）で `~/Library/Caches/com.shootlog.app/previews-v1/` へ、CGImage を `NSCache` へ。ファイル名は `sha256(url + mtime + size + proxyLongEdge)` で原本差し替え・解像度変更時に自動失効。上限 `previewCacheMaxBytes`（既定4GiB）を超えたらキャッシュファイルの mtime 昇順で削除。生成は埋め込みプレビュー優先、不足時のみ元画像からダウンサンプル。`ImageDecodeThrottle.shared`（`max(2, min(4, コア数))`、`ImageLoader` のローカルボリューム用スロットと共用）でビューアの対話要求とバックグラウンド生成が同一デコード枠を共有する。
 - `ImageLoader.proxyImage(for:)` がラッパ。`PhotoImageViewModel.load` は サムネ(768) → プロキシ(3200) → 表示領域がプロキシ解像度を明確に超える場合のみ `highResImage` を追加要求、の段階表示。ズーム100%時のみ従来のフルデコード。
 - `PreviewGenerator`（actor）: フォルダ読み込み時に全写真のプロキシを `.utility` でバックグラウンド生成。選択インデックス近傍を優先、`max(2, コア数-2)` ワーカー、フォルダ切替でキャンセル（セキュリティスコープ解放前に停止）。進捗はサイドバー下部に「プレビュー生成中 N枚」。
 - `HighResPrefetcher`: 選択写真の前後を先読み。枚数はボリューム種別で決める（ローカル ±3 / ネットワーク ±1）。呼び先は `proxyImage`。
