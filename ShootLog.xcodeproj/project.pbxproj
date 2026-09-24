@@ -187,7 +187,6 @@
 		E8D90D35E07B4EBA85C63F5F /* ToneCurve.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C31394B5C4F18AEA3A12B3E /* ToneCurve.swift */; };
 		E9E80F8123CA508855AE7D6A /* HSLBandEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E6A319C29E90C03BAA0BF2 /* HSLBandEditorView.swift */; };
 		E9F9193226D3CD534BFA4ECA /* PhotoActionAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DE9F3CC154D646DD11FFECF /* PhotoActionAvailability.swift */; };
-		EB63C67DC3703BDBD56AE2E3 /* ShootLogTestsExample.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE919666BE32896CB553EE /* ShootLogTestsExample.swift */; };
 		EC28004B4357438202DD35D9 /* DevelopMaskCompositor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2E6331152C93E5777951DD /* DevelopMaskCompositor.swift */; };
 		EC76F2F5BDCEB685D55E4200 /* AffinityPhotoAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6932954408012E9BDCF2635 /* AffinityPhotoAdapter.swift */; };
 		EC9429A149799C331B048C6E /* EXIFPanelViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C45C35D791261F17559956 /* EXIFPanelViewModelTests.swift */; };
@@ -411,7 +410,6 @@
 		F11C6C12F60B2B0D0F861DFE /* FolderAvailabilityChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAvailabilityChecker.swift; sourceTree = "<group>"; };
 		F12E9306D3A3C4A2213D21AC /* SidebarModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarModeView.swift; sourceTree = "<group>"; };
 		F3E1646FCCD5020BEABA0153 /* PreviewAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewAdapter.swift; sourceTree = "<group>"; };
-		F5DE919666BE32896CB553EE /* ShootLogTestsExample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShootLogTestsExample.swift; sourceTree = "<group>"; };
 		FA4CB76CA0C0D3E38DD98F29 /* SlideshowModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideshowModeView.swift; sourceTree = "<group>"; };
 		FA84F5C47F603BB722131E64 /* HistogramDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistogramDataTests.swift; sourceTree = "<group>"; };
 		FB7D51053BEFB2600DC2D7DF /* MaskSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskSectionView.swift; sourceTree = "<group>"; };
@@ -661,7 +659,6 @@
 				94A667C271CD28F31A13522F /* PreviewCacheStoreTests.swift */,
 				9A7A351A947D5595EB57E9EF /* PreviewGeneratorTests.swift */,
 				C45275D786A5EDC473D7F9A4 /* RAWDevelopMappingTests.swift */,
-				F5DE919666BE32896CB553EE /* ShootLogTestsExample.swift */,
 				03D9BC113DA38E7E1BD62383 /* SidebarViewModelAIFilterTests.swift */,
 				8675EDFC43E5125BC753BE9E /* SidebarViewModelDevelopTests.swift */,
 				5058226A381F811C89EA08E5 /* SidebarViewModelPhotoActionTests.swift */,
@@ -1031,7 +1028,6 @@
 				2A94103F4153796229A5235D /* PreviewCacheStoreTests.swift in Sources */,
 				2D195D185851FE35056F3DF7 /* PreviewGeneratorTests.swift in Sources */,
 				97257FA20964775071F001F1 /* RAWDevelopMappingTests.swift in Sources */,
-				EB63C67DC3703BDBD56AE2E3 /* ShootLogTestsExample.swift in Sources */,
 				BFE1589B79419935E7B68224 /* SidebarViewModelAIFilterTests.swift in Sources */,
 				1733D01012AF80071872C81F /* SidebarViewModelDevelopTests.swift in Sources */,
 				63518FBD2E2A5D2A8420C9A7 /* SidebarViewModelPhotoActionTests.swift in Sources */,
