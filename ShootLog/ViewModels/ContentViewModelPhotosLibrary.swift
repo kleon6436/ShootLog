@@ -72,49 +72,11 @@ extension ContentViewModel {
             guard aiLabelingToken == self.aiLabelingToken else { return }
 
             self.resetDetectedAICategories(from: self.photos)
-            let targetPhotos = self.photos
-                .filter {
-                    $0.aiLabelingFetchedAt == nil
-                        || ($0.aiLabelingSchemaVersion ?? 1) < AILabelingGenerator.currentSchemaVersion
-                }
-            let photoIndex = Dictionary(
-                uniqueKeysWithValues: self.photos.enumerated().map { ($1.fileURL, $0) }
-            )
-            let aiTargets = targetPhotos.map {
-                AILabelingTarget(url: $0.fileURL, localIdentifier: $0.phAssetLocalIdentifier)
-            }
-            let aiTotal = aiTargets.count
-            await AILabelingGenerator.shared.start(
-                targets: aiTargets,
-                around: 0,
-                progress: { [weak self] done, total in
-                    Task { @MainActor in
-                        guard let self else { return }
-                        guard aiLabelingToken == self.aiLabelingToken else { return }
-                        self.updateAILabelingProgress(done: done, total: total)
-                    }
-                },
-                onResult: { [weak self] url, result in
-                    Task { @MainActor in
-                        guard let self else { return }
-                        guard aiLabelingToken == self.aiLabelingToken else { return }
-                        if let result,
-                           let index = photoIndex[url], self.photos.indices.contains(index) {
-                            let photo = self.photos[index]
-                            photo.aiCategoryRawValues = result.categories.map(\.rawValue)
-                            photo.aiRawIdentifiers = result.rawIdentifiers
-                            photo.aiLabelingFetchedAt = Date()
-                            photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
-                            self.addDetectedAICategories(result.categories)
-                        }
-                        self.aiLabelingCompletedCount += 1
-                        if aiTotal > 0,
-                           self.aiLabelingCompletedCount == aiTotal
-                            || self.aiLabelingCompletedCount.isMultiple(of: Self.photoStagingChunkSize) {
-                            try? self.modelContext?.save()
-                        }
-                    }
-                }
+            await self.startAILabeling(
+                targetPhotos: self.aiLabelingTargetPhotos(),
+                photoIndex: self.photoIndexByURL(),
+                snapshots: [:],
+                token: aiLabelingToken
             )
             await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
         }

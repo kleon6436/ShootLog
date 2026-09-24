@@ -154,143 +154,124 @@ extension ContentViewModel {
             guard applyFileAttributesSnapshots(snapshots, generation: generation) else { return }
             syncPhotos(urls: urls, context: context)
             selectPhoto(photos.first)
-            let previewGenerationToken = beginPreviewGeneration()
-            await PreviewGenerator.shared.start(
-                urls: urls,
-                snapshots: snapshots,
-                around: 0
-            ) { [weak self] done, total in
-                Task { @MainActor in
-                    guard let self else { return }
-                    guard previewGenerationToken == self.previewGenerationToken else { return }
-                    self.updatePreviewGenerationProgress(done: done, total: total)
-                }
-            }
-            let aiLabelingToken = beginAILabeling()
-            let aiQualityDiagnosisToken = beginAIQualityDiagnosis()
-            let exifPrefetchToken = beginEXIFPrefetch()
-            let photoCaptionToken = beginPhotoCaption()
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let staging = self.photoStagingTask {
-                    await staging.value
-                }
-                guard aiLabelingToken == self.aiLabelingToken else { return }
-
-                self.resetDetectedAICategories(from: self.photos)
-                let targetPhotos = self.photos
-                    .filter {
-                        $0.aiLabelingFetchedAt == nil
-                            || ($0.aiLabelingSchemaVersion ?? 1) < AILabelingGenerator.currentSchemaVersion
-                    }
-                let photoIndex = Dictionary(
-                    uniqueKeysWithValues: self.photos.enumerated().map { ($1.fileURL, $0) }
-                )
-                let exifURLs = self.photos
-                    .filter { $0.phAssetLocalIdentifier == nil && $0.exifFetchedAt == nil }
-                    .map(\.fileURL)
-                let exifTotal = exifURLs.count
-                await EXIFPrefetcher.shared.start(
-                    urls: exifURLs,
-                    snapshots: snapshots,
-                    progress: { [weak self] done, total in
-                        Task { @MainActor in
-                            guard let self else { return }
-                            guard exifPrefetchToken == self.exifPrefetchToken else { return }
-                            self.updateEXIFPrefetchProgress(done: done, total: total)
-                            // チャンク完了後に結果反映済みのEXIFをまとめて保存する。
-                            if exifTotal > 0,
-                               done == total || done.isMultiple(of: Self.photoStagingChunkSize) {
-                                try? self.modelContext?.save()
-                            }
-                        }
-                    },
-                    onResult: { [weak self] url, exif in
-                        Task { @MainActor in
-                            guard let self else { return }
-                            guard exifPrefetchToken == self.exifPrefetchToken else { return }
-                            guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
-                            self.apply(exif, to: self.photos[index])
-                        }
-                    }
-                )
-                let aiTargets = targetPhotos.map {
-                    AILabelingTarget(
-                        url: $0.fileURL,
-                        localIdentifier: $0.phAssetLocalIdentifier,
-                        snapshot: snapshots[$0.fileURL]
-                    )
-                }
-                let aiTotal = aiTargets.count
-                await AILabelingGenerator.shared.start(
-                    targets: aiTargets,
-                    around: 0,
-                    progress: { [weak self] done, total in
-                        Task { @MainActor in
-                            guard let self else { return }
-                            guard aiLabelingToken == self.aiLabelingToken else { return }
-                            self.updateAILabelingProgress(done: done, total: total)
-                        }
-                    },
-                    onResult: { [weak self] url, result in
-                        Task { @MainActor in
-                            guard let self else { return }
-                            guard aiLabelingToken == self.aiLabelingToken else { return }
-                            if let result,
-                               let index = photoIndex[url], self.photos.indices.contains(index) {
-                                let photo = self.photos[index]
-                                photo.aiCategoryRawValues = result.categories.map(\.rawValue)
-                                photo.aiRawIdentifiers = result.rawIdentifiers
-                                photo.aiLabelingFetchedAt = Date()
-                                photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
-                                self.addDetectedAICategories(result.categories)
-                            }
-                            self.aiLabelingCompletedCount += 1
-                            // 書き込み後に保存し、数百〜数千枚の分類ではチャンク単位にI/Oする。
-                            if aiTotal > 0,
-                               self.aiLabelingCompletedCount == aiTotal
-                                || self.aiLabelingCompletedCount.isMultiple(of: Self.photoStagingChunkSize) {
-                                try? self.modelContext?.save()
-                            }
-                        }
-                    }
-                )
-                await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
-                if #available(macOS 27, *) {
-                    let captionURLs = self.photos
-                        .filter { $0.aiCaptionFetchedAt == nil }
-                        .map(\.fileURL)
-                    await PhotoCaptionGenerator.shared.start(
-                        urls: captionURLs,
-                        around: 0,
-                        progress: { [weak self] done, total in
-                            Task { @MainActor in
-                                guard let self else { return }
-                                guard photoCaptionToken == self.photoCaptionToken else { return }
-                                // 生成は遅いため、進捗コールバックを保存の区切りにも利用する。
-                                if total > 0,
-                                   done == total || done.isMultiple(of: Self.photoStagingChunkSize) {
-                                    try? self.modelContext?.save()
-                                }
-                            }
-                        },
-                        onResult: { [weak self] url, caption in
-                            Task { @MainActor in
-                                guard let self else { return }
-                                guard photoCaptionToken == self.photoCaptionToken else { return }
-                                guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
-                                let photo = self.photos[index]
-                                photo.aiCaptionText = caption
-                                photo.aiCaptionFetchedAt = Date()
-                            }
-                        }
-                    )
-                }
-            }
+            await startPreviewGeneration(urls: urls, snapshots: snapshots)
+            startFolderBackgroundAnalysis(snapshots: snapshots)
         } catch {
             self.error = error
         }
         isLoading = false
+    }
+
+    private func startPreviewGeneration(urls: [URL], snapshots: [URL: FileAttributesSnapshot]) async {
+        let previewGenerationToken = beginPreviewGeneration()
+        await PreviewGenerator.shared.start(
+            urls: urls,
+            snapshots: snapshots,
+            around: 0
+        ) { [weak self] done, total in
+            Task { @MainActor in
+                guard let self else { return }
+                guard previewGenerationToken == self.previewGenerationToken else { return }
+                self.updatePreviewGenerationProgress(done: done, total: total)
+            }
+        }
+    }
+
+    // 段階挿入の完了を待ってから EXIF 先読み → AI被写体認識 → AI画質診断 → キャプション生成の順に走らせる
+    private func startFolderBackgroundAnalysis(snapshots: [URL: FileAttributesSnapshot]) {
+        let aiLabelingToken = beginAILabeling()
+        let aiQualityDiagnosisToken = beginAIQualityDiagnosis()
+        let exifPrefetchToken = beginEXIFPrefetch()
+        let photoCaptionToken = beginPhotoCaption()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if let staging = self.photoStagingTask {
+                await staging.value
+            }
+            guard aiLabelingToken == self.aiLabelingToken else { return }
+
+            self.resetDetectedAICategories(from: self.photos)
+            let targetPhotos = self.aiLabelingTargetPhotos()
+            let photoIndex = self.photoIndexByURL()
+            await self.startEXIFPrefetch(photoIndex: photoIndex, snapshots: snapshots, token: exifPrefetchToken)
+            await self.startAILabeling(
+                targetPhotos: targetPhotos,
+                photoIndex: photoIndex,
+                snapshots: snapshots,
+                token: aiLabelingToken
+            )
+            await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
+            if #available(macOS 27, *) {
+                await self.startPhotoCaption(photoIndex: photoIndex, token: photoCaptionToken)
+            }
+        }
+    }
+
+    private func startEXIFPrefetch(
+        photoIndex: [URL: Int],
+        snapshots: [URL: FileAttributesSnapshot],
+        token exifPrefetchToken: Int
+    ) async {
+        let exifURLs = photos
+            .filter { $0.phAssetLocalIdentifier == nil && $0.exifFetchedAt == nil }
+            .map(\.fileURL)
+        let exifTotal = exifURLs.count
+        await EXIFPrefetcher.shared.start(
+            urls: exifURLs,
+            snapshots: snapshots,
+            progress: { [weak self] done, total in
+                Task { @MainActor in
+                    guard let self else { return }
+                    guard exifPrefetchToken == self.exifPrefetchToken else { return }
+                    self.updateEXIFPrefetchProgress(done: done, total: total)
+                    // チャンク完了後に結果反映済みのEXIFをまとめて保存する。
+                    if exifTotal > 0,
+                       done == total || done.isMultiple(of: Self.photoStagingChunkSize) {
+                        try? self.modelContext?.save()
+                    }
+                }
+            },
+            onResult: { [weak self] url, exif in
+                Task { @MainActor in
+                    guard let self else { return }
+                    guard exifPrefetchToken == self.exifPrefetchToken else { return }
+                    guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
+                    self.apply(exif, to: self.photos[index])
+                }
+            }
+        )
+    }
+
+    @available(macOS 27, *)
+    private func startPhotoCaption(photoIndex: [URL: Int], token photoCaptionToken: Int) async {
+        let captionURLs = photos
+            .filter { $0.aiCaptionFetchedAt == nil }
+            .map(\.fileURL)
+        await PhotoCaptionGenerator.shared.start(
+            urls: captionURLs,
+            around: 0,
+            progress: { [weak self] done, total in
+                Task { @MainActor in
+                    guard let self else { return }
+                    guard photoCaptionToken == self.photoCaptionToken else { return }
+                    // 生成は遅いため、進捗コールバックを保存の区切りにも利用する。
+                    if total > 0,
+                       done == total || done.isMultiple(of: Self.photoStagingChunkSize) {
+                        try? self.modelContext?.save()
+                    }
+                }
+            },
+            onResult: { [weak self] url, caption in
+                Task { @MainActor in
+                    guard let self else { return }
+                    guard photoCaptionToken == self.photoCaptionToken else { return }
+                    guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
+                    let photo = self.photos[index]
+                    photo.aiCaptionText = caption
+                    photo.aiCaptionFetchedAt = Date()
+                }
+            }
+        )
     }
 
     // 先頭 initialPhotoBatchSize 件だけを同期的にinsert/saveしてグリッドを即時表示し、
