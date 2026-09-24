@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import ImageIO
-// `Array.move(fromOffsets:toOffset:)`（`List.onMove` と同じ並べ替え意味論）のため。
 import SwiftUI
 
 /// サイドバーモードの現像編集パネルとビューアプレビューの状態を持つ ViewModel。
@@ -112,9 +111,11 @@ final class DevelopViewModel {
     /// オーバーレイ（描画領域の出し分け）と現像パネル（ブラシ設定の開閉）で共有する。
     var isBrushPaintMode = false
     /// AI マスクを生成中か（ボタンの無効化・スピナー表示用）。
-    private(set) var isGeneratingAIMask = false
+    // DevelopViewModelAIMask.swift から更新するため setter も internal
+    var isGeneratingAIMask = false
     /// 直近の AI マスク生成が失敗した理由。成功・写真切り替え・次の生成開始で消える。
-    private(set) var aiMaskGenerationFailureMessage: String?
+    // DevelopViewModelAIMask.swift から更新するため setter も internal
+    var aiMaskGenerationFailureMessage: String?
     /// ブラシの半径。ベース空間の正規化座標（extent 短辺に対する比率）。
     var brushRadius: Double = DevelopViewModel.defaultBrushRadius
     /// ブラシの硬さ（0...100）。0 でソフト、100 でシャープ。
@@ -124,7 +125,8 @@ final class DevelopViewModel {
     /// true の間、次に描くストロークは消しゴム（減算）になる。
     var isBrushEraserMode = false
     /// ストローク上限に達して追加できなかったときのインライン通知。
-    private(set) var brushStrokeLimitReachedMessage: String?
+    // DevelopViewModelBrush.swift から更新するため setter も internal
+    var brushStrokeLimitReachedMessage: String?
     /// スプリット境界の位置。表示中画像矩形内の 0...1（左端=0、右端=1）。
     var splitPosition: CGFloat = 0.5
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
@@ -223,9 +225,10 @@ final class DevelopViewModel {
     /// プロセス内の調整クリップボード。他アプリと互換性のない独自形式のため `NSPasteboard` は使わない。
     private static var clipboard: DevelopParameters?
 
-    private let engine: any ImageDeveloping
-    private let maskGenerator: any SubjectMaskGenerating
-    private let content: ContentViewModel?
+    // DevelopViewModelAIMask.swift / DevelopViewModelPresets.swift から参照するため internal
+    let engine: any ImageDeveloping
+    let maskGenerator: any SubjectMaskGenerating
+    let content: ContentViewModel?
 
     /// `MaskRaster.pngData` のデコード結果。スライダー操作のたびに PNG を展開し直さないため、
     /// `rasterID` をキーに保持する。ラスタの中身は生成時に確定し以後変わらない（再生成は
@@ -233,25 +236,30 @@ final class DevelopViewModel {
     private var maskRasterDecodeCache: [UUID: CGImage] = [:]
 
     /// ドラッグ中のストローク。確定（`endBrushStroke`）までレイヤーへは書き込まない。
-    private var activeBrushStroke: BrushStroke?
-    private var activeBrushLayerID: UUID?
+    // DevelopViewModelBrush.swift / DevelopViewModelMasks.swift から更新するため internal
+    var activeBrushStroke: BrushStroke?
+    var activeBrushLayerID: UUID?
     /// ブラシ専用の Undo 履歴。永続化せずメモリ内だけで持つ（写真切り替えで破棄）。
-    private var brushUndoStack: [(layerID: UUID, previousBrushEdits: [BrushStroke])] = []
+    var brushUndoStack: [(layerID: UUID, previousBrushEdits: [BrushStroke])] = []
 
-    private var currentPhoto: Photo?
+    // DevelopViewModelAIMask.swift から参照するため private(set)
+    private(set) var currentPhoto: Photo?
     /// 写真切り替え検知用（`.task(id:)` 等、View 側は `currentPhoto` 自体に触れない）。
     var currentPhotoID: UUID? { currentPhoto?.id }
-    private var displaySize: CGSize = .zero
+    // DevelopViewModelAIMask.swift から参照するため private(set)
+    private(set) var displaySize: CGSize = .zero
     /// `EditInfo` 由来の回転角。プレビューにも焼き込む。
     private var rotation: Int = 0
     /// `EditInfo` 由来の正規化トリミング矩形（回転後の表示画像基準）。
     private var cropRect: CGRect?
     /// RAW の露出・WB を `CIRAWFilter` 側で解釈するか（`DevelopSettings.schemaVersion` >= 2 の RAW）。
-    private var rawMappingActive = false
+    // DevelopViewModelAIMask.swift から参照するため private(set)
+    private(set) var rawMappingActive = false
     /// 手動レンズ補正を解釈するか（`DevelopSettings.schemaVersion` >= 2）。
     private var manualLensCorrectionActive = false
     /// カラーグレーディングへトーン域マスク方式を適用するか（`DevelopSettings.schemaVersion` >= 5）。
-    private var toneMaskedColorGradingActive = false
+    // DevelopViewModelAIMask.swift から参照するため private(set)
+    private(set) var toneMaskedColorGradingActive = false
     /// 露出・色温度・色かぶりのスライダーをドラッグ中か。ドラッグ中は RAW 再デコードを避け、
     /// 標準チェーンで近似プレビューを出す。離した時点で `CIRAWFilter` 経路へ切り替えて描き直す。
     private var isRAWParameterDragging = false
@@ -661,63 +669,7 @@ final class DevelopViewModel {
         parameters.reset(section)
     }
 
-    // MARK: - プリセット / コピー & ペースト
-
-    /// 現在の調整値をプリセットとして保存する。
-    /// - Parameter includeMasks: `true` ならマスクレイヤーも含めて保存する。既定 `false`
-    ///   （放射状マスクの位置は写真ごとに意味が変わるため、既定では含めない）。
-    ///   AI マスクは `includeMasks` の値によらず常に除外する（`applyPreset`参照。ラスタが
-    ///   元写真にしか無く、別写真への適用時に複製できないため、保存時点で持たせない）。
-    func saveCurrentAsPreset(name: String, includeMasks: Bool = false) {
-        var toSave = parameters
-        if !includeMasks {
-            toSave.masks = []
-        } else {
-            toSave.masks = toSave.masks.filter { layer in
-                if case .ai = layer.source { return false }
-                return true
-            }
-        }
-        content?.saveDevelopPreset(name: name, from: toSave)
-    }
-
-    func deletePreset(_ preset: DevelopPreset) {
-        content?.deleteDevelopPreset(preset)
-    }
-
-    func renamePreset(_ preset: DevelopPreset, to name: String) {
-        content?.renameDevelopPreset(preset, to: name)
-    }
-
-    /// プリセットの調整値を適用する。直前の状態は 1 段だけ戻せる。
-    /// - Parameters:
-    ///   - relative: `true` なら現在の調整値へプリセットを差分として重ねる（露出違いの
-    ///     複数カットへ同じスタイルを崩さず足せる）。`false`（既定）なら丸ごと置き換える。
-    ///   - includeMasks: `true` ならプリセット側のマスクも反映する。既定 `false` の場合、
-    ///     `relative: true` ではプリセット側マスクを追記せず、`relative: false` では
-    ///     現在のマスクレイヤーをそのまま保持する（プリセットで上書きしない）。
-    ///
-    ///     `includeMasks: true` でも AI マスクは常に除外する（`pasteAdjustments` と同じ理由、
-    ///     プラン§3.6）。`DevelopPreset` は写真をまたいで使うのが本来の用途であり、AI マスクの
-    ///     ラスタは元写真の `DevelopSettings.maskRasters` にしか存在しないため、別写真への適用時
-    ///     ほぼ確実にラスタを複製できない（レビューで指摘された「fallback が実質常用パス化する」
-    ///     問題）。グラデーション・輝度レンジは幾何・数値パラメータのみで写真間の意味が保たれる
-    ///     ため、`.ai` だけを除いて含める。
-    func applyPreset(_ preset: DevelopPreset, relative: Bool = false, includeMasks: Bool = false) {
-        var presetParams = preset.parameters
-        presetParams.masks = presetParams.masks.filter { layer in
-            if case .ai = layer.source { return false }
-            return true
-        }
-        if !includeMasks {
-            presetParams.masks = relative ? [] : parameters.masks
-        }
-        // 取り込んだマスクは末尾に積まれる（relative は追記、丸ごと置き換えは全部が外来）。
-        // .ai は上で除外済みなので実際にはno-opになるが、防御的に残す（§3.2参照整合性ケース3）。
-        let foreignMasksFrom = includeMasks ? (relative ? parameters.masks.count : 0) : nil
-        let target = relative ? parameters.applying(delta: presetParams) : presetParams
-        applyReplacingParameters(target, duplicatingAIMaskRastersFrom: foreignMasksFrom)
-    }
+    // MARK: - コピー & ペースト / Undo
 
     /// 現在の調整値をクリップボードへコピーする。
     func copyAdjustments() {
@@ -749,7 +701,8 @@ final class DevelopViewModel {
     /// `parameters` を丸ごと差し替える。didSet でプレビュー再描画・永続化が予約される。
     /// - Parameter index: 取り込んだ（＝この写真のものではない）マスクレイヤーの開始位置。
     ///   指定すると、そこから末尾までの AI マスクのラスタを複製してから差し替える。
-    private func applyReplacingParameters(_ new: DevelopParameters, duplicatingAIMaskRastersFrom index: Int? = nil) {
+    // DevelopViewModelPresets.swift から参照するため internal
+    func applyReplacingParameters(_ new: DevelopParameters, duplicatingAIMaskRastersFrom index: Int? = nil) {
         guard new != parameters else { return }
         var target = new
         if let index { duplicateAIMaskRasters(in: &target, from: index) }
@@ -779,370 +732,13 @@ final class DevelopViewModel {
         }
     }
 
-    // MARK: - マスク（ローカル調整）
-
-    /// 線形グラデーションのマスクレイヤーを 1 枚追加し、選択状態にする。
-    /// プレビューが出ていない間は何もしない（§1.5.2）。
-    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
-    @discardableResult
-    func addLinearGradientMask() -> UUID? {
-        guard canEditMasks else { return nil }
-        let layer = MaskLayer(
-            id: UUID(),
-            name: String(format: String(localized: "develop.mask.defaultName"), Int64(parameters.masks.count + 1)),
-            source: .linearGradient(LinearGradientMask(
-                start: NormalizedPoint(x: 0.3, y: 0.5),
-                end: NormalizedPoint(x: 0.7, y: 0.5)
-            )),
-            adjustments: LocalAdjustments()
-        )
-        var updated = parameters
-        updated.masks.append(layer)
-        parameters = updated
-        selectedMaskLayerID = layer.id
-        return layer.id
-    }
-
-    /// 放射状グラデーションのマスクレイヤーを 1 枚追加し、選択状態にする。
-    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
-    @discardableResult
-    func addRadialGradientMask() -> UUID? {
-        guard canEditMasks else { return nil }
-        let layer = MaskLayer(
-            id: UUID(),
-            name: String(format: String(localized: "develop.mask.defaultName"), Int64(parameters.masks.count + 1)),
-            source: .radialGradient(RadialGradientMask(
-                center: NormalizedPoint(x: 0.5, y: 0.5),
-                radius: 0.3,
-                aspectRatio: 1.0,
-                rotationDegrees: 0,
-                falloff: 50
-            )),
-            adjustments: LocalAdjustments()
-        )
-        var updated = parameters
-        updated.masks.append(layer)
-        parameters = updated
-        selectedMaskLayerID = layer.id
-        return layer.id
-    }
-
-    /// 輝度レンジのマスクレイヤーを 1 枚追加し、選択状態にする。
-    /// 既定は「明るい部分」の選択（空マスクの代替という主用途に寄せた初期値）。
-    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
-    @discardableResult
-    func addLuminanceRangeMask() -> UUID? {
-        guard canEditMasks else { return nil }
-        let layer = MaskLayer(
-            id: UUID(),
-            name: String(format: String(localized: "develop.mask.defaultName"), Int64(parameters.masks.count + 1)),
-            source: .luminanceRange(LuminanceRangeMask(
-                lowerBound: 0.6,
-                upperBound: 1.0,
-                smoothness: 30
-            )),
-            adjustments: LocalAdjustments()
-        )
-        var updated = parameters
-        updated.masks.append(layer)
-        parameters = updated
-        selectedMaskLayerID = layer.id
-        return layer.id
-    }
-
-    /// ブラシだけで描くマスクレイヤーを 1 枚追加し、選択したうえでペイントモードへ入る。
-    /// ベースは全面 0（`.none`）なので、追加直後は何も塗られていない状態から始まる。
-    /// - Returns: 追加したレイヤーの ID。追加しなかった場合は `nil`。
-    @discardableResult
-    func addBrushMask() -> UUID? {
-        guard canEditMasks else { return nil }
-        let layer = MaskLayer(
-            id: UUID(),
-            name: String(
-                format: String(localized: "develop.mask.brush.defaultName"),
-                Int64(parameters.masks.count + 1)
-            ),
-            source: .none,
-            adjustments: LocalAdjustments()
-        )
-        var updated = parameters
-        updated.masks.append(layer)
-        parameters = updated
-        selectedMaskLayerID = layer.id
-        isBrushPaintMode = true
-        return layer.id
-    }
-
-    /// 指定したマスクレイヤーを削除する。
-    /// プレビューの有無でゲートしない。レンダー失敗などで `previewImage` が消えた状態から
-    /// 抜け出す唯一の手段が削除のため。
-    func removeMask(id: UUID) {
-        guard parameters.masks.contains(where: { $0.id == id }) else { return }
-        var updated = parameters
-        updated.masks.removeAll { $0.id == id }
-        parameters = updated
-        if selectedMaskLayerID == id { selectedMaskLayerID = nil }
-        // 消えたレイヤーを指す Undo エントリ・進行中ストロークは復元先が無い。
-        brushUndoStack.removeAll { $0.layerID == id }
-        if activeBrushLayerID == id {
-            activeBrushStroke = nil
-            activeBrushLayerID = nil
-        }
-    }
-
-    /// マスクレイヤーの表示順を並べ替える。index 0 が最下層のまま、配列の並びを直接操作する。
-    /// `List.onMove` のシグネチャに合わせてある。
-    func moveMasks(from source: IndexSet, to destination: Int) {
-        guard canEditMasks else { return }
-        var updated = parameters
-        updated.masks.move(fromOffsets: source, toOffset: destination)
-        guard updated != parameters else { return }
-        parameters = updated
-    }
-
-    /// 指定したマスクレイヤーをその場で書き換える。`parameters` 経由で代入するため、
-    /// 再描画と永続化は既存の didSet が予約する。
-    func updateMask(id: UUID, _ transform: (inout MaskLayer) -> Void) {
-        guard let index = parameters.masks.firstIndex(where: { $0.id == id }) else { return }
-        var updated = parameters
-        transform(&updated.masks[index])
-        guard updated != parameters else { return }
-        parameters = updated
-    }
-
-    // MARK: - ブラシ
-
-    /// ブラシ半径として許容する範囲（ベース空間の正規化座標、短辺基準）。
-    static let brushRadiusRange: ClosedRange<Double> = 0.005...0.3
-
-    /// ブラシ半径の既定値。スライダーのリセット先も兼ねる。
-    static let defaultBrushRadius = 0.03
-
-    /// 点間引きのしきい値。ブラシ半径に対する比率と絶対上限の小さい方を使う。
-    ///
-    /// 比率だけだと大きなブラシで間引きが粗くなりすぎ、「ストローク形状の最大偏差が長辺の
-    /// 0.2% 以内」という受け入れ基準を割る（落とした点は直前の採用点から高々しきい値ぶん
-    /// しか離れていないので、しきい値がそのまま偏差の上界になる）。逆に絶対値だけだと
-    /// 細いブラシで無駄に点が増える。
-    private static let brushPointMinimumDistanceRatio = 0.15
-    /// 点間引きしきい値の絶対上限（正規化座標）。受け入れ基準の 0.2% をそのまま採る。
-    private static let brushPointMaximumSpacing = 0.002
-    /// 1 レイヤーあたりのストローク上限。超過時は自動ラスタ化せず警告だけ出す（OQ-4）。
-    private static let maxBrushStrokesPerLayer = 500
-    /// ブラシ Undo の履歴保持数。
-    private static let maxBrushUndoDepth = 20
-
-    /// 直前のブラシストロークを取り消せるか。
-    var canUndoBrushStroke: Bool { !brushUndoStack.isEmpty }
-
-    /// ドラッグ開始時に呼ぶ。新しいストロークを開始する。
-    /// - Parameters:
-    ///   - point: ベース空間の正規化座標（最初の点）。
-    ///   - layerID: ストロークを追加する対象レイヤー。
-    func beginBrushStroke(at point: NormalizedPoint, layerID: UUID) {
-        guard canEditMasks, parameters.masks.contains(where: { $0.id == layerID }) else { return }
-        activeBrushStroke = BrushStroke(
-            points: [BrushPoint(x: point.x, y: point.y)],
-            radius: brushRadius,
-            hardness: brushHardness,
-            opacity: brushOpacity,
-            isEraser: isBrushEraserMode
-        )
-        activeBrushLayerID = layerID
-    }
-
-    /// ドラッグ中に呼ぶ。直前の採用点から十分離れている場合だけ点を追加する。
-    func continueBrushStroke(at point: NormalizedPoint) {
-        guard var stroke = activeBrushStroke, let last = stroke.points.last else { return }
-        let dx = point.x - last.x
-        let dy = point.y - last.y
-        guard (dx * dx + dy * dy).squareRoot() > Self.brushPointSpacing(forRadius: stroke.radius) else { return }
-        stroke.points.append(BrushPoint(x: point.x, y: point.y))
-        activeBrushStroke = stroke
-    }
-
-    /// ドラッグ終了時に呼ぶ。ストロークを確定し、対象レイヤーの `brushEdits` へ追加する。
-    /// 上限に達している場合は追加せず、警告メッセージだけを出す（OQ-4: 自動ラスタ化はしない）。
-    func endBrushStroke() {
-        defer {
-            activeBrushStroke = nil
-            activeBrushLayerID = nil
-        }
-        guard let stroke = activeBrushStroke, let layerID = activeBrushLayerID,
-              let layer = parameters.masks.first(where: { $0.id == layerID }) else { return }
-        guard layer.brushEdits.count < Self.maxBrushStrokesPerLayer else {
-            brushStrokeLimitReachedMessage = String(localized: "develop.mask.brush.limitReached")
-            return
-        }
-        brushUndoStack.append((layerID: layerID, previousBrushEdits: layer.brushEdits))
-        if brushUndoStack.count > Self.maxBrushUndoDepth {
-            brushUndoStack.removeFirst()
-        }
-        updateMask(id: layerID) { $0.brushEdits.append(stroke) }
-        brushStrokeLimitReachedMessage = nil
-    }
-
-    /// 直前のブラシストロークを取り消す（非永続、ViewModel 内のみ）。
-    func undoLastBrushStroke() {
-        guard let last = brushUndoStack.popLast() else { return }
-        updateMask(id: last.layerID) { $0.brushEdits = last.previousBrushEdits }
-        brushStrokeLimitReachedMessage = nil
-    }
-
-    /// 指定半径での点間引きしきい値。
-    private static func brushPointSpacing(forRadius radius: Double) -> Double {
-        min(brushPointMinimumDistanceRatio * max(radius, brushRadiusRange.lowerBound), brushPointMaximumSpacing)
-    }
-
-    /// 進行中ストローク・Undo 履歴・警告を捨てる。写真切り替えやマスク編集終了で呼ぶ。
-    /// 別写真の `brushEdits` を誤って復元しないため、写真をまたいで持ち越してはならない。
-    private func clearBrushTransientState() {
-        activeBrushStroke = nil
-        activeBrushLayerID = nil
-        brushUndoStack.removeAll()
-        brushStrokeLimitReachedMessage = nil
-        isBrushPaintMode = false
-    }
-
-    // MARK: - AI マスク
-
-    /// マスク生成ロジック（前処理・Vision モデル）の世代番号。生成結果の見えが変わる変更を
-    /// 入れたら上げる。不一致のレイヤーには UI が再生成導線を出す（黙って作り直さない、§3.2）。
-    static let currentVisionRevision = 1
-
-    /// AI マスクのラスタを焼き込む長辺。`AIMaskReference.bakedLongEdge` として記録する（OQ-3）。
-    private static let aiMaskBakedLongEdge = 1_024
-    /// Vision へ渡すプレビューの最小長辺。`SubjectMaskGenerating` が要求する
-    /// 「最小辺 512px 以上」を通常のアスペクト比で満たすための下限。
-    private static let visionInputMinimumLongEdge: CGFloat = 1_024
-
-    /// AI 被写体 / 人物マスクを追加し、選択状態にする。
-    ///
-    /// - Parameters:
-    ///   - kind: 被写体マスクか人物マスクか。
-    ///   - clickPoint: ベース空間の正規化座標（左上原点・y 下向き）。`nil` なら検出された
-    ///     全インスタンスを使う。
-    ///
-    /// `.person` は「人物なし」を戻り値で判定できない（`SubjectMaskGenerating` の注記。
-    /// 実測で confidence は常に 1.0）。したがって生成できたマスクは必ずレイヤーとして提示し、
-    /// 不適切かどうかの判断は `removeMask(id:)` でユーザーに委ねる。
-    /// - Returns: 生成に成功した新規レイヤーの ID。失敗・早期リターン時は `nil`。
-    ///   `regenerateAIMask`/`refineAIMask` が「無関係な操作で `maskLayers.count` が
-    ///   たまたま増えた」ことを成功と誤判定しないよう、カウント比較ではなく戻り値で成否を伝える
-    ///   （レビュー指摘: AI 生成中に他種別マスクを追加されるとレイヤーを誤削除しうる）。
-    @discardableResult
-    func addAIMask(kind: AIMaskKind, clickPoint: NormalizedPoint? = nil) async -> UUID? {
-        guard canEditMasks, !isGeneratingAIMask, let photo = currentPhoto else { return nil }
-
-        isGeneratingAIMask = true
-        aiMaskGenerationFailureMessage = nil
-        defer { isGeneratingAIMask = false }
-
-        // Vision 入力はベース空間（回転・トリミング前）で作る。表示空間を渡すと
-        // マスクの正規化座標が `MaskImageGenerator` の基準とずれる（§1.5）。
-        let params = parameters
-        let target = max(
-            PhotoImageViewModel.targetMaxPixelSize(for: displaySize),
-            Self.visionInputMinimumLongEdge
-        )
-        guard let source = await engine.renderPreview(
-            url: photo.fileURL,
-            parameters: params,
-            targetMaxPixelSize: target,
-            rotation: 0,
-            cropRect: nil,
-            previewColorSpace: nil,
-            useRAWParameterMapping: rawMappingActive,
-            usesManualLensCorrection: shouldApplyManualLensCorrection(params),
-            usesToneMaskedColorGrading: toneMaskedColorGradingActive,
-            asShotWhiteBalance: toneMaskedColorGradingActive ? asShotWhiteBalance : nil,
-            maskRasters: resolvedMaskRasters(for: params)
-        ) else {
-            aiMaskGenerationFailureMessage = String(localized: "develop.mask.ai.generationFailed")
-            return nil
-        }
-
-        // Vision の正規化座標は左下原点・y 上向き。`NormalizedPoint` とは y が逆。
-        let visionClickPoint = clickPoint.map { CGPoint(x: $0.x, y: 1 - $0.y) }
-        guard let result = await maskGenerator.generateMask(
-            for: source,
-            kind: kind,
-            clickPoint: visionClickPoint,
-            targetLongEdge: Self.aiMaskBakedLongEdge
-        ) else {
-            aiMaskGenerationFailureMessage = switch kind {
-            case .person: String(localized: "develop.mask.ai.noPersonFound")
-            case .foregroundSubject: String(localized: "develop.mask.ai.noSubjectFound")
-            }
-            return nil
-        }
-        // 生成中に写真が切り替わっていたら、別写真のラスタを貼らない。
-        guard currentPhoto?.id == photo.id else { return nil }
-
-        // DevelopSettingsの確保はVision成功後に行う。Vision失敗・写真切替などの早期returnで
-        // 中立な空行が永続的に残るのを防ぐため（updateDevelopParametersの「中立状態では
-        // 行を作らない」という不変条件に反しないようにする。レビュー指摘）。
-        guard let settings = content?.developSettingsForMaskRaster() else { return nil }
-
-        let rasterID = UUID()
-        let raster = MaskRaster(id: rasterID, pngData: result.pngData, longEdge: result.longEdge)
-        settings.maskRasters.append(raster)
-
-        let nameFormat = switch kind {
-        case .person: String(localized: "develop.mask.ai.personName")
-        case .foregroundSubject: String(localized: "develop.mask.ai.subjectName")
-        }
-        let layer = MaskLayer(
-            id: UUID(),
-            name: String(format: nameFormat, Int64(parameters.masks.count + 1)),
-            source: .ai(AIMaskReference(
-                rasterID: rasterID,
-                kind: kind,
-                instanceIndices: result.instanceIndices,
-                visionRevision: Self.currentVisionRevision,
-                bakedLongEdge: result.longEdge,
-                bakedAt: .now
-            )),
-            adjustments: LocalAdjustments()
-        )
-        var updated = parameters
-        updated.masks.append(layer)
-        parameters = updated
-        selectedMaskLayerID = layer.id
-        return layer.id
-    }
-
-    /// このレイヤーが現行の Vision 世代と異なる世代で焼き込まれているか。UI の再生成導線の表示条件。
-    func maskNeedsRegeneration(_ layer: MaskLayer) -> Bool {
-        guard case .ai(let reference) = layer.source else { return false }
-        if reference.visionRevision != Self.currentVisionRevision { return true }
-        // visionRevisionは一致していても、参照先のMaskRasterが存在しない状態
-        // （他写真のプリセットを誤って流用した等の防御的ケース）も再生成対象として扱う。
-        // これが無いと、ユーザーはマスクが無効である理由に気づく手段が無い（レビュー指摘）。
-        guard let settings = content?.currentDevelopSettings else { return false }
-        return !settings.maskRasters.contains { $0.id == reference.rasterID }
-    }
-
-    /// AI マスクレイヤーを同じ種別で作り直す。ユーザーが明示的に呼んだときだけ実行し、
-    /// `visionRevision` 不一致を検知して自動で作り直すことはしない（§3.2）。
-    ///
-    /// クリック位置は永続化していないため全インスタンス再検出になる。生成に失敗した場合は
-    /// 元のレイヤーを残す（失敗して何も無くなる状態を作らない）。
-    func regenerateAIMask(id: UUID) async {
-        guard let layer = maskLayers.first(where: { $0.id == id }),
-              case .ai(let reference) = layer.source else { return }
-        // カウント比較ではなく戻り値の ID で成否判定する（レビュー指摘: 生成中に他種別の
-        // マスクが追加されると `maskLayers.count` の増減だけでは誤判定する）。
-        guard await addAIMask(kind: reference.kind) != nil else { return }
-        removeMask(id: id)
-    }
-
     // MARK: - Private
 
     /// AI マスクのラスタを MainActor 側で解決する。`MaskRaster` は `@Model` で `Sendable` でなく、
     /// engine の `Task.detached` へ直接渡せないため値（`CGImage`）に落として渡す契約になっている（§3.2.1）。
     /// 辞書に無い `rasterID` は描画側で全面 0 として扱われる。
-    private func resolvedMaskRasters(for snapshot: DevelopParameters) -> [UUID: CGImage] {
+    // DevelopViewModelAIMask.swift から参照するため internal
+    func resolvedMaskRasters(for snapshot: DevelopParameters) -> [UUID: CGImage] {
         guard let settings = content?.currentDevelopSettings else { return [:] }
         var result: [UUID: CGImage] = [:]
         for layer in snapshot.masks where layer.isEnabled {
@@ -1386,7 +982,8 @@ final class DevelopViewModel {
 
     /// パイプラインへ渡す手動レンズ補正の適用可否。schemaVersion ゲート + RAW のプロファイル補正が
     /// 有効なら手動はスキップ（二重補正防止。ドラッグ状態には依存しない）。
-    private func shouldApplyManualLensCorrection(_ params: DevelopParameters) -> Bool {
+    // DevelopViewModelAIMask.swift から参照するため internal
+    func shouldApplyManualLensCorrection(_ params: DevelopParameters) -> Bool {
         manualLensCorrectionActive && !(rawMappingActive && params.lensCorrectionEnabled)
     }
 
