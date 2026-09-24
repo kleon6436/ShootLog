@@ -167,14 +167,11 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         let rawParamsHash: Int
     }
 
-    private var baseImageCache: [BaseKey: CGImage] = [:]
-    /// `baseImageCache` のアクセス順（先頭が最古）。上限超過時の LRU 退避に使う。
-    private var baseCacheOrder: [BaseKey] = []
+    private var baseImageCache = LRUCache<BaseKey, CGImage>(capacity: ImageDevelopmentEngine.cacheLimit)
     private let baseDiskCache: DevelopBaseDiskCache
     private var baseCacheWriteTasks: [UUID: Task<Void, Never>] = [:]
 
-    private var asShotCache: [String: WhiteBalanceSample] = [:]
-    private var asShotCacheOrder: [String] = []
+    private var asShotCache = LRUCache<String, WhiteBalanceSample>(capacity: ImageDevelopmentEngine.asShotCacheLimit)
 
     init(
         baseCacheDirectory: URL = ImageDevelopmentEngine.defaultBaseCacheDirectory,
@@ -195,8 +192,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     /// 撮影時ホワイトバランスを返す。RAW はデコーダーの as-shot 値を、非 RAW はメタデータまたは画像から推定する。
     func asShotNeutral(for url: URL) async -> WhiteBalanceSample? {
         let cacheKey = asShotCacheKey(for: url)
-        if let cached = asShotCache[cacheKey] {
-            touchAsShotCache(cacheKey)
+        if let cached = asShotCache.value(forKey: cacheKey) {
             return cached
         }
         let isRAWImage = isRAW(url: url)
@@ -239,7 +235,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             handle.cancel()
         }
         if let sample {
-            storeAsShotCache(sample, for: cacheKey)
+            asShotCache.setValue(sample, forKey: cacheKey)
         }
         return sample
     }
@@ -458,14 +454,13 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             rawParamsHash: rawHash
         )
 
-        if bucket > 0, let cached = baseImageCache[key] {
-            touch(key)
+        if bucket > 0, let cached = baseImageCache.value(forKey: key) {
             return cached
         }
 
         if Self.shouldUseDiskBaseCache(bucket: bucket, rawParameters: rawParameters),
            let diskCached = await readDiskBase(for: key) {
-            store(diskCached, for: key)
+            baseImageCache.setValue(diskCached, forKey: key)
             return diskCached
         }
 
@@ -480,7 +475,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         }
 
         if bucket > 0 {
-            store(decoded, for: key)
+            baseImageCache.setValue(decoded, forKey: key)
             if Self.shouldUseDiskBaseCache(bucket: bucket, rawParameters: rawParameters) {
                 scheduleDiskBaseWrite(decoded, for: key)
             }
@@ -500,9 +495,7 @@ actor ImageDevelopmentEngine: ImageDeveloping {
     /// 撮影時 WB のメモリキャッシュも落とす（`Photo` の永続値は消さない）。
     func clearDiskCaches() async {
         baseImageCache.removeAll()
-        baseCacheOrder.removeAll()
         asShotCache.removeAll()
-        asShotCacheOrder.removeAll()
         let diskCache = baseDiskCache
         await Task.detached(priority: .utility) {
             diskCache.removeAll()
@@ -542,45 +535,8 @@ actor ImageDevelopmentEngine: ImageDeveloping {
         baseCacheWriteTasks.removeValue(forKey: id)
     }
 
-    private func store(_ image: CGImage, for key: BaseKey) {
-        if baseImageCache[key] == nil {
-            while baseImageCache.count >= Self.cacheLimit, let victim = baseCacheOrder.first {
-                baseCacheOrder.removeFirst()
-                baseImageCache.removeValue(forKey: victim)
-            }
-        }
-        baseImageCache[key] = image
-        touch(key)
-    }
-
-    /// キャッシュヒット / 追加したキーをアクセス順の末尾（最新）へ動かす。
-    private func touch(_ key: BaseKey) {
-        if let index = baseCacheOrder.firstIndex(of: key) {
-            baseCacheOrder.remove(at: index)
-        }
-        baseCacheOrder.append(key)
-    }
-
     private func asShotCacheKey(for url: URL) -> String {
         "\(url.path)|\(Self.modificationTime(of: url))"
-    }
-
-    private func storeAsShotCache(_ sample: WhiteBalanceSample, for key: String) {
-        if asShotCache[key] == nil {
-            while asShotCache.count >= Self.asShotCacheLimit, let victim = asShotCacheOrder.first {
-                asShotCacheOrder.removeFirst()
-                asShotCache.removeValue(forKey: victim)
-            }
-        }
-        asShotCache[key] = sample
-        touchAsShotCache(key)
-    }
-
-    private func touchAsShotCache(_ key: String) {
-        if let index = asShotCacheOrder.firstIndex(of: key) {
-            asShotCacheOrder.remove(at: index)
-        }
-        asShotCacheOrder.append(key)
     }
 
     private static func diskKey(for key: BaseKey) -> String {

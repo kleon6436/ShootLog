@@ -184,6 +184,7 @@
 		D01EE381A52CE998F5939B62 /* LightroomAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2843453D7ECC555E294521C4 /* LightroomAdapter.swift */; };
 		D28DB6E2AD582B366940AA5B /* EditablePhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84404E85187227393FC4CA60 /* EditablePhotoView.swift */; };
 		D3F5DB38B7562B1592B932FE /* MaskRasterResolvingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EF5D33B14E49023182B7C27 /* MaskRasterResolvingTests.swift */; };
+		D8FC68D0E70E3CDDCF187D1D /* LRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B8DCE766996BFE2053BC42 /* LRUCache.swift */; };
 		DA4D0DF31B3247533A360159 /* UpscaleOutputDestinationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9FFCCED2E889F08B17BD94 /* UpscaleOutputDestinationTests.swift */; };
 		DA61F4E02AF42518DB1F043E /* MaskGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766651F6D8B6ED6B5291452B /* MaskGeometry.swift */; };
 		DAE49E4A400289322B78C002 /* AISubjectCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D80CEF61F49054B2ADC30B /* AISubjectCategory.swift */; };
@@ -204,6 +205,7 @@
 		E77784B2E1E9F9BE6D2704A8 /* DevelopViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51221DFACE1BBB2B84647042 /* DevelopViewModelTests.swift */; };
 		E8136386E4FE5AD048A56057 /* URLVolume.swift in Sources */ = {isa = PBXBuildFile; fileRef = 677C4716A101B80058CF35C7 /* URLVolume.swift */; };
 		E8D90D35E07B4EBA85C63F5F /* ToneCurve.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C31394B5C4F18AEA3A12B3E /* ToneCurve.swift */; };
+		E93C707D563B1997873DB3DD /* LRUCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1377DEB1E5A496F265ED62 /* LRUCacheTests.swift */; };
 		E9E80F8123CA508855AE7D6A /* HSLBandEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E6A319C29E90C03BAA0BF2 /* HSLBandEditorView.swift */; };
 		E9F9193226D3CD534BFA4ECA /* PhotoActionAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DE9F3CC154D646DD11FFECF /* PhotoActionAvailability.swift */; };
 		EAAFC85D93CC49DC22D7F9A2 /* DevelopViewModelCompareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165E9C3920BA8F29199AF933 /* DevelopViewModelCompareTests.swift */; };
@@ -256,6 +258,7 @@
 		12FC95438B0406E7EAFE5D62 /* MaskEditOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskEditOverlayView.swift; sourceTree = "<group>"; };
 		13102528061FD4C8CAE18E5A /* WindowChromeConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChromeConfigurator.swift; sourceTree = "<group>"; };
 		13B69FAB7294AF3D3B636509 /* ThumbnailDiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailDiskCache.swift; sourceTree = "<group>"; };
+		14B8DCE766996BFE2053BC42 /* LRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRUCache.swift; sourceTree = "<group>"; };
 		15701FEDFCB710065086A12C /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		165E9C3920BA8F29199AF933 /* DevelopViewModelCompareTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopViewModelCompareTests.swift; sourceTree = "<group>"; };
 		166A6F4A3ED261B27492D9D4 /* ExternalAppProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalAppProtocol.swift; sourceTree = "<group>"; };
@@ -380,6 +383,7 @@
 		9747DD4268147F1FFBF70ABE /* EXIFPrefetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EXIFPrefetcher.swift; sourceTree = "<group>"; };
 		97DE986569CCC3B2BDC8D6B7 /* DevelopPresetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopPresetBar.swift; sourceTree = "<group>"; };
 		99E2DFFBCF2DF969FDB6A710 /* TiledInferenceRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiledInferenceRunnerTests.swift; sourceTree = "<group>"; };
+		9A1377DEB1E5A496F265ED62 /* LRUCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRUCacheTests.swift; sourceTree = "<group>"; };
 		9A7A351A947D5595EB57E9EF /* PreviewGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewGeneratorTests.swift; sourceTree = "<group>"; };
 		9D406F7FB77E7F76DF34C471 /* ContentViewModelFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModelFolder.swift; sourceTree = "<group>"; };
 		9DE9F3CC154D646DD11FFECF /* PhotoActionAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoActionAvailability.swift; sourceTree = "<group>"; };
@@ -707,6 +711,7 @@
 				0C573F72A334D693F20CFE04 /* LensCorrectionFilterTests.swift */,
 				55A1A6F6E4F06A49FBA8B77B /* LensCorrectionProfileTests.swift */,
 				CD6B40E47A098C322668F578 /* LensProfileStoreTests.swift */,
+				9A1377DEB1E5A496F265ED62 /* LRUCacheTests.swift */,
 				0A3AC45D4FC30D3A9A4E6E9B /* MaskGeometryTests.swift */,
 				17F34F88195C88B923E3957D /* MaskImageGeneratorTests.swift */,
 				5D1EC307EFE30C357A11CD9D /* MaskLayerTests.swift */,
@@ -760,6 +765,7 @@
 				87D3A781AB6130B0649232AB /* HighResPrefetcher.swift */,
 				B71914206DD0F7E792827C19 /* ImageFileCache.swift */,
 				6536D3FE43A4B25BDD7E78BD /* ImageLoader.swift */,
+				14B8DCE766996BFE2053BC42 /* LRUCache.swift */,
 				00066564F00F54764704C1E7 /* MaskRasterGarbageCollector.swift */,
 				52B15265BF028328AFBB15C1 /* PhotoCaptionGenerator.swift */,
 				3D516956EC0BE5C0B400D8FF /* PhotoPasteboardWriter.swift */,
@@ -990,6 +996,7 @@
 				4B321C623395CCB70A4C8AEA /* IntegrationAppSetting.swift in Sources */,
 				E4F16CB23C5482423864B528 /* IntegrationSettingsTab.swift in Sources */,
 				52191D124BA86D8051ADE51F /* JSONValue.swift in Sources */,
+				D8FC68D0E70E3CDDCF187D1D /* LRUCache.swift in Sources */,
 				06243826A06304BCD9EFB8DC /* LanczosSuperResolutionEngine.swift in Sources */,
 				63F8B94D3EAA7610D89D09B7 /* LensCorrectionFilter.swift in Sources */,
 				F1889D2F0E797B7E6B68CAE8 /* LensCorrectionProfile.swift in Sources */,
@@ -1097,6 +1104,7 @@
 				A9C0F639646C4A8407D691F6 /* HighResPrefetcherTests.swift in Sources */,
 				213AE90D275DF66A574FFF3C /* HistogramDataTests.swift in Sources */,
 				84696CDF04461CE1C9C42B3C /* ImageDevelopmentEngineTests.swift in Sources */,
+				E93C707D563B1997873DB3DD /* LRUCacheTests.swift in Sources */,
 				7F3652AD06A2722AAD9B5EA3 /* LensCorrectionFilterTests.swift in Sources */,
 				6D499B2A1CD53489DA52BC16 /* LensCorrectionProfileTests.swift in Sources */,
 				C768A90716968BE83407AC29 /* LensProfileStoreTests.swift in Sources */,
