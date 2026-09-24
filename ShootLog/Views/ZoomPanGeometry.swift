@@ -56,4 +56,30 @@ enum ZoomPanGeometry {
             height: min(max(offset.height, -maxY), maxY)
         )
     }
+
+    // パン操作が有効な倍率か。fit倍率のときはパンさせない（オフセットは常に .zero へクランプされる）
+    static func isPannable(scale: CGFloat) -> Bool {
+        scale > minScale
+    }
+
+    // 蓄積済みオフセットに今回の移動量を加えたもの（クランプ前）
+    static func translated(_ offset: CGSize, by delta: CGSize) -> CGSize {
+        CGSize(width: offset.width + delta.width, height: offset.height + delta.height)
+    }
+
+    // fit表示時、実寸(100%)に対して何%で表示されているか。画像の実ピクセルサイズが
+    // まだ判明していない場合（表示直後等）はnilを返し、パーセント無しの表示にフォールバックする
+    static func fitDisplayPercent(sourcePixelSize: CGSize, fittedImageSize: CGSize) -> Int? {
+        guard sourcePixelSize.width > 0, fittedImageSize.width > 0 else { return nil }
+        return Int(((fittedImageSize.width / sourcePixelSize.width) * 100).rounded())
+    }
+
+    // 実効ズーム倍率を、実寸(100%)基準のパーセントに変換したもの。
+    // fit時のパーセントが不明な場合は倍率そのものをパーセント表記にする
+    static func displayPercent(scale: CGFloat, fitDisplayPercent: Int?) -> Int {
+        guard let fitDisplayPercent else {
+            return Int((scale * 100).rounded())
+        }
+        return Int((CGFloat(fitDisplayPercent) * scale).rounded())
+    }
 }

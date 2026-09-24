@@ -341,10 +341,7 @@ struct FullscreenModeView: View {
     // ジェスチャー中の一時値を含む実効パンオフセット
     private var effectiveOffset: CGSize {
         clampedOffset(
-            CGSize(
-                width: zoomPanState.panOffset.width + zoomPanState.gesturePanTranslation.width,
-                height: zoomPanState.panOffset.height + zoomPanState.gesturePanTranslation.height
-            ),
+            ZoomPanGeometry.translated(zoomPanState.panOffset, by: zoomPanState.gesturePanTranslation),
             scale: effectiveScale
         )
     }
@@ -377,48 +374,22 @@ struct FullscreenModeView: View {
         effectiveScale <= ZoomPanGeometry.minScale
     }
 
-    // fit表示時、実寸(100%)に対して何%で表示されているか。画像の実ピクセルサイズが
-    // まだ判明していない場合（表示直後等）はnilを返し、パーセント無しの表示にフォールバックする
+    // fit表示時、実寸(100%)に対して何%で表示されているか（実ピクセルサイズ未判明ならnil）
     private var fitDisplayPercent: Int? {
-        guard rotationAdjustedPixelSize.width > 0, fittedImageSize.width > 0 else { return nil }
-        return Int(((fittedImageSize.width / rotationAdjustedPixelSize.width) * 100).rounded())
+        ZoomPanGeometry.fitDisplayPercent(
+            sourcePixelSize: rotationAdjustedPixelSize,
+            fittedImageSize: fittedImageSize
+        )
     }
 
     // 現在の実効ズーム倍率を、実寸(100%)基準のパーセントに変換したもの
     private var currentDisplayPercent: Int {
-        guard let fitDisplayPercent else {
-            return Int((effectiveScale * 100).rounded())
-        }
-        return Int((CGFloat(fitDisplayPercent) * effectiveScale).rounded())
+        ZoomPanGeometry.displayPercent(scale: effectiveScale, fitDisplayPercent: fitDisplayPercent)
     }
 
     // 下部左のEXIFキャプション表示内容。EXIF未取得の写真では表示しない
     private var exifCaption: EXIFCaptionContent? {
-        guard let photo = vm.selectedPhoto, photo.exifFetchedAt != nil else { return nil }
-        let panelVM = EXIFPanelViewModel(photo: photo)
-
-        // アパーチャ・ISOはEXIFパネルの表示（ラベル併記前提の書式）と異なり、
-        // ラベル無しの短い書式（f/8, ISO 100）が必要なためここで組み立てる。
-        // シャッタースピード・焦点距離はEXIFパネルと同じ書式で問題ないため流用する
-        var segments: [String] = []
-        if let aperture = photo.aperture {
-            segments.append("f/" + aperture.formatted(.number.precision(.fractionLength(1)).grouping(.never)))
-        }
-        if let shutterSpeedText = panelVM.shutterSpeedText {
-            segments.append(shutterSpeedText)
-        }
-        if let iso = photo.iso {
-            segments.append("ISO \(iso)")
-        }
-        if let focalLengthText = panelVM.focalLengthText {
-            segments.append(focalLengthText)
-        }
-
-        return EXIFCaptionContent(
-            fileName: panelVM.fileNameText ?? "",
-            summary: segments.joined(separator: " · "),
-            cameraModel: panelVM.cameraModelText
-        )
+        EXIFCaptionContent(photo: vm.selectedPhoto)
     }
 
     // MARK: - ジェスチャー
@@ -442,7 +413,7 @@ struct FullscreenModeView: View {
         DragGesture()
             .onChanged { value in
                 // fit倍率のときはパンさせない（オフセットは常に .zero へクランプされる）
-                guard zoomPanState.zoomScale > 1.0 else { return }
+                guard ZoomPanGeometry.isPannable(scale: zoomPanState.zoomScale) else { return }
                 isGestureActive = true
                 zoomPanState.gesturePanTranslation = value.translation
             }
@@ -451,11 +422,8 @@ struct FullscreenModeView: View {
                     zoomPanState.gesturePanTranslation = .zero
                     isGestureActive = false
                 }
-                guard zoomPanState.zoomScale > 1.0 else { return }
-                let moved = CGSize(
-                    width: zoomPanState.panOffset.width + value.translation.width,
-                    height: zoomPanState.panOffset.height + value.translation.height
-                )
+                guard ZoomPanGeometry.isPannable(scale: zoomPanState.zoomScale) else { return }
+                let moved = ZoomPanGeometry.translated(zoomPanState.panOffset, by: value.translation)
                 zoomPanState.panOffset = clampedOffset(moved, scale: zoomPanState.zoomScale)
                 vm.noteUserActivity()
             }
@@ -464,11 +432,8 @@ struct FullscreenModeView: View {
     // ズーム中の2本指スクロールによるパン。スワイプ判定と違い閾値コミットは不要で、
     // 受け取ったデルタを都度クランプしながら反映する
     private func panByScroll(_ delta: CGSize) {
-        guard zoomPanState.zoomScale > 1.0 else { return }
-        let moved = CGSize(
-            width: zoomPanState.panOffset.width + delta.width,
-            height: zoomPanState.panOffset.height + delta.height
-        )
+        guard ZoomPanGeometry.isPannable(scale: zoomPanState.zoomScale) else { return }
+        let moved = ZoomPanGeometry.translated(zoomPanState.panOffset, by: delta)
         zoomPanState.panOffset = clampedOffset(moved, scale: zoomPanState.zoomScale)
         vm.noteUserActivity()
     }
@@ -495,7 +460,7 @@ struct FullscreenModeView: View {
 
     private func toggleZoom() {
         vm.noteUserActivity()
-        if zoomPanState.zoomScale > 1.0 {
+        if ZoomPanGeometry.isPannable(scale: zoomPanState.zoomScale) {
             resetZoom()
         } else {
             zoomPanState.zoomScale = clampedScale(doubleClickZoomScale)

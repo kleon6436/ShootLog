@@ -283,14 +283,18 @@ struct MaskEditOverlayView: View {
         geometry: MaskGeometry
     ) -> some View {
         let centerPoint = geometry.displayPoint(fromBase: mask.center)
-        let boundaryPoint = geometry.displayPoint(fromBase: radialBoundaryBasePoint(mask, baseAspectRatio: geometry.baseAspectRatio))
+        let boundaryPoint = geometry.displayPoint(
+            fromBase: RadialMaskHandleGeometry.boundaryPoint(mask, baseAspectRatio: geometry.baseAspectRatio)
+        )
 
         Path { path in
             let steps = 72
             for step in 0...steps {
                 let angle = Double(step) / Double(steps) * 2 * .pi
                 let point = geometry.displayPoint(
-                    fromBase: radialOutlineBasePoint(mask, at: angle, baseAspectRatio: geometry.baseAspectRatio)
+                    fromBase: RadialMaskHandleGeometry.outlinePoint(
+                        mask, at: angle, baseAspectRatio: geometry.baseAspectRatio
+                    )
                 )
                 if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
             }
@@ -316,18 +320,11 @@ struct MaskEditOverlayView: View {
                 let base = geometry.basePoint(fromDisplay: location)
                 let baseAspectRatio = geometry.baseAspectRatio
                 updateRadial(id: id) { mask in
-                    // 境界ハンドルは回転前のx軸上（角度0）の点なので、aspectRatioの影響を
-                    // 受けない。正規化座標のベクトルをベース空間のピクセル比へ換算してから
-                    // 長さ・角度を求める（radialOutlineBasePointの逆変換）。
-                    let baseRatio = baseAspectRatio.isFinite && baseAspectRatio > 0 ? Double(baseAspectRatio) : 1
-                    let pixelWidth = baseRatio >= 1 ? baseRatio : 1
-                    let pixelHeight = baseRatio >= 1 ? 1 : 1 / baseRatio
-                    let dxPixel = (base.x - mask.center.x) * pixelWidth
-                    let dyPixel = (base.y - mask.center.y) * pixelHeight
-                    let length = (dxPixel * dxPixel + dyPixel * dyPixel).squareRoot()
-                    guard length > 0 else { return }
-                    mask.radius = length
-                    mask.rotationDegrees = atan2(dyPixel, dxPixel) * 180 / .pi
+                    guard let moved = RadialMaskHandleGeometry.radiusAndRotation(
+                        movingBoundaryTo: base, center: mask.center, baseAspectRatio: baseAspectRatio
+                    ) else { return }
+                    mask.radius = moved.radius
+                    mask.rotationDegrees = moved.rotationDegrees
                 }
             },
             onAdjust: { direction in
@@ -335,41 +332,6 @@ struct MaskEditOverlayView: View {
                     mask.radius = max(0.01, mask.radius + Double(direction) * 0.01)
                 }
             }
-        )
-    }
-
-    /// 回転前の基準ベクトル `(radius, 0)` を `rotationDegrees` だけ回した点（ベース空間は y 下向きなので
-    /// 標準の回転行列が時計回りになる）。
-    private func radialBoundaryBasePoint(_ mask: RadialGradientMask, baseAspectRatio: CGFloat) -> NormalizedPoint {
-        radialOutlineBasePoint(mask, at: 0, baseAspectRatio: baseAspectRatio)
-    }
-
-    private func radialOutlineBasePoint(
-        _ mask: RadialGradientMask,
-        at angle: Double,
-        baseAspectRatio: CGFloat
-    ) -> NormalizedPoint {
-        let aspect = mask.aspectRatio > 0 ? mask.aspectRatio : 1
-        // ベース空間のピクセル寸法を「短辺 = 1」に正規化した仮想ピクセル座標系。
-        // MaskImageGenerator は extent の実ピクセル短辺基準で半径を換算するため、
-        // ここでも同じ基準で楕円化・回転してから正規化座標へ戻す。
-        let baseRatio = baseAspectRatio.isFinite && baseAspectRatio > 0 ? Double(baseAspectRatio) : 1
-        let pixelWidth = baseRatio >= 1 ? baseRatio : 1
-        let pixelHeight = baseRatio >= 1 ? 1 : 1 / baseRatio
-
-        // 短辺基準ピクセル空間での楕円境界（回転前）。
-        let localXPixel = mask.radius * cos(angle)
-        let localYPixel = mask.radius / aspect * sin(angle)
-
-        // ピクセル空間で回転（MaskImageGenerator と同じ「楕円化→回転」の順）。
-        let theta = mask.rotationDegrees * .pi / 180
-        let rotatedXPixel = localXPixel * cos(theta) - localYPixel * sin(theta)
-        let rotatedYPixel = localXPixel * sin(theta) + localYPixel * cos(theta)
-
-        // ピクセル空間から正規化座標へ戻す。
-        return NormalizedPoint(
-            x: mask.center.x + rotatedXPixel / pixelWidth,
-            y: mask.center.y + rotatedYPixel / pixelHeight
         )
     }
 
