@@ -183,25 +183,10 @@ extension ContentViewModel {
     }
 
     // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体のスコープとは独立して確保する
-    // （ContentViewModelUpscale.swift の beginUpscaleInputAccess と同じ方式）
+    // （ContentViewModelUpscale.swift の beginUpscaleInputAccess と同じく SecurityScopedBookmark を使う）
     private func beginDevelopExportInputAccess(for url: URL) throws {
         endDevelopExportInputAccess()
-        let bookmark = try url.bookmarkData(
-            options: .withSecurityScope,
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
-        var isStale = false
-        let scopedURL = try URL(
-            resolvingBookmarkData: bookmark,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-        guard scopedURL.startAccessingSecurityScopedResource() else {
-            throw ShootLogError.folderAccessDenied
-        }
-        developExportInputAccessURL = scopedURL
+        developExportInputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: url)
     }
 
     private func endDevelopExportInputAccess() {

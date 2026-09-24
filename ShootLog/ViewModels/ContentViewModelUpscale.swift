@@ -163,25 +163,10 @@ extension ContentViewModel {
     }
 
     // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体の bookmarkScopedURL とは独立して
-    // ブックマークを新規作成・解決する（フォルダの権限スコープが既に有効な間のみ作成できる）
+    // ブックマークを新規作成・解決する（SecurityScopedBookmark.startAccessingFreshBookmark）
     private func beginUpscaleInputAccess(for url: URL) throws {
         endUpscaleInputAccess()
-        let bookmark = try url.bookmarkData(
-            options: .withSecurityScope,
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
-        var isStale = false
-        let scopedURL = try URL(
-            resolvingBookmarkData: bookmark,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-        guard scopedURL.startAccessingSecurityScopedResource() else {
-            throw ShootLogError.folderAccessDenied
-        }
-        upscaleInputAccessURL = scopedURL
+        upscaleInputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: url)
     }
 
     private func endUpscaleInputAccess() {

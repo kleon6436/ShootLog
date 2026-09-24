@@ -157,6 +157,7 @@
 		AA83ED5B262EE3DF3C4D0512 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6536D3FE43A4B25BDD7E78BD /* ImageLoader.swift */; };
 		AB70962B20F2DB5FA8DF7EF6 /* PhotoQualityDiagnosisGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AE426D073DFDBB6863D182 /* PhotoQualityDiagnosisGenerator.swift */; };
 		AE6A82C6C24B772C10BFDC8A /* FinderAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16B48462D59123CF5C95947 /* FinderAdapter.swift */; };
+		AF1B47F880EC8117F735545C /* SecurityScopedBookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DAE3025BEF82D8F0E8DC1F3 /* SecurityScopedBookmark.swift */; };
 		AF2F863D7AD5733C1C3B43C7 /* ContentViewModelEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359C9F06FB69453EEC1ED5AB /* ContentViewModelEditTests.swift */; };
 		AF6F420B4BC8E61124652400 /* MaskLayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1EC307EFE30C357A11CD9D /* MaskLayerTests.swift */; };
 		B505DA43EF5FB9371CE5910B /* ShootLogError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55E9767345E935E9D60FD6F /* ShootLogError.swift */; };
@@ -350,6 +351,7 @@
 		6B1E1D67D6950CC7482E2E54 /* ToneCurveEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToneCurveEditorView.swift; sourceTree = "<group>"; };
 		6B7E2E433979F8E0DB3AF8ED /* MaskRasterResolving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskRasterResolving.swift; sourceTree = "<group>"; };
 		6C23180141F27C9F04528010 /* FolderHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderHistory.swift; sourceTree = "<group>"; };
+		6DAE3025BEF82D8F0E8DC1F3 /* SecurityScopedBookmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScopedBookmark.swift; sourceTree = "<group>"; };
 		701DA32475A9D93DC0A9EEBB /* DevelopExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopExportSheet.swift; sourceTree = "<group>"; };
 		73FF95B6F5DCAE63FD18D29F /* DevelopSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopSettings.swift; sourceTree = "<group>"; };
 		75E6A319C29E90C03BAA0BF2 /* HSLBandEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSLBandEditorView.swift; sourceTree = "<group>"; };
@@ -771,6 +773,7 @@
 				57FBAD7E9DA7C1974DEAC6D1 /* PhotosLibraryThumbnailProvider.swift */,
 				4C9DBB7EBD9913CC8039BD40 /* PreviewCacheStore.swift */,
 				491C778B9EBCC1D76DA0F5A9 /* PreviewGenerator.swift */,
+				6DAE3025BEF82D8F0E8DC1F3 /* SecurityScopedBookmark.swift */,
 				4D6A787AC695A1BAB9BB7C9F /* SubjectMaskGenerator.swift */,
 				13B69FAB7294AF3D3B636509 /* ThumbnailDiskCache.swift */,
 				677C4716A101B80058CF35C7 /* URLVolume.swift */,
@@ -1026,6 +1029,7 @@
 				2BD8BC396979117D857654AA /* PreviewGenerator.swift in Sources */,
 				6E460BEF4B818A36B1530126 /* RAWDevelopMapping.swift in Sources */,
 				E76FE384F10E78E95A14434D /* RadialMaskHandleGeometry.swift in Sources */,
+				AF1B47F880EC8117F735545C /* SecurityScopedBookmark.swift in Sources */,
 				B6B6F4E1A408DBBAB25E4D6A /* SettingsView.swift in Sources */,
 				245F3DE1BDBD2C3FDC1B1453 /* ShootLogApp.swift in Sources */,
 				B505DA43EF5FB9371CE5910B /* ShootLogError.swift in Sources */,
