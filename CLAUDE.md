@@ -49,8 +49,6 @@ ShootLog/
 
 新しいコードは、現在の責務に最も近い既存ディレクトリへ追加する。現在の構成を維持し、無関係な大規模移動は行わない。
 
-言語・識別子ルール、Observation、非同期処理、エラー処理、UIの規約は `.claude/rules/swift-style.md` を参照。
-
 ## アーキテクチャ
 
 MVVMを採用し、レイヤーの責務を分離する。
@@ -122,7 +120,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 - `@MainActor`上で同期的なファイル読み込みを行わない。
 - セルが画面外へ移動した場合など、キャンセルを考慮する。
-- 基本原則（async/await、Combine/DispatchQueue不使用など）は `.claude/rules/swift-style.md` を参照。
+- 非同期処理は async/await を使い、Combine / DispatchQueue は使わない。
 
 ## 対応画像とフォルダ読み込み
 
@@ -229,7 +227,7 @@ Sigma fp Lのカラーモード検出は実機サンプルで十分に検証さ�
 
 - 操作可能な要素には、用途が伝わる `.accessibilityLabel` を付ける。
 - 写真ビューア（フルスクリーン・スライドショー・サイドバーモードの右ペイン）の背景は `Color.viewerCanvas` を使い、システム外観に追従させる。ライトでは中間グレー、ダークでは黒になる。ライトで純白を使わないのは、写真の白飛び・ハイライトを目視判定できなくなるため。
-- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 14向けの代替UIも用意する。両分岐で同じ意味の配色になるようにする（一方だけを固定色にしない）。
+- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 26未満向けの代替UIも用意する。両分岐で同じ意味の配色になるようにする（一方だけを固定色にしない）。
 - UIのレイアウトやインタラクションは `Docs/UI_モックアップ.html` とApple HIGを参照する。
 
 ### 色の扱い

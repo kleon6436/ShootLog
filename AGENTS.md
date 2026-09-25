@@ -25,7 +25,10 @@ macOS向けの写真管理・閲覧アプリ。ユーザーが選択したフォ
 <key>com.apple.security.app-sandbox</key><true/>
 <key>com.apple.security.files.user-selected.read-write</key><true/>
 <key>com.apple.security.files.bookmarks.app-scope</key><true/>
+<key>com.apple.security.personal-information.photos-library</key><true/>
 ```
+
+`personal-information.photos-library` はiCloud写真ライブラリ統合（`PhotosLibraryPermissionService`）向け。Info.plistの `NSPhotoLibraryUsageDescription` とセットで必要（無いと権限ダイアログ自体が出ず `.denied` になる）。
 
 ## 現在のディレクトリ構成
 
@@ -45,8 +48,6 @@ ShootLog/
 ```
 
 新しいコードは、現在の責務に最も近い既存ディレクトリへ追加する。現在の構成を維持し、無関係な大規模移動は行わない。
-
-言語・識別子ルール、Observation、非同期処理、エラー処理、UIの規約は `.Codex/rules/swift-style.md` を参照。
 
 ## アーキテクチャ
 
@@ -80,7 +81,7 @@ UIに表示する文字列は、日本語をコードに直接書かず、ASCII�
 
 キーは `<スコープ>.<要素>[.<用途>]` 形式とし、`common.` `error.` `toolbar.` `menu.` `exif.` `analysis.` `settings.`
 `empty.` `viewMode.` `photo.tag.` `a11y.` `viewer.` `inspector.` `openPanel.` `sidebar.` `editor.` `externalApp.`
-`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` `ai.` `contextMenu.` のいずれかで始める。
+`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` `photosLibrary.` `ai.` `contextMenu.` のいずれかで始める。
 `menu.` はメニューバー専用、`contextMenu.` は右クリックメニュー専用とし、互いに流用しない。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
 
 補間を含む文字列は位置指定プレースホルダ（`%1$@` 形式）を使い、語順が言語で変わってもよいようにする。
@@ -119,7 +120,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 - `@MainActor`上で同期的なファイル読み込みを行わない。
 - セルが画面外へ移動した場合など、キャンセルを考慮する。
-- 基本原則（async/await、Combine/DispatchQueue不使用など）は `.Codex/rules/swift-style.md` を参照。
+- 非同期処理は async/await を使い、Combine / DispatchQueue は使わない。
 
 ## 対応画像とフォルダ読み込み
 
@@ -151,7 +152,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 ### プレビュープロキシ層（RAW読み込み高速化）
 
-- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC/JPEG で `previews-v1/` へ、CGImage を `NSCache` へ永続キャッシュ。ファイル名 `sha256(url + mtime + size + proxyLongEdge)` で自動失効。上限 `previewCacheMaxBytes`（既定4GiB）で mtime 昇順 eviction。内部 `DecodeThrottle`（`max(2, コア数)`）でビューア対話要求とバックグラウンド生成がデコード枠を共有。
+- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC/JPEG で `previews-v1/` へ、CGImage を `NSCache` へ永続キャッシュ。ファイル名 `sha256(url + mtime + size + proxyLongEdge)` で自動失効。上限 `previewCacheMaxBytes`（既定4GiB）で mtime 昇順 eviction。`ImageDecodeThrottle.shared`（`max(2, min(4, コア数))`、`ImageLoader` のローカルボリューム用スロットと共用）でビューア対話要求とバックグラウンド生成がデコード枠を共有。
 - `ImageLoader.proxyImage(for:)` がラッパ。`PhotoImageViewModel.load` は サムネ → プロキシ → 表示領域超過時のみ `highResImage` の段階表示。
 - `PreviewGenerator`（actor）: フォルダ読み込み時に全プロキシを `.utility` でバックグラウンド生成（近傍優先、フォルダ切替でキャンセル）。
 - `HighResPrefetcher`: 前後の先読み枚数をボリューム別に（ローカル ±3 / ネットワーク ±1）、呼び先は `proxyImage`。
@@ -185,7 +186,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 ## SwiftDataモデル
 
-主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`FolderHistory`。
+主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` ほか optional 4 プロパティ、`loadEXIFIfNeeded` が EXIF と独立に取得・保存）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
@@ -205,7 +206,7 @@ Sigma fp Lのカラーモード検出は実機サンプルで十分に検証さ�
 
 - 操作可能な要素には、用途が伝わる `.accessibilityLabel` を付ける。
 - 写真ビューア（フルスクリーン・スライドショー・サイドバーモードの右ペイン）の背景は `Color.viewerCanvas` を使い、システム外観に追従させる。ライトでは中間グレー、ダークでは黒になる。ライトで純白を使わないのは、写真の白飛び・ハイライトを目視判定できなくなるため。
-- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 14向けの代替UIも用意する。両分岐で同じ意味の配色になるようにする（一方だけを固定色にしない）。
+- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 26未満向けの代替UIも用意する。両分岐で同じ意味の配色になるようにする（一方だけを固定色にしない）。
 - UIのレイアウトやインタラクションは `Docs/UI_モックアップ.html` とApple HIGを参照する。
 
 ### 色の扱い
@@ -251,9 +252,8 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 未着手・スコープ外
 
-- ローカル調整（マスク・レイヤー）、非RAWのレンズ補正・RAWの手動レンズ補正UI、広色域プレビュー
+- ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
 - 複数フォルダの同時表示
-- iCloud写真ライブラリ連携
 - 外部アプリとの双方向同期
 - GPS地図表示、顔検出、比較ビュー
 
