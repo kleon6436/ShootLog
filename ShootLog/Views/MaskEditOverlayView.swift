@@ -15,6 +15,12 @@ struct MaskEditOverlayView: View {
     @State private var brushCursorLocation: CGPoint?
     /// ドラッグ 1 回につき `beginBrushStroke` を 1 度だけ呼ぶためのラッチ。
     @State private var isBrushStrokeActive = false
+    /// ドラッグジェスチャーが生存中か。`@GestureState` は `onEnded` を経ずにジェスチャーが
+    /// キャンセルされた場合（ウィンドウ非アクティブ化・システムジェスチャーへの横取り等）も
+    /// 自動で false に戻るため、その変化を見てラッチ解除とストローク確定を行う。
+    /// これが無いとラッチが true のまま残り、次のドラッグで `beginBrushStroke` が呼ばれず
+    /// ストロークが丸ごと失われる
+    @GestureState private var isBrushDragging = false
 
     private var maskGeometry: MaskGeometry? {
         guard let previewImageSize = developViewModel.previewImage?.size else { return nil }
@@ -124,6 +130,7 @@ struct MaskEditOverlayView: View {
             }
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating($isBrushDragging) { _, state, _ in state = true }
                     .onChanged { value in
                         brushCursorLocation = value.location
                         let point = geometry.basePoint(fromDisplay: CGPoint(
@@ -142,6 +149,10 @@ struct MaskEditOverlayView: View {
                         developViewModel.endBrushStroke()
                     }
             )
+            .onChange(of: isBrushDragging) { _, isDragging in
+                guard !isDragging else { return }
+                finishInterruptedBrushStrokeIfNeeded()
+            }
             .frame(width: frame.width, height: frame.height)
             .position(x: frame.midX, y: frame.midY)
             .focusable()
@@ -190,6 +201,19 @@ struct MaskEditOverlayView: View {
                 .position(brushCursorLocation)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        }
+    }
+
+    /// `onEnded` を経ずに終わったドラッグの後始末。ラッチを解除し、ViewModel 側に進行中の
+    /// ストロークが残っていれば、それまでに描いた分を確定させる（キャンセル専用 API は無く、
+    /// 描いた軌跡を黙って捨てるより確定の方がユーザーの意図に沿うため）。
+    /// 正常終了時は `onEnded` が先にラッチを下ろすので何もしない。仮に呼び順が逆でも、
+    /// `endBrushStroke` は進行中ストロークが無ければ何もしないため二重確定にならない
+    private func finishInterruptedBrushStrokeIfNeeded() {
+        guard isBrushStrokeActive else { return }
+        isBrushStrokeActive = false
+        if developViewModel.activeBrushStroke != nil {
+            developViewModel.endBrushStroke()
         }
     }
 

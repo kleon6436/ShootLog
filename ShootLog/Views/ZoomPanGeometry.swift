@@ -10,6 +10,27 @@ enum ZoomPanGeometry {
     // 画像サイズが未確定な場合に用いる最大ズーム倍率の下限
     static let fallbackMaxScale: CGFloat = 3.0
 
+    // 100%（実寸）判定の基準にする原本のピクセルサイズ。
+    // 表示中の画像はサムネイル(768px)→プロキシ(3200px)→フルデコードと段階的に差し替わるため、
+    // それを基準にすると Fit% やズーム上限が原本解像度と食い違い、差し替えのたびに跳ねる。
+    // EXIF の PixelWidth/Height は EXIF orientation 適用前の値なので、表示画像（orientation 適用済み）
+    // の縦横の向きに合わせて入れ替える。原本サイズ不明、または表示画像より小さい（古い EXIF 等で
+    // 信用できない）場合は表示画像のサイズへフォールバックする
+    static func referencePixelSize(originalPixelSize: CGSize?, displayedPixelSize: CGSize) -> CGSize {
+        guard let original = originalPixelSize,
+              original.width > 0, original.height > 0 else { return displayedPixelSize }
+        guard displayedPixelSize.width > 0, displayedPixelSize.height > 0 else { return original }
+        let originalIsPortrait = original.height > original.width
+        let displayedIsPortrait = displayedPixelSize.height > displayedPixelSize.width
+        let oriented = originalIsPortrait == displayedIsPortrait
+            ? original
+            : CGSize(width: original.height, height: original.width)
+        let originalLongEdge = max(oriented.width, oriented.height)
+        let displayedLongEdge = max(displayedPixelSize.width, displayedPixelSize.height)
+        guard originalLongEdge >= displayedLongEdge else { return displayedPixelSize }
+        return oriented
+    }
+
     // 回転を反映した画像のピクセルサイズ。90度/270度回転時は縦横を入れ替える
     static func rotationAdjustedPixelSize(_ pixelSize: CGSize, rotation: Int) -> CGSize {
         guard rotation % 180 != 0 else { return pixelSize }
@@ -25,8 +46,8 @@ enum ZoomPanGeometry {
         return CGSize(width: sourcePixelSize.width * ratio, height: sourcePixelSize.height * ratio)
     }
 
-    // 最大ズーム倍率。実際にロード済みの画像がドット等倍になる倍率でキャップし、
-    // 768pxサムネイルしか無い状態で過剰に拡大しないようにする（下限は3.0倍）
+    // 最大ズーム倍率。原本がドット等倍になる倍率でキャップする（下限は3.0倍）。
+    // 高倍率ではフルサイズデコードへ差し替わるため、基準は表示中画像ではなく原本サイズを渡す
     static func maxZoomScale(sourcePixelSize: CGSize, fittedImageSize: CGSize) -> CGFloat {
         let sourceWidth = sourcePixelSize.width
         let fitWidth = fittedImageSize.width

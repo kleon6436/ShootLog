@@ -26,8 +26,11 @@ struct DisplayColorSpaceReader: NSViewRepresentable {
     final class ReaderView: NSView {
         var onChange: ((CGColorSpace?) -> Void)?
 
-        /// 直近に通知した色空間名。重複通知（SwiftUI の頻繁な updateNSView など）を抑える。
-        private var lastReportedName: String??
+        /// 直近に通知した色空間。重複通知（SwiftUI の頻繁な updateNSView など）を抑える。
+        /// 外側の Optional は「未通知」、内側の nil は「取得できなかった」を表す。
+        /// ICC ベースのディスプレイ色空間は `CGColorSpace.name` が nil になるため、名前ではなく
+        /// `CFEqual` で比較する（名前比較だと初回以降のディスプレイ間移動がすべて抑止されてしまう）
+        private var lastReported: CGColorSpace??
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -51,12 +54,22 @@ struct DisplayColorSpaceReader: NSViewRepresentable {
 
         func reportCurrent() {
             let colorSpace = (window?.screen ?? NSScreen.main)?.colorSpace?.cgColorSpace
-            let name = colorSpace?.name as String?
-            if case .some(let previous) = lastReportedName, previous == name {
+            if case .some(let previous) = lastReported, Self.isSameColorSpace(previous, colorSpace) {
                 return
             }
-            lastReportedName = .some(name)
+            lastReported = .some(colorSpace)
             onChange?(colorSpace)
+        }
+
+        private static func isSameColorSpace(_ lhs: CGColorSpace?, _ rhs: CGColorSpace?) -> Bool {
+            switch (lhs, rhs) {
+            case (nil, nil):
+                return true
+            case let (lhs?, rhs?):
+                return CFEqual(lhs, rhs)
+            default:
+                return false
+            }
         }
 
         deinit {
