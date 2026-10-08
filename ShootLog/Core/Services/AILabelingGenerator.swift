@@ -96,7 +96,7 @@ struct VisionAILabelingClassifier: AILabelingClassifying {
 /// 開いたフォルダの写真を、選択写真の近傍から低優先度で分類する。
 actor AILabelingGenerator {
     static let shared = AILabelingGenerator()
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
     private static let decodeThrottle = ImageDecodeThrottle(maxConcurrent: 2)
 
     private let imageProvider: any AILabelingImageProviding

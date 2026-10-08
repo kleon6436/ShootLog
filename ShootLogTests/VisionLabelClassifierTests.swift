@@ -14,6 +14,22 @@ struct VisionLabelClassifierTests {
         #expect(VisionLabelClassifier.category(for: "balloon_hotair") == .vehicle)
     }
 
+    @Test func 貼り付けずれで誤分類されていたidentifierを意味の合うカテゴリへ分類する() {
+        #expect(VisionLabelClassifier.category(for: "corgi") == .animal)
+        #expect(VisionLabelClassifier.category(for: "terrier") == .animal)
+        #expect(VisionLabelClassifier.category(for: "swordfish") == .animal)
+        #expect(VisionLabelClassifier.category(for: "camera") == .object)
+        #expect(VisionLabelClassifier.category(for: "bottle") == .object)
+        #expect(VisionLabelClassifier.category(for: "backpack") == .object)
+        #expect(VisionLabelClassifier.category(for: "lettuce") == .food)
+        #expect(VisionLabelClassifier.category(for: "muffin") == .food)
+        #expect(VisionLabelClassifier.category(for: "candy_cane") == .food)
+        #expect(VisionLabelClassifier.category(for: "thunderstorm") == .landscape)
+        #expect(VisionLabelClassifier.category(for: "bouquet") == .plant)
+        #expect(VisionLabelClassifier.category(for: "violin") == .indoor)
+        #expect(VisionLabelClassifier.category(for: "kitchen") == .indoor)
+    }
+
     @Test func 未知のidentifierはunknownになる() {
         #expect(VisionLabelClassifier.category(for: "identifier_not_in_vision_revision_1") == .unknown)
     }

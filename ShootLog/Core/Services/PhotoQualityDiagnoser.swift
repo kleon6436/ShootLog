@@ -232,19 +232,31 @@ enum PhotoQualityDiagnoser {
         // エッジ抽出とCPU読み戻しは画素数に比例するため、評価前に長辺を固定サイズへ縮める
         let longEdge = max(extent.width, extent.height)
         guard longEdge > 0 else { return nil }
+        let scale = min(1, sharpnessAnalysisLongEdge / longEdge)
+        // 縮小・エッジ抽出とも近傍画素を参照するため、外周を透明画素と畳み込むと
+        // 画像の縁に人工的なエッジの輪が生じてシャープネスを過大評価する。
+        // 端の画素を無限に延長してからフィルタを掛け、元の（縮小後の）範囲へ切り戻す。
+        let scaledExtent = CGRect(
+            x: extent.minX * scale,
+            y: extent.minY * scale,
+            width: extent.width * scale,
+            height: extent.height * scale
+        ).integral
+        guard !scaledExtent.isEmpty else { return nil }
+
         let scaleFilter = CIFilter.lanczosScaleTransform()
-        scaleFilter.inputImage = image
-        scaleFilter.scale = Float(min(1, sharpnessAnalysisLongEdge / longEdge))
+        scaleFilter.inputImage = image.clampedToExtent()
+        scaleFilter.scale = Float(scale)
         scaleFilter.aspectRatio = 1
-        guard let scaled = scaleFilter.outputImage else { return nil }
+        guard let scaled = scaleFilter.outputImage?.cropped(to: scaledExtent) else { return nil }
 
         let edgesFilter = CIFilter.edges()
-        edgesFilter.inputImage = scaled
+        edgesFilter.inputImage = scaled.clampedToExtent()
         edgesFilter.intensity = 1
-        guard let edges = edgesFilter.outputImage else { return nil }
+        guard let edges = edgesFilter.outputImage?.cropped(to: scaledExtent) else { return nil }
 
-        let width = max(1, Int(scaled.extent.width.rounded()))
-        let height = max(1, Int(scaled.extent.height.rounded()))
+        let width = max(1, Int(scaledExtent.width))
+        let height = max(1, Int(scaledExtent.height))
         let rowBytes = width * 4
         var pixels = [UInt8](repeating: 0, count: rowBytes * height)
         pixels.withUnsafeMutableBytes { raw in
@@ -253,7 +265,7 @@ enum PhotoQualityDiagnoser {
                 edges,
                 toBitmap: base,
                 rowBytes: rowBytes,
-                bounds: CGRect(x: 0, y: 0, width: width, height: height),
+                bounds: CGRect(x: scaledExtent.minX, y: scaledExtent.minY, width: CGFloat(width), height: CGFloat(height)),
                 format: .RGBA8,
                 colorSpace: CGColorSpace(name: CGColorSpace.sRGB)
             )

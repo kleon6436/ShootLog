@@ -144,7 +144,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 キャッシュとネットワーク対応:
 
 - メモリキャッシュは `NSCache<NSURL, NSImage>` を使用する。
-- ディスクキャッシュは `~/Library/Caches/com.shootlog.app/thumbnails-v4/` に保存する。
+- ディスクキャッシュは `~/Library/Caches/com.shootlog.app/thumbnails-v5/` に保存する。キーは URL・更新日時・ファイルサイズで、同名で上書きされた原本は別キーになる。
 - ネットワークボリュームではサムネイル同時取得数を4件に制限する。
 - キャッシュ待機中のタスクがキャンセルされた場合は待機列から取り除く。
 - フルサイズ画像はビューア用に別キャッシュへ保存し、必要なときだけデコードする。

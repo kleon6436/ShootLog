@@ -21,7 +21,13 @@ actor ImageDecodeThrottle {
 
     private let maxConcurrent: Int
     private var active = 0
+    // 待機者の継続（ID → 継続）と到着順（ID の列）を分けて持つ。
+    // キャンセル時は辞書から外すだけにし（O(1)）、順序列に残った ID は
+    // release で先頭から取り出す際に読み飛ばす（遅延削除）。
     private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+    private var waiterOrder: [UUID] = []
+    // waiterOrder の読み出し位置。removeFirst の O(n) を避けるため添字を進め、溜まったら詰める
+    private var waiterOrderHead = 0
 
     init(maxConcurrent: Int) { self.maxConcurrent = maxConcurrent }
 
@@ -33,6 +39,7 @@ actor ImageDecodeThrottle {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 waiters[id] = continuation
+                waiterOrder.append(id)
             }
         } onCancel: {
             Task { await self.cancelWaiter(id) }
@@ -42,17 +49,39 @@ actor ImageDecodeThrottle {
     // キャンセルされた待機者をキューから取り除く（スロットは消費していないので active は変更しない）
     private func cancelWaiter(_ id: UUID) {
         guard let continuation = waiters.removeValue(forKey: id) else { return }
+        // 待機者が全員いなくなったら、順序列に残るキャンセル済み ID をまとめて捨てる
+        if waiters.isEmpty {
+            waiterOrder.removeAll(keepingCapacity: true)
+            waiterOrderHead = 0
+        }
         continuation.resume(throwing: CancellationError())
     }
 
     // スロット解放：待機中タスクがあればスロットを転送、なければデクリメント。
-    // 転送先は辞書の先頭要素で、到着順（FIFO）は保証しない
+    // 転送先は到着順（FIFO）で最も古い待機者。キャンセル済みの ID は読み飛ばす。
+    // 辞書順で渡すと後から来た対話要求が追い越され続けて飢餓状態になり得るため、順序を保証する
     func release() async {
-        if let (id, continuation) = waiters.first {
-            waiters.removeValue(forKey: id)
-            continuation.resume()
-        } else {
-            active -= 1
+        while waiterOrderHead < waiterOrder.count {
+            let id = waiterOrder[waiterOrderHead]
+            waiterOrderHead += 1
+            if let continuation = waiters.removeValue(forKey: id) {
+                compactWaiterOrderIfNeeded()
+                continuation.resume()
+                return
+            }
+        }
+        compactWaiterOrderIfNeeded()
+        active -= 1
+    }
+
+    // 読み終えた先頭部分を順序列から取り除く。全消費時は即座に、そうでなければ半分以上が消費済みのときに詰める
+    private func compactWaiterOrderIfNeeded() {
+        if waiterOrderHead >= waiterOrder.count {
+            waiterOrder.removeAll(keepingCapacity: true)
+            waiterOrderHead = 0
+        } else if waiterOrderHead > 64, waiterOrderHead * 2 > waiterOrder.count {
+            waiterOrder.removeFirst(waiterOrderHead)
+            waiterOrderHead = 0
         }
     }
 }
