@@ -81,7 +81,7 @@ extension DevelopViewModel {
         // DevelopSettingsの確保はVision成功後に行う。Vision失敗・写真切替などの早期returnで
         // 中立な空行が永続的に残るのを防ぐため（updateDevelopParametersの「中立状態では
         // 行を作らない」という不変条件に反しないようにする。レビュー指摘）。
-        guard let settings = content?.developSettingsForMaskRaster() else { return nil }
+        guard let settings = content?.developSettingsForMaskRaster(forPhotoID: photo.id) else { return nil }
 
         let rasterID = UUID()
         let raster = MaskRaster(id: rasterID, pngData: result.pngData, longEdge: result.longEdge)
@@ -118,7 +118,7 @@ extension DevelopViewModel {
         // visionRevisionは一致していても、参照先のMaskRasterが存在しない状態
         // （他写真のプリセットを誤って流用した等の防御的ケース）も再生成対象として扱う。
         // これが無いと、ユーザーはマスクが無効である理由に気づく手段が無い（レビュー指摘）。
-        guard let settings = content?.currentDevelopSettings else { return false }
+        guard let settings = currentPhotoDevelopSettings else { return false }
         return !settings.maskRasters.contains { $0.id == reference.rasterID }
     }
 

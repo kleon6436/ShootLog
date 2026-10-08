@@ -20,6 +20,25 @@ struct SidebarViewModelAIFilterTests {
         #expect(vm.displayedPhotos.map(\.id) == photos.map(\.id))
     }
 
+    // 上下矢印キーの写真送りは、リストに表示している displayedPhotos（AIカテゴリ絞り込み後）を辿る
+    @Test func keyboardNavigationFollowsDisplayedPhotos() throws {
+        let vm = try makeViewModel()
+        let photos = [
+            makePhoto(name: "person-1.jpg", categories: [.person]),
+            makePhoto(name: "animal.jpg", categories: [.animal]),
+            makePhoto(name: "person-2.jpg", categories: [.person])
+        ]
+        vm.content.photos = photos
+        vm.selectedAICategories = [.person]
+        vm.content.selectedPhoto = photos[0]
+
+        vm.selectNext()
+        #expect(vm.content.selectedPhoto?.id == photos[2].id)
+
+        vm.selectPrevious()
+        #expect(vm.content.selectedPhoto?.id == photos[0].id)
+    }
+
     @Test func selectedAICategoryKeepsOnlyMatchingPhotos() throws {
         let vm = try makeViewModel()
         let photos = [

@@ -33,6 +33,9 @@ struct EditablePhotoView: View {
                         displaySize: geometry.size,
                         snapshot: photo.flatMap { fileAttributesSnapshots[$0.fileURL] }
                     )
+                    // 選択が既に次の写真へ移っていれば、古い写真で現像 VM を上書きしない
+                    // （新しいタスク側が改めて load する）
+                    guard !Task.isCancelled else { return }
                     // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）。
                     // 回転・トリミングもプレビューへ焼き込むため EditInfo を渡す
                     developViewModel.load(

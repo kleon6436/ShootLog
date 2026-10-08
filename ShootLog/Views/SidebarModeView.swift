@@ -228,9 +228,14 @@ struct SidebarModeView: View {
     }
 
     // 先読み対象（前後1枚）。上下矢印キーでの写真送り（vm.selectNext / selectPrevious）は
-    // visiblePhotos 基準かつ端でクランプしループしないため、wrapsAround は指定しない
+    // displayedPhotos（検索・AIカテゴリ絞り込み後）基準かつ端でクランプしループしないため、
+    // wrapsAround は指定しない
     private var neighborPrefetchURLs: [URL] {
-        HighResPrefetcher.neighborURLs(in: vm.visiblePhotos, around: vm.visibleIndex)
+        let displayed = vm.displayedPhotos
+        let index = vm.selectedPhoto.flatMap { selected in
+            displayed.firstIndex(where: { $0.id == selected.id })
+        }
+        return HighResPrefetcher.neighborURLs(in: displayed, around: index)
     }
 
     // MARK: - Toolbar

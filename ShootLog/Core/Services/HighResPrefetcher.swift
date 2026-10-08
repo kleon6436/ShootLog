@@ -14,21 +14,34 @@ enum HighResPrefetcher {
     private static let localRadius = 3
     private static let networkRadius = 1
 
-    // ボリューム種別（ネットワーク/ローカル）の判定は resourceValues の syscall を伴うため、
-    // ボリュームルート単位でキャッシュする（`neighborURLs` は body 再評価のたびに呼ばれうる）
+    // ボリューム種別（ネットワーク/ローカル）の判定は resourceValues の syscall を伴い、
+    // `neighborURLs` は body 再評価のたびに MainActor 上で呼ばれうる。そのため判定は
+    // 親フォルダのパス（文字列操作のみで得られる）単位でキャッシュし、未判定のフォルダは
+    // バックグラウンドで判定してキャッシュへ書き戻す。判定が済むまではローカル扱いとする
+    // （`URL.isOnNetworkVolume` の「取得失敗時はローカル扱い」と同じ既定）
     @MainActor private static var networkVolumeCache: [String: Bool] = [:]
+    @MainActor private static var pendingVolumeChecks: Set<String> = []
 
     @MainActor
     private static func prefetchRadius(for url: URL) -> Int {
-        let volumeKey = ((try? url.resourceValues(forKeys: [.volumeURLKey]))?.volume ?? url).path
-        let isNetwork: Bool
-        if let cached = networkVolumeCache[volumeKey] {
-            isNetwork = cached
-        } else {
-            isNetwork = url.isOnNetworkVolume
-            networkVolumeCache[volumeKey] = isNetwork
+        let folderKey = url.deletingLastPathComponent().path
+        guard let isNetwork = networkVolumeCache[folderKey] else {
+            scheduleVolumeCheck(for: url, key: folderKey)
+            return localRadius
         }
         return isNetwork ? networkRadius : localRadius
+    }
+
+    @MainActor
+    private static func scheduleVolumeCheck(for url: URL, key: String) {
+        guard pendingVolumeChecks.insert(key).inserted else { return }
+        Task {
+            let isNetwork = await Task.detached(priority: .utility) {
+                url.isOnNetworkVolume
+            }.value
+            Self.networkVolumeCache[key] = isNetwork
+            Self.pendingVolumeChecks.remove(key)
+        }
     }
 
     // 指定URLのプレビュープロキシをキャッシュへ載せる。戻り値は破棄する（View更新はトリガーしない）。

@@ -246,6 +246,13 @@ final class DevelopViewModel {
     private(set) var currentPhoto: Photo?
     /// 写真切り替え検知用（`.task(id:)` 等、View 側は `currentPhoto` 自体に触れない）。
     var currentPhotoID: UUID? { currentPhoto?.id }
+    /// `currentPhoto` に属する DevelopSettings。選択切り替え直後は `ContentViewModel.currentDevelopSettings`
+    /// が既に次の写真を指していることがあるため、直接読まずに photoID で照合して引く。
+    // DevelopViewModelAIMask.swift から参照するため internal
+    var currentPhotoDevelopSettings: DevelopSettings? {
+        guard let photoID = currentPhoto?.id else { return nil }
+        return content?.developSettings(forPhotoID: photoID)
+    }
     // DevelopViewModelAIMask.swift から参照するため private(set)
     private(set) var displaySize: CGSize = .zero
     /// `EditInfo` 由来の回転角。プレビューにも焼き込む。
@@ -346,8 +353,10 @@ final class DevelopViewModel {
         self.rotation = rotation
         self.cropRect = cropRect
 
+        // 選択中写真のキャッシュではなく、ロード対象の写真に属するレコードを読む。
+        let loadedSettings = currentPhotoDevelopSettings
         isApplyingLoadedState = true
-        parameters = content?.currentDevelopSettings?.parameters ?? .neutral
+        parameters = loadedSettings?.parameters ?? .neutral
         isApplyingLoadedState = false
 
         undoParameters = nil
@@ -372,9 +381,9 @@ final class DevelopViewModel {
         isAsShotWhiteBalanceLoaded = false
         // version 1 の既存 RAW レコードは標準チェーンのまま（色が変わらないように）。
         // レコードが無い新規は version 2 相当として委譲する。
-        rawMappingActive = isRAW && (content?.currentDevelopSettings?.usesRAWParameterMapping ?? true)
-        manualLensCorrectionActive = content?.currentDevelopSettings?.usesManualLensCorrection ?? true
-        toneMaskedColorGradingActive = content?.currentDevelopSettings?.usesToneMaskedColorGrading ?? true
+        rawMappingActive = isRAW && (loadedSettings?.usesRAWParameterMapping ?? true)
+        manualLensCorrectionActive = loadedSettings?.usesManualLensCorrection ?? true
+        toneMaskedColorGradingActive = loadedSettings?.usesToneMaskedColorGrading ?? true
 
         if let photo {
             Task { [weak self] in
@@ -535,7 +544,11 @@ final class DevelopViewModel {
             let baseK = self.asShotWhiteBalance?.temperatureKelvin ?? 6_500
             let baseTint = self.asShotWhiteBalance?.tint ?? 0
             var seeded = settings
-            seeded.temperatureKelvin = baseK + (settings.temperatureKelvin - 6_500)
+            // `automaticSettings` の色温度は灰色仮定での「撮影時相当」の推定値（暖色の画像ほど高い K。
+            // 非RAW の as-shot 推定にも同じ値を使う）。このアプリでは K が高いほど暖色に仕上がるので、
+            // 中立化するには 6500K からのずれを逆向きに当てる（暖色の画像は K を下げる）。
+            // 色かぶりは推定値自体が補正方向（緑かぶり → 正 = マゼンタ）なので加算のまま。
+            seeded.temperatureKelvin = baseK - (settings.temperatureKelvin - 6_500)
             seeded.tint = baseTint + settings.tint
             seeded.mode = .auto
             seeded.normalize()
@@ -643,7 +656,8 @@ final class DevelopViewModel {
         clearPreview()
         histogram = nil
         isRendering = false
-        content?.resetDevelop()
+        // selectedPhoto ではなく、編集中の写真のレコードを消す。
+        if let photoID = currentPhoto?.id { content?.resetDevelop(forPhotoID: photoID) }
         // reset で旧レコードは削除され、次の保存は schemaVersion 5（RAW は露出・WB 委譲も有効）。
         manualLensCorrectionActive = true
         rawMappingActive = isRAW
@@ -720,7 +734,7 @@ final class DevelopViewModel {
     /// 未解決の `rasterID` は描画側で全面 0 として扱われて実害が無く、レイヤー種別を保てば
     /// この写真向けの「再生成」導線をそのまま使えるため。
     private func duplicateAIMaskRasters(in parameters: inout DevelopParameters, from index: Int) {
-        guard index < parameters.masks.count, let settings = content?.currentDevelopSettings else { return }
+        guard index < parameters.masks.count, let settings = currentPhotoDevelopSettings else { return }
         for position in index..<parameters.masks.count {
             guard case .ai(var reference) = parameters.masks[position].source,
                   let original = settings.maskRasters.first(where: { $0.id == reference.rasterID })
@@ -739,7 +753,7 @@ final class DevelopViewModel {
     /// 辞書に無い `rasterID` は描画側で全面 0 として扱われる。
     // DevelopViewModelAIMask.swift から参照するため internal
     func resolvedMaskRasters(for snapshot: DevelopParameters) -> [UUID: CGImage] {
-        guard let settings = content?.currentDevelopSettings else { return [:] }
+        guard let settings = currentPhotoDevelopSettings else { return [:] }
         var result: [UUID: CGImage] = [:]
         for layer in snapshot.masks where layer.isEnabled {
             guard case .ai(let reference) = layer.source else { continue }
@@ -998,7 +1012,7 @@ final class DevelopViewModel {
     /// レコード由来のゲートフラグを再同期する。カラーグレーディング方式が切り替わったら再描画する。
     private func syncSchemaGatedFlags() {
         // レコードが中立で削除された場合は新規レコード相当（現行世代）として扱う。
-        let settings = content?.currentDevelopSettings
+        let settings = currentPhotoDevelopSettings
         rawMappingActive = isRAW && (settings?.usesRAWParameterMapping ?? true)
         manualLensCorrectionActive = settings?.usesManualLensCorrection ?? true
         let wasToneMasked = toneMaskedColorGradingActive
@@ -1025,7 +1039,9 @@ final class DevelopViewModel {
         persistTask = Task { [weak self] in
             try? await Task.sleep(for: self?.persistDebounce ?? .zero)
             guard !Task.isCancelled else { return }
-            self?.content?.updateDevelopParameters(params)
+            // selectedPhoto 宛ての保存にすると、選択切り替え直後（load 前）に満了した場合に
+            // 別写真へ書き込んでしまうため、予約時点の写真 ID を宛先にする。
+            self?.content?.persistDevelopParameters(params, forPhotoID: photoID)
             self?.syncSchemaGatedFlags()
             self?.pendingPersist = nil
         }
@@ -1044,7 +1060,8 @@ final class DevelopViewModel {
     }
 
     /// デバウンス待ちの保存を即時に書き込む。写真切り替えで取りこぼさないため `load` の冒頭で呼ぶ。
-    private func flushPendingPersist() {
+    /// 書き出し開始前にも呼び、直前のスライダー操作を書き出しへ反映させる（SidebarViewModel から呼ぶため internal）
+    func flushPendingPersist() {
         persistTask?.cancel()
         guard let pending = pendingPersist else { return }
         pendingPersist = nil

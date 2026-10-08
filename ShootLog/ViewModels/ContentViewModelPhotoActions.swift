@@ -25,7 +25,14 @@ extension ContentViewModel {
     // 選択中写真が未選択、または絞り込みで一覧から外れている場合は先頭要素を選ぶ
     // （旧実装は selectedIndex の `?? 0` フォールバックにより未選択時に1枚飛ばすバグがあった）
     func selectNext() {
-        let list = visiblePhotos
+        selectNext(in: { [weak self] in self?.visiblePhotos ?? [] })
+    }
+
+    // 表示中の一覧（呼び出し側の絞り込み適用後）基準で次の写真を選択する。
+    // サイドバーは検索・AIカテゴリでさらに絞り込んだ一覧を表示しているため、その一覧を渡す。
+    // 段階挿入完了待ち後の再試行でも同じ基準で一覧を引き直せるよう、配列ではなく取得関数で受け取る
+    func selectNext(in listProvider: @escaping @MainActor () -> [Photo]) {
+        let list = listProvider()
         guard !list.isEmpty else { return }
         guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
             selectPhoto(list.first)
@@ -45,7 +52,7 @@ extension ContentViewModel {
                       generation == self.photoStagingGeneration,
                       self.selectedPhoto?.id == targetID else { return }
                 self.pendingSelectNextTask = nil
-                self.selectNext()
+                self.selectNext(in: listProvider)
             }
             return
         }
@@ -53,7 +60,11 @@ extension ContentViewModel {
     }
 
     func selectPrevious() {
-        let list = visiblePhotos
+        selectPrevious(in: visiblePhotos)
+    }
+
+    // 表示中の一覧（呼び出し側の絞り込み適用後）基準で前の写真を選択する
+    func selectPrevious(in list: [Photo]) {
         guard !list.isEmpty else { return }
         guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
             selectPhoto(list.first)

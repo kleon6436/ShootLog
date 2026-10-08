@@ -5,7 +5,11 @@ import SwiftData
 @MainActor
 extension ContentViewModel {
     func openPhotosLibrary() {
-        Task {
+        // ダブルクリック等で読み込みが並走すると、同じアセットの Photo 行を二重に作り得るため
+        // 進行中の要求があれば新しい要求は無視する
+        guard photosLibraryOpenTask == nil else { return }
+        photosLibraryOpenTask = Task {
+            defer { photosLibraryOpenTask = nil }
             let service = PhotosLibraryPermissionService()
             let status = service.authorizationStatus()
             let resolvedStatus: PhotosLibraryPermissionStatus
@@ -31,6 +35,9 @@ extension ContentViewModel {
         releaseBookmarkAccess()
         currentFolderURL = nil
         currentPhotoSource = .photosLibrary
+        // cancelPhotoStaging の await 中に別の読み込みが割り込んでも世代を共有しないよう、
+        // この読み込み専用の世代を発行する（以降の await 明けで最新かどうかを判定する）
+        photoStagingGeneration &+= 1
         let generation = photoStagingGeneration
         guard applyFileAttributesSnapshots([:], generation: generation) else { return }
         isLoading = true
@@ -43,17 +50,25 @@ extension ContentViewModel {
         let assets = await Task.detached(priority: .utility) {
             PhotosLibraryRepository.fetchAssets()
         }.value
+        // 待機中にフォルダ読み込み等へ切り替わっていたら、この読み込みは破棄する
+        // （isLoading は新しい読み込み側が管理するため触らない。ContentViewModelFolder と同じ方針）
+        guard generation == photoStagingGeneration else { return }
         let (byIdentifier, originalFileNames) = await resolveOriginalFileNames(for: assets, context: context)
+        guard generation == photoStagingGeneration else { return }
         let cacheDirectory = PhotosLibraryAssetExporter.defaultDirectory
         do {
             try await Task.detached(priority: .utility) {
                 try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
             }.value
         } catch {
+            guard generation == photoStagingGeneration else { return }
             self.error = error
             isLoading = false
             return
         }
+        // 既存行の取得（resolveOriginalFileNames）から挿入（syncPhotosLibrary）までの間に
+        // 別の読み込みが走っていれば、同じアセットの行を二重に作らないようここで打ち切る
+        guard generation == photoStagingGeneration else { return }
 
         syncPhotosLibrary(
             assets: assets,
@@ -131,6 +146,8 @@ extension ContentViewModel {
         guard firstBatchCount < assets.count else { return }
         let remaining = Array(assets[firstBatchCount...])
         let generation = photoStagingGeneration
+        // 前回の段階挿入が残っていれば上書きで取りこぼさず、明示的に止めてから差し替える
+        photoStagingTask?.cancel()
         photoStagingTask = Task {
             await stagePhotosLibraryPhotos(
                 assets: remaining,
