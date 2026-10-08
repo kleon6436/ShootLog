@@ -167,8 +167,12 @@ struct UpscaleExporter: Sendable {
 
     // MARK: - 原本のデコード
 
-    /// 原本をセンサー解像度のままデコードする。
+    /// 原本をセンサー解像度のままデコードし、EXIF Orientation を適用して正立させる。
     /// 埋め込みプレビューではなく実解像度が必要なため、ダウンサンプル系のオプションは使わない。
+    ///
+    /// `rotation` / `cropRect` は表示（Orientation 適用後）の画像を基準にしているため、ここで
+    /// 正立させておかないと Orientation 6/8 などの写真でトリミング位置と出力の向きがずれる
+    /// （`ImageDevelopmentEngine` も `applyOrientationProperty: true` でデコードしている）。
     /// `Task.detached` はキャンセルを継承しないので、`withTaskCancellationHandler` で明示的に伝播させる
     static func decodeFullResolution(from url: URL) async throws -> CGImage {
         let handle = Task.detached(priority: .userInitiated) { () throws -> CGImage in
@@ -180,13 +184,88 @@ struct UpscaleExporter: Sendable {
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
                 throw ShootLogError.superResolutionFailed(reason: "source decode failed")
             }
-            return image
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+            guard let rawOrientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value,
+                  let orientation = CGImagePropertyOrientation(rawValue: rawOrientation),
+                  orientation != .up else {
+                return image
+            }
+            // デコーダが既に正立させている場合（縦横が属性値と入れ替わっている）は二重回転しない。
+            if orientation.swapsDimensions,
+               let storedWidth = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+               let storedHeight = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+               storedWidth != storedHeight,
+               image.width == storedHeight, image.height == storedWidth {
+                return image
+            }
+            guard let oriented = UpscaleExporter.applyingOrientation(image, orientation) else {
+                throw ShootLogError.superResolutionFailed(reason: "orientation transform failed")
+            }
+            return oriented
         }
         return try await withTaskCancellationHandler {
             try await handle.value
         } onCancel: {
             handle.cancel()
         }
+    }
+
+    /// EXIF Orientation に従って画素を並べ替えた正立画像を返す（Orientation 1 ならそのまま）。
+    ///
+    /// 変換は「格納画像（左上原点・y 下向き）→ 表示画像」の写像を、CGContext の y 上向き座標へ
+    /// 書き直したもの。`w` / `h` は格納画像の寸法。
+    static func applyingOrientation(_ image: CGImage, _ orientation: CGImagePropertyOrientation) -> CGImage? {
+        guard orientation != .up else { return image }
+        let w = CGFloat(image.width)
+        let h = CGFloat(image.height)
+        let swaps = orientation.swapsDimensions
+        let destinationWidth = swaps ? image.height : image.width
+        let destinationHeight = swaps ? image.width : image.height
+
+        let transform: CGAffineTransform
+        switch orientation {
+        case .up:            transform = .identity
+        case .upMirrored:    transform = CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: w, ty: 0)
+        case .down:          transform = CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: w, ty: h)
+        case .downMirrored:  transform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h)
+        case .leftMirrored:  transform = CGAffineTransform(a: 0, b: -1, c: -1, d: 0, tx: h, ty: w)
+        case .right:         transform = CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: w)
+        case .rightMirrored: transform = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+        case .left:          transform = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: h, ty: 0)
+        }
+
+        // 階調を落とさないよう、原本のビット深度に合わせた RGBA コンテキストへ描く。
+        let colorSpace: CGColorSpace
+        if let space = image.colorSpace, space.model == .rgb, space.supportsOutput {
+            colorSpace = space
+        } else {
+            colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        }
+        let isFloat = image.bitmapInfo.contains(.floatComponents)
+        let bitsPerComponent: Int
+        var bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        if isFloat {
+            bitsPerComponent = 32
+            bitmapInfo |= CGBitmapInfo.floatComponents.rawValue
+        } else if image.bitsPerComponent > 8 {
+            bitsPerComponent = 16
+        } else {
+            bitsPerComponent = 8
+        }
+
+        guard let context = CGContext(
+            data: nil,
+            width: destinationWidth,
+            height: destinationHeight,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else { return nil }
+        context.interpolationQuality = .none
+        context.concatenate(transform)
+        context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return context.makeImage()
     }
 
     // MARK: - エンコード
@@ -272,5 +351,15 @@ struct UpscaleExporter: Sendable {
     static func softwareTag(modelID: String) -> String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         return "ShootLog \(version) / \(modelID)"
+    }
+}
+
+private extension CGImagePropertyOrientation {
+    /// 90° / 270° 系で縦横が入れ替わる Orientation か。
+    var swapsDimensions: Bool {
+        switch self {
+        case .left, .leftMirrored, .right, .rightMirrored: true
+        default: false
+        }
     }
 }

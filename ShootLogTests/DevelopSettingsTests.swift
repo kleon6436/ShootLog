@@ -53,6 +53,44 @@ struct DevelopSettingsTests {
         #expect(version4.schemaVersion == 6)
     }
 
+    /// 旧方式で描いているカラーグレーディングが残る version 2〜4 のレコードは、無関係な編集で
+    /// トーン域マスク方式（version 5 以降）へ切り替わらない。グレーディングを中立へ戻すと引き上がる。
+    @Test func legacyRecordWithColorGradingStaysOnLegacyGradingWhenEdited() throws {
+        var graded = DevelopParameters.neutral
+        graded.colorBalance.shadows = ColorBalanceComponent(hue: 20, saturation: 30, lightness: 0)
+
+        for version in 2...4 {
+            let settings = DevelopSettings(photoID: UUID())
+            settings.schemaVersion = version
+            settings.parameters = graded
+
+            var edited = graded
+            edited.exposure = 0.5
+            try settings.setParameters(edited)
+            #expect(settings.schemaVersion == 4)
+            #expect(!settings.usesToneMaskedColorGrading)
+            #expect(settings.usesManualLensCorrection)
+
+            var cleared = edited
+            cleared.colorBalance = .neutral
+            try settings.setParameters(cleared)
+            #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
+            #expect(settings.usesToneMaskedColorGrading)
+        }
+
+        // version 5 以降は既にトーン域マスク方式なので、グレーディングがあっても現行世代へ進む。
+        let version5 = DevelopSettings(photoID: UUID())
+        version5.schemaVersion = 5
+        try version5.setParameters(graded)
+        #expect(version5.schemaVersion == DevelopSettings.currentSchemaVersion)
+
+        // version 1 は据え置き。
+        let version1 = DevelopSettings(photoID: UUID())
+        version1.schemaVersion = 1
+        try version1.setParameters(graded)
+        #expect(version1.schemaVersion == 1)
+    }
+
     @Test func version5RecordMigratesToVersion6OnEdit() throws {
         let settings = DevelopSettings(photoID: UUID())
         settings.schemaVersion = 5

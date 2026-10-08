@@ -190,7 +190,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` ほか optional 4 プロパティ、`loadEXIFIfNeeded` が EXIF と独立に取得・保存）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
-- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5。2〜4 は編集時に 5 へ自動バンプ、1 は据え置き。5=トーン域マスク カラーグレーディング）、更新日時。`EditInfo` とは独立
+- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5。2〜4 は編集時に現行世代へ自動バンプ（旧方式のカラーグレーディングが中立でない間は 4 で止める）、1 は据え置き。5=トーン域マスク カラーグレーディング）、更新日時。`EditInfo` とは独立
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
 - `FolderHistory`: フォルダURL、セキュリティブックマーク、最終アクセス日時、表示名
 

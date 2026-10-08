@@ -288,6 +288,30 @@ struct MaskImageGeneratorTests {
         #expect(sample(upright, x: 50, y: 75, context: context) < 0.02)
     }
 
+    @Test("非対称な回転角でもマスクはオーバーレイの輪郭（RadialMaskHandleGeometry）と同じ向きになる")
+    func radialGradientRotationMatchesOverlayGeometry() {
+        let context = makeContext()
+        // 半長軸 40px・半短軸 20px の楕円を 30° 回転。falloff 0 で内側をほぼ 1 にする。
+        let mask = radialMask(aspectRatio: 2, rotationDegrees: 30, falloff: 0)
+
+        // オーバーレイが描く輪郭上で、長軸方向に半径 25px（内側）の点。
+        let inner = RadialGradientMask(
+            center: NormalizedPoint(x: 0.5, y: 0.5),
+            radius: 0.25,
+            aspectRatio: 2,
+            rotationDegrees: 30,
+            falloff: 0
+        )
+        let point = RadialMaskHandleGeometry.outlinePoint(inner, at: 0, baseAspectRatio: 1)
+        // 正規化座標（y 下向き）→ Core Image 座標（y 上向き）。
+        let x = Int((point.x * 100).rounded())
+        let y = Int(((1 - point.y) * 100).rounded())
+        #expect(sample(mask, x: x, y: y, context: context) > 0.9)
+        // 上下反転した鏡像の点は楕円の外側になる（回転方向が逆だとここが明るくなる）。
+        let mirroredY = Int((point.y * 100).rounded())
+        #expect(sample(mask, x: x, y: mirroredY, context: context) < 0.01)
+    }
+
     @Test("falloff が大きいほど外周へ向かう遷移が緩やかになる")
     func radialGradientFalloffSoftensTransition() {
         let context = makeContext()

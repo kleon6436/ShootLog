@@ -165,4 +165,56 @@ struct LensCorrectionFilterTests {
         }
         #expect(rDelta > 0 && bDelta > 0)
     }
+
+    @Test func chromaticAberrationKeepsAlphaAtOne() throws {
+        let source = try makeGrayImage(128)
+        let corrected = LensCorrectionFilter.corrected(
+            source, distortion: 0, vignette: 0, chromaticAberration: 100
+        )
+        // RGBAf で読むと 8bit のクランプで隠れないアルファの過大（旧実装は 3）を検出できる。
+        let side = Self.side
+        let context = CIContext(options: [.workingColorSpace: NSNull()])
+        var buffer = [Float](repeating: 0, count: side * side * 4)
+        context.render(
+            corrected,
+            toBitmap: &buffer,
+            rowBytes: MemoryLayout<Float>.size * 4 * side,
+            bounds: CGRect(x: 0, y: 0, width: side, height: side),
+            format: .RGBAf,
+            colorSpace: nil
+        )
+        for (x, y) in [(0, 0), (side / 2, side / 2), (side - 1, side - 1), (0, side - 1)] {
+            let index = (y * side + x) * 4
+            #expect(abs(buffer[index + 3] - 1) < 0.01, "alpha at (\(x), \(y)) = \(buffer[index + 3])")
+            // 一様グレーなので R/G/B はスケールしても揃ったまま（縁も端画素延長で欠けない）。
+            #expect(abs(buffer[index] - buffer[index + 1]) < 0.01)
+            #expect(abs(buffer[index + 2] - buffer[index + 1]) < 0.01)
+        }
+    }
+
+    // MARK: - 歪曲の ROI
+
+    @Test func distortionROICoversCornerSamples() {
+        let extent = CGRect(x: 0, y: 0, width: 1000, height: 1000)
+        let center = CGPoint(x: extent.midX, y: extent.midY)
+        let normScale = 2 / 1000.0
+        // 小さい隅の要求矩形でも、中心からの距離に応じた大きな変位を ROI が含むこと。
+        for (k1, k2) in [(0.3, 0.05), (-0.3, -0.05)] {
+            let rect = CGRect(x: 990, y: 990, width: 10, height: 10)
+            let roi = LensCorrectionFilter.distortionROI(
+                for: rect, center: center, normScale: normScale, k1: k1, k2: k2
+            )
+            for corner in [
+                CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: rect.maxX, y: rect.maxY)
+            ] {
+                let dx = Double(corner.x - center.x)
+                let dy = Double(corner.y - center.y)
+                let r2 = (dx * dx + dy * dy) * normScale * normScale
+                let factor = 1 + k1 * r2 + k2 * r2 * r2
+                let sample = CGPoint(x: Double(center.x) + dx * factor, y: Double(center.y) + dy * factor)
+                #expect(roi.contains(sample), "ROI \(roi) does not contain \(sample)")
+            }
+        }
+    }
 }
