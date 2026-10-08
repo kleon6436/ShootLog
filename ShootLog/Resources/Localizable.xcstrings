@@ -2120,6 +2120,23 @@
         }
       }
     },
+    "contextMenu.reanalyzeAI" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Re-analyze with AI"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AIで再解析"
+          }
+        }
+      }
+    },
     "contextMenu.rotate" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7794,6 +7811,35 @@
         }
       }
     },
+    "toast.aiReanalysisStarted %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Re-analyzing %lld photo with AI"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Re-analyzing %lld photos with AI"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld枚をAIで再解析しています"
+          }
+        }
+      }
+    },
     "toast.copied.fileName" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7943,6 +7989,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ · %2$lld"
+          }
+        }
+      }
+    },
+    "toolbar.aiCategoryFilter.reanalyzeFailed %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Re-analyze %lld Failed Photo"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Re-analyze %lld Failed Photos"
+                }
+              }
+            }
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解析できなかった%lld枚を再解析"
           }
         }
       }

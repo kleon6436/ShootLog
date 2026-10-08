@@ -15,6 +15,7 @@ struct PhotoContextMenuActions {
     let rotate: (Photo) -> Void
     let copyFileName: (Photo) -> Void
     let copyFilePath: (Photo) -> Void
+    let reanalyzeAI: (Photo) -> Void
 }
 
 // 左サイドバーの写真一覧（adaptiveグリッド。幅に応じて1↔2列に自動切替）
@@ -142,6 +143,9 @@ private struct PhotoGridCell: View {
             .disabled(!availability.canDevelop)
 
         Button("contextMenu.rotate") { actions.rotate(photo) }
+
+        // 分類・診断の済み／失敗に関わらず、この写真の被写体認識と画質診断をやり直す
+        Button("contextMenu.reanalyzeAI") { actions.reanalyzeAI(photo) }
 
         Divider()
 

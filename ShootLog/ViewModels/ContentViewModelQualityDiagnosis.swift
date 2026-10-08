@@ -29,10 +29,15 @@ extension ContentViewModel {
     // MARK: - Diagnosis
 
     /// 画質診断をバックグラウンドで開始する。フォルダ／iCloud写真ライブラリ双方の読み込みから呼ぶ。
-    func startAIQualityDiagnosis(token: Int, around selectedIndex: Int?) async {
+    /// - Parameter prioritizing: 手動の再解析で先に処理する写真。`selectedIndex` の近傍より優先する
+    func startAIQualityDiagnosis(
+        token: Int,
+        around selectedIndex: Int?,
+        prioritizing prioritizedURLs: Set<URL> = []
+    ) async {
         guard token == aiQualityDiagnosisToken else { return }
 
-        let targets = aiQualityDiagnosisTargetPhotos()
+        let targets = Self.prioritizing(prioritizedURLs, in: aiQualityDiagnosisTargetPhotos())
             .map {
                 AILabelingTarget(
                     url: $0.fileURL,
@@ -59,6 +64,7 @@ extension ContentViewModel {
                 Task { @MainActor in
                     guard let self else { return }
                     guard token == self.aiQualityDiagnosisToken else { return }
+                    self.aiQualityDiagnosisReanalysisURLs.remove(url)
                     if let index = photoIndex[url], self.photos.indices.contains(index) {
                         self.apply(diagnosis, to: self.photos[index])
                     }
@@ -78,6 +84,7 @@ extension ContentViewModel {
     // 前回失敗した写真は、被写体認識と同じ条件（shouldRetryAIFailure）でだけ対象に戻す
     func aiQualityDiagnosisTargetPhotos(now: Date = Date()) -> [Photo] {
         photos.filter { photo in
+            if aiQualityDiagnosisReanalysisURLs.contains(photo.fileURL) { return true }
             if let failedAt = photo.aiDiagnosisFailedAt {
                 return shouldRetryAIFailure(
                     of: photo,

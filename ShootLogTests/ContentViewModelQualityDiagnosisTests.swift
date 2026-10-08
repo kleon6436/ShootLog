@@ -130,6 +130,79 @@ struct ContentViewModelQualityDiagnosisTests {
         #expect(photo.aiDiagnosisSchemaVersion == PhotoQualityDiagnosisGenerator.currentSchemaVersion)
     }
 
+    // MARK: - 手動の再解析
+
+    @Test func reanalysisRerunsAlreadyAnalyzedAndFailedPhotos() async {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/ai-reanalysis-target.jpg"))
+        let previousDiagnosisDate = Date(timeIntervalSinceNow: -3600)
+        photo.aiDiagnosisFetchedAt = previousDiagnosisDate
+        photo.aiDiagnosisSchemaVersion = PhotoQualityDiagnosisGenerator.currentSchemaVersion
+        photo.aiLabelingFailedAt = Date(timeIntervalSinceNow: -3600)
+        photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
+        let content = ContentViewModel()
+        content.photos = [photo]
+        content.aiLabelingGenerator = AILabelingGenerator(
+            imageProvider: StubQualityImageProvider(providesImage: true),
+            classifier: StubLabelingClassifier()
+        )
+        content.qualityDiagnosisGenerator = PhotoQualityDiagnosisGenerator(
+            imageProvider: StubQualityImageProvider(providesImage: true),
+            diagnoser: StubQualityDiagnoser(result: Self.neutralDiagnosis)
+        )
+        // 通常の対象判定では、どちらも処理済み・再試行不要の扱い
+        #expect(content.aiLabelingTargetPhotos().isEmpty)
+        #expect(content.aiQualityDiagnosisTargetPhotos().isEmpty)
+
+        content.reanalyzeAI([photo])
+
+        #expect(await wait {
+            photo.aiLabelingFetchedAt != nil
+                && (photo.aiDiagnosisFetchedAt ?? .distantPast) > previousDiagnosisDate
+        })
+        #expect(photo.aiLabelingFailedAt == nil)
+        #expect(photo.aiCategoryRawValues == [AISubjectCategory.person.rawValue])
+        #expect(content.aiLabelingReanalysisURLs.isEmpty)
+        #expect(content.aiQualityDiagnosisReanalysisURLs.isEmpty)
+        #expect(content.aiAnalysisFailedPhotos.isEmpty)
+    }
+
+    @Test func reanalysisDuringStagingOnlyQueuesPhotos() async {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/ai-reanalysis-staging.jpg"))
+        photo.aiLabelingFetchedAt = Date()
+        photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
+        let content = ContentViewModel()
+        content.photos = [photo]
+        let staging = Task<Void, Never> { try? await Task.sleep(for: .seconds(10)) }
+        content.photoStagingTask = staging
+        defer { staging.cancel() }
+        let tokenBefore = content.aiLabelingToken
+
+        content.reanalyzeAI([photo])
+
+        // フォルダ読み込み側の解析を止めないよう世代は進めず、開始時に拾わせる
+        #expect(content.aiLabelingToken == tokenBefore)
+        #expect(content.aiLabelingTargetPhotos().map(\.fileURL) == [photo.fileURL])
+        #expect(content.aiQualityDiagnosisTargetPhotos().map(\.fileURL) == [photo.fileURL])
+    }
+
+    @Test func prioritizingMovesRequestedPhotosFirstAndKeepsOrder() {
+        let photos = (0..<5).map { Photo(fileURL: URL(fileURLWithPath: "/tmp/ai-priority-\($0).jpg")) }
+        let requested: Set<URL> = [photos[3].fileURL, photos[1].fileURL]
+
+        let ordered = ContentViewModel.prioritizing(requested, in: photos)
+
+        #expect(ordered.map(\.fileURL) == [1, 3, 0, 2, 4].map { photos[$0].fileURL })
+    }
+
+    private static let neutralDiagnosis = PhotoQualityDiagnosis(
+        aestheticsScore: 0.5,
+        isUtility: false,
+        faceQualityScore: nil,
+        exposureBias: 0,
+        sharpnessScore: nil,
+        compositionOffsetScore: nil
+    )
+
     // 診断結果はバックグラウンドのTaskからMainActorへ戻って反映されるため、条件成立をポーリングで待つ
     private func wait(until condition: @MainActor () -> Bool) async -> Bool {
         for _ in 0..<100 {
@@ -153,5 +226,11 @@ private struct StubQualityDiagnoser: PhotoQualityDiagnosing {
 
     func diagnose(_: NSImage) -> PhotoQualityDiagnosis? {
         result
+    }
+}
+
+private struct StubLabelingClassifier: AILabelingClassifying {
+    func classify(_: NSImage) -> VisionLabelClassification? {
+        VisionLabelClassification(categories: [.person], rawIdentifiers: ["test"])
     }
 }

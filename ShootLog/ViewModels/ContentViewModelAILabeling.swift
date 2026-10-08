@@ -12,6 +12,8 @@ extension ContentViewModel {
         snapshots: [URL: FileAttributesSnapshot],
         token aiLabelingToken: Int
     ) async {
+        // 手動の再解析で世代が進んでいたら、古い対象で生成器を上書きしない
+        guard aiLabelingToken == self.aiLabelingToken else { return }
         let aiTargets = targetPhotos.map {
             AILabelingTarget(
                 url: $0.fileURL,
@@ -20,7 +22,7 @@ extension ContentViewModel {
             )
         }
         let aiTotal = aiTargets.count
-        await AILabelingGenerator.shared.start(
+        await aiLabelingGenerator.start(
             targets: aiTargets,
             around: 0,
             progress: { [weak self] done, total in
@@ -34,6 +36,7 @@ extension ContentViewModel {
                 Task { @MainActor in
                     guard let self else { return }
                     guard aiLabelingToken == self.aiLabelingToken else { return }
+                    self.aiLabelingReanalysisURLs.remove(url)
                     if let index = photoIndex[url], self.photos.indices.contains(index) {
                         let photo = self.photos[index]
                         if let result {
@@ -65,6 +68,7 @@ extension ContentViewModel {
     // 前回失敗した写真は、失敗の原因が解消し得る場合だけ対象に戻す
     func aiLabelingTargetPhotos(now: Date = Date()) -> [Photo] {
         photos.filter { photo in
+            if aiLabelingReanalysisURLs.contains(photo.fileURL) { return true }
             if let failedAt = photo.aiLabelingFailedAt {
                 return shouldRetryAIFailure(
                     of: photo,
@@ -107,5 +111,51 @@ extension ContentViewModel {
     // 結果を反映する写真の索引（fileURL → photos 内の位置）
     func photoIndexByURL() -> [URL: Int] {
         Dictionary(uniqueKeysWithValues: photos.enumerated().map { ($1.fileURL, $0) })
+    }
+}
+
+// MARK: - 手動の再解析
+
+extension ContentViewModel {
+    /// 被写体認識・画質診断で失敗を記録した写真。ツールバーの一括再解析の対象
+    var aiAnalysisFailedPhotos: [Photo] {
+        photos.filter { $0.aiLabelingFailedAt != nil || $0.aiDiagnosisFailedAt != nil }
+    }
+
+    /// `urls` に含まれる写真を先頭へ寄せる。それぞれの中では元の並び（写真一覧の順）を保つ
+    static func prioritizing(_ urls: Set<URL>, in photos: [Photo]) -> [Photo] {
+        guard !urls.isEmpty else { return photos }
+        return photos.filter { urls.contains($0.fileURL) } + photos.filter { !urls.contains($0.fileURL) }
+    }
+
+    /// 指定した写真の被写体認識と画質診断を、分類済み・失敗済みかに関わらずやり直す。
+    /// 指定した写真を先頭に、まだ処理していない写真も含めて現在の写真ソースのバッチを組み直す。
+    func reanalyzeAI(_ requested: [Photo]) {
+        guard !requested.isEmpty else { return }
+        let urls = Set(requested.map(\.fileURL))
+        aiLabelingReanalysisURLs.formUnion(urls)
+        aiQualityDiagnosisReanalysisURLs.formUnion(urls)
+        showToast(String(localized: "toast.aiReanalysisStarted \(requested.count)"))
+
+        // 写真の段階挿入中は、フォルダ読み込み側のバックグラウンド解析がまだ始まっていない。
+        // 世代を進めるとその解析（EXIF先読み・キャプション生成を含む）を止めてしまうため、
+        // 対象に加えるだけにして、あちらの開始時に拾わせる
+        guard photoStagingTask == nil else { return }
+
+        let labelingToken = beginAILabeling()
+        let diagnosisToken = beginAIQualityDiagnosis()
+        let targetPhotos = Self.prioritizing(urls, in: aiLabelingTargetPhotos())
+        let photoIndex = photoIndexByURL()
+        let snapshots = fileAttributesSnapshots
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.startAILabeling(
+                targetPhotos: targetPhotos,
+                photoIndex: photoIndex,
+                snapshots: snapshots,
+                token: labelingToken
+            )
+            await self.startAIQualityDiagnosis(token: diagnosisToken, around: nil, prioritizing: urls)
+        }
     }
 }

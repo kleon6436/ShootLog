@@ -336,8 +336,10 @@ extension ContentViewModel {
         cancelPhotoCaption()
         clearDetectedAICategories()
         selectedAICategories.removeAll()
+        aiLabelingReanalysisURLs.removeAll()
+        aiQualityDiagnosisReanalysisURLs.removeAll()
         await PreviewGenerator.shared.cancel()
-        await AILabelingGenerator.shared.cancel()
+        await aiLabelingGenerator.cancel()
         await qualityDiagnosisGenerator.cancel()
         await EXIFPrefetcher.shared.cancel()
         if #available(macOS 27, *) {
