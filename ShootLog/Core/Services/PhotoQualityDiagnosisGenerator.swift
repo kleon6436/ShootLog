@@ -25,6 +25,9 @@ actor PhotoQualityDiagnosisGenerator {
     static let currentSchemaVersion = 1
     // 被写体認識と同時に走るため、CPU/GPU競合が体感速度に出るなら両者でのスロットル統合を検討する。
     private static let decodeThrottle = ImageDecodeThrottle(maxConcurrent: 2)
+    // 画像取得2件・推論2件が重なれば十分。コア数に比例させると、推論待ちのワーカーが
+    // 3200pxプロキシを抱えたまま並び、メモリを圧迫するだけになる
+    private static let maxWorkers = 4
 
     private let imageProvider: any AILabelingImageProviding
     private let diagnoser: any PhotoQualityDiagnosing
@@ -95,7 +98,7 @@ actor PhotoQualityDiagnosisGenerator {
     ) async -> Bool {
         await PrioritizedBatchRunner.run(
             items: targets,
-            maxWorkers: max(2, ProcessInfo.processInfo.activeProcessorCount - 2),
+            maxWorkers: Self.maxWorkers,
             progress: progress,
             process: { target in
                 let result = await Self.diagnose(
@@ -125,6 +128,14 @@ actor PhotoQualityDiagnosisGenerator {
         await decodeThrottle.release()
 
         guard let image else { return nil }
-        return diagnoser.diagnose(image)
+        // Vision は同期処理で協調スレッドを塞ぐため、被写体認識・画質診断の合計同時数を絞る
+        do {
+            try await ImageDecodeThrottle.visionInference.acquire()
+        } catch {
+            return nil
+        }
+        let result = diagnoser.diagnose(image)
+        await ImageDecodeThrottle.visionInference.release()
+        return result
     }
 }
