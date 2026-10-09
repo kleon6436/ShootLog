@@ -117,6 +117,43 @@ struct PreviewCacheStoreTests {
         #expect(cached.height == proxy.height)
     }
 
+    @Test func concurrentRequestsForSameSourceShareOneGeneration() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 640, height: 400, in: sandbox)
+        let cacheDirectory = sandbox.appendingPathComponent("cache", isDirectory: true)
+        let store = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
+
+        // プレビュー生成・被写体認識・画質診断が同じ写真を同時に要求する状況
+        async let generated = store.generate(for: source)
+        async let first = store.proxy(for: source)
+        async let second = store.proxy(for: source)
+        let (didGenerate, firstProxy, secondProxy) = await (generated, first, second)
+
+        #expect(didGenerate)
+        let firstImage = try #require(firstProxy)
+        let secondImage = try #require(secondProxy)
+        #expect(max(firstImage.width, firstImage.height) <= 256)
+        #expect(firstImage.width == secondImage.width)
+        #expect(try cachedFiles(in: cacheDirectory).count == 1)
+    }
+
+    @Test func cancelledWaiterDoesNotAbortSharedGeneration() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = try writePNG(width: 640, height: 400, in: sandbox)
+        let cacheDirectory = sandbox.appendingPathComponent("cache", isDirectory: true)
+        let store = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
+
+        let cancelled = Task { await store.proxy(for: source) }
+        let kept = Task { await store.proxy(for: source) }
+        cancelled.cancel()
+
+        _ = await cancelled.value
+        #expect(await kept.value != nil)
+        #expect(await store.cachedProxy(for: source) != nil)
+    }
+
     @Test func cachedProxyLoadsFromDiskInNewInstance() async throws {
         let sandbox = try makeSandbox()
         defer { try? FileManager.default.removeItem(at: sandbox) }

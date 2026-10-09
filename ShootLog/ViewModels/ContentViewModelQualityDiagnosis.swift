@@ -29,14 +29,15 @@ extension ContentViewModel {
     // MARK: - Diagnosis
 
     /// 画質診断をバックグラウンドで開始する。フォルダ／iCloud写真ライブラリ双方の読み込みから呼ぶ。
-    func startAIQualityDiagnosis(token: Int, around selectedIndex: Int?) async {
+    /// - Parameter prioritizing: 手動の再解析で先に処理する写真。`selectedIndex` の近傍より優先する
+    func startAIQualityDiagnosis(
+        token: Int,
+        around selectedIndex: Int?,
+        prioritizing prioritizedURLs: Set<URL> = []
+    ) async {
         guard token == aiQualityDiagnosisToken else { return }
 
-        let targets = photos
-            .filter {
-                $0.aiDiagnosisFetchedAt == nil
-                    || ($0.aiDiagnosisSchemaVersion ?? 1) < PhotoQualityDiagnosisGenerator.currentSchemaVersion
-            }
+        let targets = Self.prioritizing(prioritizedURLs, in: aiQualityDiagnosisTargetPhotos())
             .map {
                 AILabelingTarget(
                     url: $0.fileURL,
@@ -63,6 +64,7 @@ extension ContentViewModel {
                 Task { @MainActor in
                     guard let self else { return }
                     guard token == self.aiQualityDiagnosisToken else { return }
+                    self.aiQualityDiagnosisReanalysisURLs.remove(url)
                     if let index = photoIndex[url], self.photos.indices.contains(index) {
                         self.apply(diagnosis, to: self.photos[index])
                     }
@@ -78,12 +80,35 @@ extension ContentViewModel {
         )
     }
 
-    // 画像自体を解決できなかった場合（プロキシ未生成・iCloud未エクスポート等の一時的要因が多い）は
-    // fetchedAt を立てず、次回のフォルダ／iCloudライブラリ再訪で再診断できるようにする。
-    // Vision処理が失敗しただけ（画像は解決できた＝diagnosisは非nil）のときは、従来通り fetchedAt を
-    // 立てて無限リトライを防ぐ。
+    // 未診断、または診断ロジックの世代が古い写真を対象にする。
+    // 前回失敗した写真は、被写体認識と同じ条件（shouldRetryAIFailure）でだけ対象に戻す
+    func aiQualityDiagnosisTargetPhotos(now: Date = Date()) -> [Photo] {
+        photos.filter { photo in
+            if aiQualityDiagnosisReanalysisURLs.contains(photo.fileURL) { return true }
+            if let failedAt = photo.aiDiagnosisFailedAt {
+                return shouldRetryAIFailure(
+                    of: photo,
+                    failedAt: failedAt,
+                    failedSchemaVersion: photo.aiDiagnosisSchemaVersion,
+                    currentSchemaVersion: PhotoQualityDiagnosisGenerator.currentSchemaVersion,
+                    now: now
+                )
+            }
+            return photo.aiDiagnosisFetchedAt == nil
+                || (photo.aiDiagnosisSchemaVersion ?? 1) < PhotoQualityDiagnosisGenerator.currentSchemaVersion
+        }
+    }
+
+    // 画像を解決できなかった・Visionが結果を返さなかった場合は fetchedAt を立てずに失敗日時を記録する。
+    // 毎回再診断すると読めない写真がある限り進捗表示が終わらないため、再試行は shouldRetryAIFailure に従う。
+    // Vision が一部スコアしか返せなかった（diagnosis は非nil）ときは診断済みとして扱う。
     private func apply(_ diagnosis: PhotoQualityDiagnosis?, to photo: Photo) {
-        guard let diagnosis else { return }
+        guard let diagnosis else {
+            photo.aiDiagnosisFailedAt = Date()
+            photo.aiDiagnosisSchemaVersion = PhotoQualityDiagnosisGenerator.currentSchemaVersion
+            return
+        }
+        photo.aiDiagnosisFailedAt = nil
         photo.aiAestheticsOverallScore = diagnosis.aestheticsScore
         photo.aiAestheticsIsUtility = diagnosis.isUtility
         photo.aiFaceQualityScore = diagnosis.faceQualityScore
