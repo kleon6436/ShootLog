@@ -160,7 +160,7 @@ struct SidebarModeView: View {
         // 表示位置（何枚中の何枚目か）はビューア右上。編集ツールバーと上下で役割を分ける
         .overlay(alignment: .topTrailing) {
             if vm.selectedPhoto != nil {
-                CounterBadge(text: vm.visibleCounterText, font: .caption)
+                CounterBadge(text: vm.displayedCounterText, font: .caption)
                     .accessibilityLabel(positionAccessibilityLabel)
                     .padding(.top, 14)
                     .padding(.trailing, 16)
@@ -211,8 +211,8 @@ struct SidebarModeView: View {
     // VoiceOver では「3 / 12」のスラッシュが意味を成さないため、位置と総数を文章で読み上げる。
     // 絞り込みで選択中写真が一覧から外れている間は位置を偽らず、表示そのまま（—）を読ませる
     private var positionAccessibilityLabel: Text {
-        guard let index = vm.visibleIndex else { return Text(verbatim: vm.visibleCounterText) }
-        return Text("a11y.viewer.position \(index + 1) \(vm.visiblePhotos.count)")
+        guard let index = vm.displayedIndex else { return Text(verbatim: vm.displayedCounterText) }
+        return Text("a11y.viewer.position \(index + 1) \(vm.displayedPhotos.count)")
     }
 
     // トーストがビューア下端中央の編集ツールバーと重ならないよう、表示中はその上へ退避させる。
@@ -231,11 +231,7 @@ struct SidebarModeView: View {
     // displayedPhotos（検索・AIカテゴリ絞り込み後）基準かつ端でクランプしループしないため、
     // wrapsAround は指定しない
     private var neighborPrefetchURLs: [URL] {
-        let displayed = vm.displayedPhotos
-        let index = vm.selectedPhoto.flatMap { selected in
-            displayed.firstIndex(where: { $0.id == selected.id })
-        }
-        return HighResPrefetcher.neighborURLs(in: displayed, around: index)
+        HighResPrefetcher.neighborURLs(in: vm.displayedPhotos, around: vm.displayedIndex)
     }
 
     // MARK: - Toolbar

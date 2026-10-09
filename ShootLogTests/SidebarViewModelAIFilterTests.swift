@@ -39,6 +39,26 @@ struct SidebarViewModelAIFilterTests {
         #expect(vm.content.selectedPhoto?.id == photos[0].id)
     }
 
+    // カウンタも displayedPhotos 基準で数える（キー送りと同じ一覧）
+    @Test func counterFollowsDisplayedPhotos() throws {
+        let vm = try makeViewModel()
+        let photos = [
+            makePhoto(name: "person-1.jpg", categories: [.person]),
+            makePhoto(name: "animal.jpg", categories: [.animal]),
+            makePhoto(name: "person-2.jpg", categories: [.person])
+        ]
+        vm.content.photos = photos
+        vm.selectedAICategories = [.person]
+        vm.content.selectedPhoto = photos[2]
+
+        #expect(vm.displayedIndex == 1)
+        #expect(vm.displayedCounterText == "2 / 2")
+
+        vm.content.selectedPhoto = photos[1]
+        #expect(vm.displayedIndex == nil)
+        #expect(vm.displayedCounterText == "— / 2")
+    }
+
     @Test func selectedAICategoryKeepsOnlyMatchingPhotos() throws {
         let vm = try makeViewModel()
         let photos = [

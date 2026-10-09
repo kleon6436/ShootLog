@@ -169,6 +169,12 @@ final class SidebarViewModel: ContentViewModelProxy {
     // （お気に入り・検索・AIカテゴリの絞り込み後）を基準にする
     func selectNext() { content.selectNext(in: { [weak self] in self?.displayedPhotos ?? [] }) }
     func selectPrevious() { content.selectPrevious(in: displayedPhotos) }
+    // カウンタ・VoiceOver の位置読み上げも、キー送りと同じ displayedPhotos 基準にする
+    var displayedIndex: Int? {
+        guard let selectedPhoto = content.selectedPhoto else { return nil }
+        return displayedPhotos.firstIndex(where: { $0.id == selectedPhoto.id })
+    }
+    var displayedCounterText: String { counterText(in: displayedPhotos) }
     func loadEXIFIfNeeded(for photo: Photo) async { await content.loadEXIFIfNeeded(for: photo) }
     func setCropRect(_ rect: CGRect?) { content.setCropRect(rect) }
     func rotateSelectedPhoto() { content.rotateSelectedPhoto() }
