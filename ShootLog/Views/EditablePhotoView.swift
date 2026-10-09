@@ -50,7 +50,13 @@ struct EditablePhotoView: View {
                     )
                     // 選択が既に次の写真へ移っていれば、古い写真で現像 VM を上書きしない
                     // （新しいタスク側が改めて load する）
-                    guard waitsForExport, !Task.isCancelled else { return }
+                    guard waitsForExport, !Task.isCancelled, let fileURL = photo?.fileURL else { return }
+                    // 書き出しに失敗した（オフライン等）場合、vm.load はキャンセルされずに戻る。
+                    // 原本が無いまま読むと撮影時 WB を「取得不能」と記録してしまうため、実在を確かめてから読む
+                    let exported = await Task.detached(priority: .userInitiated) {
+                        FileManager.default.fileExists(atPath: fileURL.path)
+                    }.value
+                    guard exported, !Task.isCancelled else { return }
                     loadDevelop(displaySize: geometry.size)
                 }
                 .onChange(of: geometry.size) { _, newSize in

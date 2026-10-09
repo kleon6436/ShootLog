@@ -232,6 +232,10 @@ final class DevelopViewModel {
     /// 適用直前のレコードの `schemaVersion`（レコードが無ければ `nil`）。適用で `setParameters` が
     /// 世代を引き上げても、Undo で元の解釈世代（v1 の RAW、旧方式カラーグレーディングの v4 等）へ戻す。
     private var undoSchemaVersion: Int?
+    /// この写真で中立の調整値を保存したか。中立でもレコードを残す経路（Undo 保持・ラスタ所有）が
+    /// あるため、写真を離れる時点でそれを掃除する必要があるかの目印にする（通常の写真送りで余計な
+    /// フェッチをしないため）。
+    private var mayHaveKeptNeutralRecord = false
 
     /// 「調整をペースト」に使えるクリップボードがあるか。
     private(set) var canPaste = false
@@ -380,6 +384,8 @@ final class DevelopViewModel {
 
         // 選択中写真のキャッシュではなく、ロード対象の写真に属するレコードを読む。
         let loadedSettings = currentPhotoDevelopSettings
+        // 前回 Undo のために残した中立レコードが既にあれば、この写真を離れる時点で掃除対象にする
+        mayHaveKeptNeutralRecord = loadedSettings?.parameters.isNeutral ?? false
         isApplyingLoadedState = true
         parameters = loadedSettings?.parameters ?? .neutral
         isApplyingLoadedState = false
@@ -435,7 +441,12 @@ final class DevelopViewModel {
                 let usesToneMaskedColorGrading = toneMaskedColorGradingActive
                 let asShot = usesToneMaskedColorGrading ? asShotWhiteBalance : nil
                 let generation = renderGeneration
+                let debounce = renderDebounce
                 renderTask = Task { [weak self] in
+                    // 写真をキー送りで素早く通過するたびにデコードを始めないよう、他の描画要求と同じく少し待つ
+                    // （待機中に次の写真へ切り替われば load 冒頭の renderTask.cancel() で取り消される）
+                    try? await Task.sleep(for: debounce)
+                    guard !Task.isCancelled else { return }
                     await self?.render(
                         photo: photo, parameters: params, rotation: rot, cropRect: crop,
                         useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
@@ -726,6 +737,8 @@ final class DevelopViewModel {
 
     /// セクション単位で調整を中立へ戻す。didSet 経由でプレビュー再描画・保存が予約される。
     func resetSection(_ section: DevelopSection) {
+        // 実行中の Auto WB 推定が後から届いて、リセットしたホワイトバランスを Auto へ戻さないようにする
+        if section == .whiteBalance { cancelPendingAutomaticWhiteBalance() }
         guard parameters.isModified(in: section) else { return }
         parameters.reset(section)
     }
@@ -1142,6 +1155,7 @@ final class DevelopViewModel {
         // 消すと cascade で MaskRaster が消え（Undo で戻した AI マスクのラスタが失われる）、
         // schemaVersion も失われる（v1 の RAW レコードが Undo 後に現行世代として作り直され見た目が変わる）。
         let keepsRecord = undoParameters != nil
+        if params.isNeutral { mayHaveKeptNeutralRecord = true }
         pendingPersist = (photoID, params, keepsRecord)
         persistTask = Task { [weak self] in
             try? await Task.sleep(for: self?.persistDebounce ?? .zero)
@@ -1170,7 +1184,7 @@ final class DevelopViewModel {
         MaskRasterGarbageCollector.collect(forPhotoID: photoID, in: context)
         // 調整値が中立のときだけ確認する（通常の写真送りで余計なフェッチを増やさない）。
         // 保留中の保存は呼び出し前にフラッシュ済みなので、`parameters` はレコードと一致している。
-        if parameters.isNeutral,
+        if mayHaveKeptNeutralRecord, parameters.isNeutral,
            let settings = content.developSettings(forPhotoID: photoID),
            settings.maskRasters.isEmpty, settings.parameters.isNeutral {
             content.resetDevelop(forPhotoID: photoID)

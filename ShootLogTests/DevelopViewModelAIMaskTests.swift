@@ -423,7 +423,11 @@ struct DevelopViewModelAIMaskTests: DevelopViewModelTesting {
         await settle()
         let context = try #require(content.modelContext)
 
+        // プリセット置き換えは写真固有の AI マスクを残すので、続けてマスクを消して中立にする
+        // （Undo はプリセット適用前へ戻せる状態のまま）
         vm.applyPreset(DevelopPreset(name: "N", parameters: .neutral, sortIndex: 0), includeMasks: true)
+        let aiLayerID = try #require(vm.maskLayers.first).id
+        vm.removeMask(id: aiLayerID)
         #expect(vm.parameters.isNeutral)
         await settle()
 
@@ -439,6 +443,25 @@ struct DevelopViewModelAIMaskTests: DevelopViewModelTesting {
         #expect(settings.parameters.exposure == 1)
     }
 
+    /// マスクを含めたプリセット置き換えでも、この写真固有の AI マスクは残る（ペーストと同じ）。
+    @Test func replacingPresetWithMasksKeepsOwnAIMasks() async throws {
+        let engine = SpyEngine()
+        let generator = SpyMaskGenerator()
+        generator.stub = SubjectMaskResult(
+            pngData: try makeMaskPNGData(), longEdge: 8, instanceIndices: [0]
+        )
+        let (vm, _, _) = try await makeMaskViewModelWithContent(engine: engine, maskGenerator: generator)
+        await vm.addAIMask(kind: .foregroundSubject)
+        let aiLayerID = try #require(vm.maskLayers.first).id
+
+        var presetParams = DevelopParameters.neutral
+        let presetMask = makeMaskLayer()
+        presetParams.masks = [presetMask]
+        vm.applyPreset(DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0), includeMasks: true)
+
+        #expect(vm.maskLayers.map(\.id) == [aiLayerID, presetMask.id])
+    }
+
     /// Undo のために残した中立レコードは、写真を離れた時点で通常どおり削除される。
     @Test func neutralRecordKeptForUndoIsRemovedWhenLeavingPhoto() async throws {
         let engine = SpyEngine()
@@ -452,6 +475,8 @@ struct DevelopViewModelAIMaskTests: DevelopViewModelTesting {
         let context = try #require(content.modelContext)
 
         vm.applyPreset(DevelopPreset(name: "N", parameters: .neutral, sortIndex: 0), includeMasks: true)
+        vm.removeMask(id: try #require(vm.maskLayers.first).id)
+        #expect(vm.parameters.isNeutral)
         await settle()
         #expect(try context.fetch(FetchDescriptor<DevelopSettings>()).count == 1)
 

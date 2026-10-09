@@ -50,12 +50,20 @@ extension DevelopViewModel {
             if case .ai = layer.source { return false }
             return true
         }
+        // 丸ごと置き換えでマスクも取り込む場合も、この写真固有の AI マスクは残す（`pasteAdjustments` と同じ）。
+        // プリセット側の AI マスクは移せない以上、置き換えで貼り付け先の AI マスクだけが消えてラスタも GC される
+        let ownAIMasks = parameters.masks.filter { layer in
+            if case .ai = layer.source { return true }
+            return false
+        }
         if !includeMasks {
             presetParams.masks = relative ? [] : parameters.masks
+        } else if !relative {
+            presetParams.masks = ownAIMasks + presetParams.masks
         }
-        // 取り込んだマスクは末尾に積まれる（relative は追記、丸ごと置き換えは全部が外来）。
+        // 取り込んだマスクは末尾に積まれる（relative は追記、置き換えは残した AI マスクの後ろから外来）。
         // .ai は上で除外済みなので実際にはno-opになるが、防御的に残す（§3.2参照整合性ケース3）。
-        let foreignMasksFrom = includeMasks ? (relative ? parameters.masks.count : 0) : nil
+        let foreignMasksFrom = includeMasks ? (relative ? parameters.masks.count : ownAIMasks.count) : nil
         let target = relative ? parameters.applying(delta: presetParams) : presetParams
         applyReplacingParameters(target, duplicatingAIMaskRastersFrom: foreignMasksFrom)
     }
