@@ -22,13 +22,16 @@ enum PhotoRepository {
             at: folderURL,
             includingPropertiesForKeys: [
                 .isRegularFileKey,
+                .isSymbolicLinkKey,
                 .fileSizeKey,
                 .contentModificationDateKey,
                 .creationDateKey
             ],
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         )
-        let filtered = contents.filter { supportedExtensions.contains($0.pathExtension.lowercased()) }
+        let filtered = contents.filter {
+            supportedExtensions.contains($0.pathExtension.lowercased()) && isRegularFile($0)
+        }
 
         // ソート比較器の内部で resourceValues を呼ぶと O(n log n) 回の I/O になる。
         // 先にまとめてプリフェッチしてから辞書参照でソートする
@@ -49,6 +52,16 @@ enum PhotoRepository {
                 < (snapshots[$1]?.creationDate ?? .distantPast)
         }
         return ScanResult(urls: sorted, snapshots: snapshots)
+    }
+
+    // 拡張子が対応形式でもディレクトリ（"x.jpg" という名前のフォルダ等）やパッケージは除外する。
+    // シンボリックリンクはリンク先が通常ファイルの場合のみ対象にする
+    private static func isRegularFile(_ url: URL) -> Bool {
+        let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        if values?.isRegularFile == true { return true }
+        guard values?.isSymbolicLink == true else { return false }
+        let target = url.resolvingSymlinksInPath()
+        return (try? target.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
     }
 }
 

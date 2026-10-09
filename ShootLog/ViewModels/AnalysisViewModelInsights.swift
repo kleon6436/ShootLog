@@ -1,8 +1,9 @@
 import Foundation
 
 // 絞り・SS・ISO各タブに表示する、お気に入り傾向の1行insight文を生成する。
-// AnalysisViewModel.photos は let で不変であり、EXIFはシート表示後に非同期で
-// 埋まっていくため、ここでの計算は意図的にキャッシュせず computed var のままにする。
+// AnalysisViewModel.photos は let で不変だが、EXIFはシート表示後に非同期で
+// 埋まっていくため、ここでの計算は意図的にキャッシュせず computed var のままにする
+// （件数・カメラ一覧・チャートデータは AnalysisViewModel.refresh() で再計算する）。
 extension AnalysisViewModel {
 
     // insight文を出すために必要な最小サンプル数（当該指標のEXIF値ありのお気に入り枚数）

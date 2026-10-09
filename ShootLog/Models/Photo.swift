@@ -42,6 +42,10 @@ final class Photo {
     var isFavorite: Bool
     var note: String
     var exifFetchedAt: Date?    // EXIF取得済み判定用フラグ（cameraModel等の欠損に依存しない）
+    /// shootingDate がメタデータ（EXIF DateTimeOriginal）由来かどうか。
+    /// false はEXIFに撮影日時が無く、shootingDate がレコード作成日時のままであることを示す。
+    /// nil は未判定（フラグ導入前の既存レコード・iCloud写真の作成日時）で、表示側は exifFetchedAt で判断する
+    var shootingDateFromMetadata: Bool? = nil
     // 軽量マイグレーションのため宣言時デフォルト値が必須（既存行にはinitが走らない）
     var successTagRawValues: [String] = []
     var aiCategoryRawValues: [String] = []

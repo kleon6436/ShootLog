@@ -171,7 +171,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 ## 現在実装されている機能
 
 - お気に入りの登録・解除、Favorites Only絞り込み
-- 写真メモの保存
+- 写真メモの表示（EXIFパネルに保存済みの `Photo.note` を表示するのみ。編集UI・保存経路は未実装）
 - ImageIOによるカメラ、レンズ、絞り、シャッター速度、ISO、焦点距離、撮影日時のEXIF取得
 - サイドバー、フルスクリーン、スライドショーの3表示モード
 - 左サイドバーと右EXIFパネルの表示切り替え
@@ -188,7 +188,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
 
-- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` ほか optional 4 プロパティ、`loadEXIFIfNeeded` が EXIF と独立に取得・保存）
+- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、`shootingDateFromMetadata`（撮影日時がEXIF由来か。optional・軽量マイグレーション。false/未取得のフォルダ写真はEXIFパネルに撮影日時を出さない）、撮影時ホワイトバランス（`asShotTemperatureKelvin` ほか optional 4 プロパティ、`loadEXIFIfNeeded` が EXIF と独立に取得・保存）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
 - `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5。2〜4 は編集時に現行世代へ自動バンプ（旧方式のカラーグレーディングが中立でない間は 4 で止める）、1 は据え置き。5=トーン域マスク カラーグレーディング）、更新日時。`EditInfo` とは独立
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
@@ -238,7 +238,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW向け手動レンズ補正、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、WYSIWYG 維持）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ表示、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW向け手動レンズ補正、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、WYSIWYG 維持）。
 
 ### 制限付き・検証継続中
 
@@ -252,6 +252,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 未着手・スコープ外
 
+- 写真メモの編集・保存UI（`ContentViewModel.saveNote` は呼び出し経路が無く削除済み）
 - ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
 - 複数フォルダの同時表示
 - 外部アプリとの双方向同期

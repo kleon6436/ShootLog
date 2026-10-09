@@ -207,7 +207,14 @@ extension ContentViewModel {
         photo.pixelWidth   = exif.pixelWidth
         photo.pixelHeight  = exif.pixelHeight
         photo.fileSizeBytes = exif.fileSizeBytes
-        if let date = exif.shootingDate { photo.shootingDate = date }
+        if let date = exif.shootingDate {
+            photo.shootingDate = date
+            photo.shootingDateFromMetadata = true
+        } else if photo.phAssetLocalIdentifier == nil {
+            // フォルダ写真で撮影日時が無い場合、shootingDate はレコード作成日時のままのため表示させない。
+            // iCloud写真は PHAsset の作成日時が入っているので判定を変えない
+            photo.shootingDateFromMetadata = false
+        }
         photo.exifFetchedAt = Date()
     }
 

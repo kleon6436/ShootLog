@@ -51,6 +51,7 @@ extension ContentViewModel {
             ) {
                 history.securityBookmark = newBookmark
             }
+            updateHistoryLocation(history, to: url, context: context)
             history.lastAccessedAt = Date()
             saveOrReportError(context)
             currentFolderURL = url
@@ -348,13 +349,30 @@ extension ContentViewModel {
         }
     }
 
+    // ブックマーク解決後のURLが保存済みのURLと異なる（フォルダの名称変更・移動）場合に、
+    // 履歴のURL・表示名を実体へ追随させる。同じフォルダを指す別の履歴が既にあれば重複として削除し、
+    // addToHistory の URL 一致判定で同じフォルダが二重登録されないようにする
+    func updateHistoryLocation(_ history: FolderHistory, to resolvedURL: URL, context: ModelContext) {
+        let resolved = resolvedURL.standardizedFileURL
+        guard history.url.standardizedFileURL != resolved else { return }
+        let historyID = history.persistentModelID
+        let descriptor = FetchDescriptor<FolderHistory>()
+        let duplicates = ((try? context.fetch(descriptor)) ?? []).filter {
+            $0.persistentModelID != historyID && $0.url.standardizedFileURL == resolved
+        }
+        duplicates.forEach { context.delete($0) }
+        history.url = resolvedURL
+        history.displayName = resolvedURL.lastPathComponent
+    }
+
     private func addToHistory(url: URL, bookmark: Data, context: ModelContext) {
         let descriptor = FetchDescriptor<FolderHistory>(
             sortBy: [SortDescriptor(\.lastAccessedAt, order: .reverse)]
         )
         let all = (try? context.fetch(descriptor)) ?? []
 
-        if let existing = all.first(where: { $0.url == url }) {
+        let standardizedURL = url.standardizedFileURL
+        if let existing = all.first(where: { $0.url.standardizedFileURL == standardizedURL }) {
             existing.lastAccessedAt = Date()
             existing.securityBookmark = bookmark
             saveOrReportError(context)

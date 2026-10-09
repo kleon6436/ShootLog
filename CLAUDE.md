@@ -139,7 +139,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 - 空状態画面の「写真ライブラリを開く」から`PhotosLibraryPermissionService`が権限確認・リクエストを行う。フルアクセス以外（限定・拒否・未決定）は案内Alertのみで機能を提供しない。
 - フルアクセス時、`PhotosLibraryRepository.fetchAssets()`が画像アセット（`.image`のみ、動画は対象外）を撮影日時昇順で取得し、`ContentViewModel.currentPhotoSource`（`.folder(URL)` / `.photosLibrary`）で「写真ソースが開かれているか」の判定をフォルダ機能と共通化する。
 - 重複防止キーは`Photo.phAssetLocalIdentifier`（フォルダ写真は`nil`）。
-- **エクスポートキャッシュ方式**を採用: `Photo.fileURL`は`PhotosLibraryAssetExporter.defaultDirectory`（`~/Library/Caches/com.shootlog.app/icloud-import-v2/`）配下の、サニタイズしたlocalIdentifierをファイル名にしたプレースホルダーパス。実ファイルは未生成の状態で`Photo`が作られ、写真選択時（`PhotoImageViewModel.load` / `loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter.ensureExported(localIdentifier:fileURL:)`がPHAssetから高品質JPEGをこのパスへ書き込む（同一アセットへの同時要求はin-flight Taskで1本化）。これにより`ImageLoader`/`PreviewCacheStore`/`PhotoImageViewModel`/`EXIFService`/お気に入り・メモ・分析画面をほぼ無改修で再利用できる。
+- **エクスポートキャッシュ方式**を採用: `Photo.fileURL`は`PhotosLibraryAssetExporter.defaultDirectory`（`~/Library/Caches/com.shootlog.app/icloud-import-v2/`）配下の、サニタイズしたlocalIdentifierをファイル名にしたプレースホルダーパス。実ファイルは未生成の状態で`Photo`が作られ、写真選択時（`PhotoImageViewModel.load` / `loadEXIFIfNeeded`）に`PhotosLibraryAssetExporter.ensureExported(localIdentifier:fileURL:)`がPHAssetから高品質JPEGをこのパスへ書き込む（同一アセットへの同時要求はin-flight Taskで1本化）。これにより`ImageLoader`/`PreviewCacheStore`/`PhotoImageViewModel`/`EXIFService`/お気に入り・メモ表示・分析画面をほぼ無改修で再利用できる。
 - グリッドのサムネイルは`ImageLoader`のディスクキャッシュを経由せず、`PhotosLibraryThumbnailProvider`（PHImageManager直結の軽量パス）を使う専用経路（`PhotoThumbnailViewModel.load(photo:)`が`phAssetLocalIdentifier`の有無で分岐）。
 - `icloud-import-v2/`は上限2GiB（`PhotosLibraryAssetExporter.defaultMaxDiskBytes`）でmtime昇順eviction。起動時`warmUp()`とエクスポート成功のたびに整理し、設定画面「ディスクキャッシュを削除」の対象にも含まれる。
 - 分析画面はエクスポート未了（EXIF未取得）のiCloud写真を強制エクスポートしない。大量写真の一括ネットワークダウンロードを避けるため、既存の欠損データ処理（EXIFがnilのまま集計対象に含まれる）に委ねる。
@@ -189,7 +189,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 ## 現在実装されている機能
 
 - お気に入りの登録・解除、Favorites Only絞り込み
-- 写真メモの保存
+- 写真メモの表示（EXIFパネルに保存済みの `Photo.note` を表示するのみ。編集UI・保存経路は未実装）
 - ImageIOによるカメラ、レンズ、絞り、シャッター速度、ISO、焦点距離、撮影日時のEXIF取得
 - サイドバー、フルスクリーン、スライドショーの3表示モード
 - 左サイドバーと右EXIFパネルの表示切り替え
@@ -209,7 +209,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 
 主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
 
-- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` / `asShotTint` / `asShotWhiteBalanceIsEstimated` / `asShotWhiteBalanceFetchedAt`、いずれも optional・軽量マイグレーション。`loadEXIFIfNeeded` が EXIF と独立に取得・保存し、取得不能も `asShotWhiteBalanceFetchedAt` を立てて再試行を抑止する。推定値は `asShotWhiteBalanceEstimateVersion` が現行版（`ContentViewModel.asShotWhiteBalanceEstimateVersion`、2=グレーワールド推定の色かぶり符号修正）と異なれば取り直す）
+- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、`shootingDateFromMetadata`（撮影日時がEXIF由来か。optional・軽量マイグレーション。false/未取得のフォルダ写真はEXIFパネルに撮影日時を出さない）、撮影時ホワイトバランス（`asShotTemperatureKelvin` / `asShotTint` / `asShotWhiteBalanceIsEstimated` / `asShotWhiteBalanceFetchedAt`、いずれも optional・軽量マイグレーション。`loadEXIFIfNeeded` が EXIF と独立に取得・保存し、取得不能も `asShotWhiteBalanceFetchedAt` を立てて再試行を抑止する。推定値は `asShotWhiteBalanceEstimateVersion` が現行版（`ContentViewModel.asShotWhiteBalanceEstimateVersion`、2=グレーワールド推定の色かぶり符号修正）と異なれば取り直す）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
 - `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5）、更新日時。`EditInfo` とは独立。`schemaVersion` 世代: 1=全て標準チェーン / 2=RAW露出・WBを`CIRAWFilter`委譲 / 3=手動レンズ補正 / 4=絶対Kelvin/Tintのホワイトバランス / 5=トーン域マスク カラーグレーディング。version 2〜4 は編集時に現行世代へ自動バンプ（`setParameters`、追加値は中立既定で見た目不変。ただし旧方式のカラーグレーディングが中立でない間は 4 で止めて見た目を凍結、`DevelopSettings.bumpedSchemaVersion`）、version 1 は据え置き
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
@@ -260,7 +260,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、`PreviewCacheStore` / `PreviewGenerator` / `develop-base-v1`、WYSIWYG 維持）、AI画像診断（統合美的スコア・顔品質・露出・構図・シャープネス、右インスペクタ表示、バックグラウンド自動実行、`PhotoQualityDiagnoser` / `PhotoQualityInsightBuilder` / `PhotoQualityDiagnosisGenerator`）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ表示、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、`PreviewCacheStore` / `PreviewGenerator` / `develop-base-v1`、WYSIWYG 維持）、AI画像診断（統合美的スコア・顔品質・露出・構図・シャープネス、右インスペクタ表示、バックグラウンド自動実行、`PhotoQualityDiagnoser` / `PhotoQualityInsightBuilder` / `PhotoQualityDiagnosisGenerator`）。
 
 ### 制限付き・検証継続中
 
@@ -272,12 +272,13 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 - 単体の超解像書き出し（`UpscaleExporter`）も `EditInfo.cropRect` を適用する（v3 Phase 2）。回転前の原本を表示画像基準の矩形へ逆変換して切り抜いてから回転・拡大するため、現像→超解像チェーンと同じ構図・寸法になる。上限判定・所要時間見積り（`UpscaleExportViewModel.croppedInputPixelSize`）も切り抜き後の画素数で行う。
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
-- iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A〜D（権限基盤・一覧取得とサムネイル表示・フルサイズ表示とEXIF統合・キャッシュeviction）まで実装済み。詳細は「iCloud写真ライブラリの読み込み」章を参照。実機でのiCloud上のRAW写真表示、「Optimize Mac Storage」有効時のネットワーク経由ダウンロード体感、お気に入り・メモ・分析画面の実動作、キャッシュ削除の動作確認は未実施（実機・iCloud写真ライブラリが必要なため継続）。RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIは引き続きスコープ外。
+- iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A〜D（権限基盤・一覧取得とサムネイル表示・フルサイズ表示とEXIF統合・キャッシュeviction）まで実装済み。詳細は「iCloud写真ライブラリの読み込み」章を参照。実機でのiCloud上のRAW写真表示、「Optimize Mac Storage」有効時のネットワーク経由ダウンロード体感、お気に入り・メモ表示・分析画面の実動作、キャッシュ削除の動作確認は未実施（実機・iCloud写真ライブラリが必要なため継続）。RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIは引き続きスコープ外。
 - AI被写体認識・自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: Phase A〜D（データモデル・`VisionLabelClassifier`のカテゴリマッピングテーブル・`AILabelingGenerator`・ツールバーのカテゴリフィルタ/検索UI/進捗表示・ローカライズ）まで実装済み、ビルド成功。実RAWフォルダでの分類所要時間・体感速度、iCloud写真ライブラリ経由での分類動作、`VisionLabelClassifier`のマッピングテーブル網羅性（「その他」への分類率）、ツールバー新規ボタン・検索欄・進捗overlayの実機デザインQA（整列崩れ・ライトダーク可読性・ウィンドウ幅追従）は実機検証待ち。macOS 27以降限定のFoundation Models自然言語検索（Phase F）は未実装（実装着手前にApple公式リリースノートでのAPI最終確認が前提条件）。精度向上（判定閾値`hasMinimumPrecision(0.55, forRecall: 0.65)`への厳格化、入力をプレビュープロキシ/エクスポート済み高品質JPEGへ変更、`aiLabelingSchemaVersion`による既存写真の自動再分類、`.omc/plans/ai-classification-accuracy-improvement.md`）はビルド・全テストgreenだが、実RAWフォルダでの`.unknown`率変化・カテゴリ分布比較、iCloud写真（エクスポート済み/未エクスポート双方）での動作、既存フォルダ再訪問時の自動再分類は実機検証待ち。
 - AI画像診断（`.omc/plans/ai-photo-quality-diagnosis.md`）: Phase A〜C（対応OS引き上げ・データモデル・診断ロジック・バックグラウンド生成器・UI・進捗表示）実装済み、ビルド・テストgreen。macOS 15への引き上げにより macOS 14ユーザーはアプリ自体を起動できなくなる（対応環境表で明示済み）。`CalculateImageAestheticsScoresRequest` の処理コスト・GPU競合（`AILabelingGenerator` との同時実行）は実機での計測待ち。`CIEdges` ベースのシャープネス指標は真のブレ検出APIでなく精度が限定的（`DetectLensSmudgeRequest` への将来置き換え考慮）。Saliency重心ベースの構図判定は過度に簡略化（実際の良い構図（三分割法等）との乖離あり、継続検証）。顔品質スコアが小さい顔・複数人物シーン・極端なポーズで不安定。ルールベース閾値が実写真データなしでは大雑把（指摘の偏り可能性あり、実フォルダでの「良い点/改善ポイント分布」確認が必須）。RAW 3200pxプロキシ経由での診断がフル解像度でのブレ・ノイズ判定に影響する可能性（既存分析画面と同じ「欠損データ処理」方針で対応）。
 
 ### 未着手・スコープ外
 
+- 写真メモの編集・保存UI（`ContentViewModel.saveNote` は呼び出し経路が無く削除済み）
 - ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
 - 複数フォルダの同時表示
 - 外部アプリとの双方向同期

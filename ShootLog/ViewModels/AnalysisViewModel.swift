@@ -95,11 +95,29 @@ final class AnalysisViewModel {
 
     var totalCount: Int { photos.count }
 
-    // EXIF取得済み（絞り・SS・ISO・焦点距離 のいずれかがある）写真の枚数
-    let exifCount: Int
+    // EXIF取得済み（絞り・SS・ISO・焦点距離 のいずれかがある）写真の枚数。
+    // シート表示後にEXIFが一括取得されるため、refresh() で再計算する
+    private(set) var exifCount: Int = 0
 
-    // EXIFから取得できたカメラモデルの重複なし一覧（ソート済み）
-    let availableCameras: [String]
+    // EXIFから取得できたカメラモデルの重複なし一覧（ソート済み）。refresh() で再計算する
+    private(set) var availableCameras: [String] = []
+
+    // 集計の元になる非同期取得状態の指標。EXIF一括取得・AI分類の進行で変化する。
+    // View はこの値の変化を監視して refresh() を呼び、ヘッダー・カメラ一覧・チャートを最新化する
+    struct DataSignature: Equatable {
+        let exifFetchedCount: Int
+        let aiLabeledCount: Int
+    }
+
+    var dataSignature: DataSignature {
+        var exifFetched = 0
+        var aiLabeled = 0
+        for photo in photos {
+            if photo.exifFetchedAt != nil { exifFetched += 1 }
+            if photo.aiLabelingFetchedAt != nil { aiLabeled += 1 }
+        }
+        return DataSignature(exifFetchedCount: exifFetched, aiLabeledCount: aiLabeled)
+    }
 
     // カメラフィルター適用後の写真
     private(set) var filteredPhotos: [Photo] = []
@@ -117,10 +135,15 @@ final class AnalysisViewModel {
 
     init(photos: [Photo]) {
         self.photos = photos
-        self.exifCount = photos.filter {
+        refresh()
+    }
+
+    // 写真のEXIF・AI分類が後から更新されたときに、件数・カメラ一覧・チャートを再計算する
+    func refresh() {
+        exifCount = photos.filter {
             $0.aperture != nil || $0.shutterSpeed != nil || $0.iso != nil || $0.focalLength != nil
         }.count
-        self.availableCameras = Array(Set(photos.compactMap(\.cameraModel))).sorted()
+        availableCameras = Array(Set(photos.compactMap(\.cameraModel))).sorted()
         updateFilteredPhotos()
     }
 
