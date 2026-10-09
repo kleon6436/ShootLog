@@ -15,7 +15,14 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
 
     static let defaultDirectory: URL = {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("com.shootlog.app/previews-v1", isDirectory: true)
+        // v2: EXIF Orientation を適用して正立させたプロキシを保存する（v1 は格納向きのままで縦位置写真が横倒しだった）
+        return base.appendingPathComponent("com.shootlog.app/previews-v2", isDirectory: true)
+    }()
+
+    /// 保存形式が変わって参照されなくなった旧世代のディレクトリ（起動時に削除する）
+    static let legacyDirectories: [URL] = {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return [base.appendingPathComponent("com.shootlog.app/previews-v1", isDirectory: true)]
     }()
 
     // UserDefaults.integer(forKey:) は未設定時に 0 を返すため、既定値へフォールバックする。
@@ -120,6 +127,7 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     /// 起動時にキャッシュディレクトリを用意し、古いエントリを上限まで削除する。
     func warmUp() async {
         await Task.detached(priority: .utility) { [directory] in
+            for legacy in Self.legacyDirectories { try? FileManager.default.removeItem(at: legacy) }
             ImageFileCache.prepare(directory: directory, extensions: ["heic", "jpg"])
         }.value
         await evictToLimit()
@@ -290,10 +298,13 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
         }
     }
 
+    // EXIF Orientation を適用して正立させる（kCGImageSourceCreateThumbnailWithTransform）。
+    // 適用しないと縦位置の写真（Orientation 6/8）がサムネイル→プロキシの差し替えで横倒しになる
     private static func decodeDownsampled(source: CGImageSource, maxPixelSize: Int) -> CGImage? {
         let embeddedOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: false
         ]
         if let embedded = CGImageSourceCreateThumbnailAtIndex(source, 0, embeddedOptions as CFDictionary),
@@ -304,6 +315,7 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
         let downsampleOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: false
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary)
