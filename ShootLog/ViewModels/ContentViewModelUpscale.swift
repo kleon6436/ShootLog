@@ -12,14 +12,25 @@ extension ContentViewModel {
     func presentUpscaleExport() {
         guard let photo = selectedPhoto else { return }
         guard PhotoActionAvailability(photo: photo).hasLocalOriginalFile else { return }
-        let pixelSize = Self.readPixelSize(of: photo.fileURL)
-        upscaleExportViewModel = UpscaleExportViewModel(
-            inputPixelSize: pixelSize,
-            croppedInputPixelSize: Self.croppedUpscalePixelSize(
-                pixelSize, cropRect: currentEditInfo?.cropRect
+        // ヘッダ読み取りはファイルI/Oのため MainActor 外で行い、読み終えてからシートを出す
+        let url = photo.fileURL
+        let photoID = photo.id
+        upscaleExportPresentTask?.cancel()
+        upscaleExportPresentTask = Task { [weak self] in
+            let pixelSize = await Task.detached(priority: .userInitiated) {
+                ContentViewModel.readPixelSize(of: url)
+            }.value
+            // 読み取り中に写真が切り替わった・再要求された場合は古い結果でシートを出さない
+            guard let self, !Task.isCancelled, self.selectedPhoto?.id == photoID else { return }
+            self.upscaleExportPresentTask = nil
+            self.upscaleExportViewModel = UpscaleExportViewModel(
+                inputPixelSize: pixelSize,
+                croppedInputPixelSize: Self.croppedUpscalePixelSize(
+                    pixelSize, cropRect: self.currentEditInfo?.cropRect
+                )
             )
-        )
-        isUpscaleExportPresented = true
+            self.isUpscaleExportPresented = true
+        }
     }
 
     /// トリミング矩形（正規化）を適用した実効ピクセルサイズ。回転は総画素数を変えないため考慮しない。
@@ -51,13 +62,18 @@ extension ContentViewModel {
         panel.nameFieldStringValue = Self.suggestedOutputFileName(for: photo, format: viewModel.outputFormat)
         guard panel.runModal() == .OK, let destination = panel.url else { return }
 
+        // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体の bookmarkScopedURL とは独立して
+        // ブックマークを新規作成・解決する（SecurityScopedBookmark.startAccessingFreshBookmark）。
+        // 解放はこのジョブ自身が行う。共有プロパティで持つと、前のジョブのキャンセル後の
+        // 後始末が新しいジョブのスコープを止めてしまうため
+        let inputAccessURL: URL
         do {
             try UpscaleOutputDestination.validate(
                 destination: destination,
                 currentFolder: currentFolderURL,
                 photoURLs: photos.map(\.fileURL)
             )
-            try beginUpscaleInputAccess(for: photo.fileURL)
+            inputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: photo.fileURL)
         } catch let shootLogError as ShootLogError {
             viewModel.state = .failed(shootLogError)
             return
@@ -68,6 +84,7 @@ extension ContentViewModel {
 
         viewModel.state = .running(0)
         let task = Task { [weak self] in
+            defer { inputAccessURL.stopAccessingSecurityScopedResource() }
             guard let self else { return }
             await self.runUpscaleExport(photo: photo, destination: destination, viewModel: viewModel)
         }
@@ -85,18 +102,18 @@ extension ContentViewModel {
     // MARK: - ジョブの中断（フォルダを閉じる・アプリ終了時のみ）
 
     func cancelUpscaleExportIfNeeded() {
+        upscaleExportPresentTask?.cancel()
+        upscaleExportPresentTask = nil
         upscaleExportTask?.cancel()
         upscaleExportTask = nil
         upscaleExportViewModel = nil
         isUpscaleExportPresented = false
-        endUpscaleInputAccess()
+        // 入力ファイルのスコープはキャンセルされたジョブ自身が終了時に解放する
     }
 
     // MARK: - Private
 
     private func runUpscaleExport(photo: Photo, destination: URL, viewModel: UpscaleExportViewModel) async {
-        defer { endUpscaleInputAccess() }
-
         guard let descriptor = Self.descriptor(
             for: viewModel.engineKind,
             scaleFactor: viewModel.scaleFactor.rawValue
@@ -162,20 +179,9 @@ extension ContentViewModel {
         return "\(base)_upscaled.\(format.fileExtension)"
     }
 
-    // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体の bookmarkScopedURL とは独立して
-    // ブックマークを新規作成・解決する（SecurityScopedBookmark.startAccessingFreshBookmark）
-    private func beginUpscaleInputAccess(for url: URL) throws {
-        endUpscaleInputAccess()
-        upscaleInputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: url)
-    }
-
-    private func endUpscaleInputAccess() {
-        upscaleInputAccessURL?.stopAccessingSecurityScopedResource()
-        upscaleInputAccessURL = nil
-    }
-
     // ヘッダのみを読み取り、実ピクセル寸法を取得する（デコードは行わない軽量な確認）
-    private static func readPixelSize(of url: URL) -> CGSize? {
+    // バックグラウンドから呼ぶため nonisolated
+    nonisolated private static func readPixelSize(of url: URL) -> CGSize? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,

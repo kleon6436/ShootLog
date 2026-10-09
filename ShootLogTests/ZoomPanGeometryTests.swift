@@ -62,4 +62,49 @@ struct ZoomPanGeometryTests {
         )
         #expect(offset == CGSize(width: 400, height: -300))
     }
+
+    @Test func referencePixelSizePrefersOriginalOverDisplayed() {
+        // 6000px の原本を 1600px のプロキシで表示中でも、基準は原本サイズ
+        let size = ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: CGSize(width: 6000, height: 4000),
+            displayedPixelSize: CGSize(width: 1600, height: 1067)
+        )
+        #expect(size == CGSize(width: 6000, height: 4000))
+    }
+
+    @Test func referencePixelSizeSwapsForPortraitOrientation() {
+        // EXIF の PixelWidth/Height は orientation 適用前。表示画像が縦向きなら入れ替える
+        let size = ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: CGSize(width: 6000, height: 4000),
+            displayedPixelSize: CGSize(width: 512, height: 768)
+        )
+        #expect(size == CGSize(width: 4000, height: 6000))
+    }
+
+    @Test func referencePixelSizeFallsBackToDisplayedWhenUnknownOrSmaller() {
+        let displayed = CGSize(width: 3200, height: 2133)
+        #expect(ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: nil, displayedPixelSize: displayed
+        ) == displayed)
+        #expect(ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: CGSize(width: 1600, height: 1067), displayedPixelSize: displayed
+        ) == displayed)
+    }
+
+    @Test func referencePixelSizeUsesOriginalBeforeDisplayedArrives() {
+        #expect(ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: CGSize(width: 6000, height: 4000), displayedPixelSize: .zero
+        ) == CGSize(width: 6000, height: 4000))
+    }
+
+    @Test func fitPercentUsesOriginalResolution() {
+        let source = ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: CGSize(width: 6000, height: 4000),
+            displayedPixelSize: CGSize(width: 3200, height: 2133)
+        )
+        let fitted = ZoomPanGeometry.fittedImageSize(
+            sourcePixelSize: source, viewportSize: CGSize(width: 1600, height: 1200)
+        )
+        #expect(ZoomPanGeometry.fitDisplayPercent(sourcePixelSize: source, fittedImageSize: fitted) == 27)
+    }
 }

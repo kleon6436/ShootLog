@@ -25,7 +25,14 @@ extension ContentViewModel {
     // 選択中写真が未選択、または絞り込みで一覧から外れている場合は先頭要素を選ぶ
     // （旧実装は selectedIndex の `?? 0` フォールバックにより未選択時に1枚飛ばすバグがあった）
     func selectNext() {
-        let list = visiblePhotos
+        selectNext(in: { [weak self] in self?.visiblePhotos ?? [] })
+    }
+
+    // 表示中の一覧（呼び出し側の絞り込み適用後）基準で次の写真を選択する。
+    // サイドバーは検索・AIカテゴリでさらに絞り込んだ一覧を表示しているため、その一覧を渡す。
+    // 段階挿入完了待ち後の再試行でも同じ基準で一覧を引き直せるよう、配列ではなく取得関数で受け取る
+    func selectNext(in listProvider: @escaping @MainActor () -> [Photo]) {
+        let list = listProvider()
         guard !list.isEmpty else { return }
         guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
             selectPhoto(list.first)
@@ -45,7 +52,7 @@ extension ContentViewModel {
                       generation == self.photoStagingGeneration,
                       self.selectedPhoto?.id == targetID else { return }
                 self.pendingSelectNextTask = nil
-                self.selectNext()
+                self.selectNext(in: listProvider)
             }
             return
         }
@@ -53,7 +60,11 @@ extension ContentViewModel {
     }
 
     func selectPrevious() {
-        let list = visiblePhotos
+        selectPrevious(in: visiblePhotos)
+    }
+
+    // 表示中の一覧（呼び出し側の絞り込み適用後）基準で前の写真を選択する
+    func selectPrevious(in list: [Photo]) {
         guard !list.isEmpty else { return }
         guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
             selectPhoto(list.first)
@@ -125,7 +136,9 @@ extension ContentViewModel {
                 fileURL: fileURL
             )
         }
-        if canReadFile, photo.exifFetchedAt == nil {
+        // フォルダ写真で撮影日時の由来フラグが未確定（フラグ導入前に EXIF 取得済み）の場合も取り直して確定させる
+        let needsShootingDateSource = photo.phAssetLocalIdentifier == nil && photo.shootingDateFromMetadata == nil
+        if canReadFile, photo.exifFetchedAt == nil || needsShootingDateSource {
             let url = photo.fileURL
             do {
                 let exif = try await EXIFService.shared.readEXIF(
@@ -142,9 +155,16 @@ extension ContentViewModel {
         _ = await asShotWhiteBalance(for: photo)
     }
 
+    /// 撮影時ホワイトバランス推定ロジックの版（2=グレーワールド推定の色かぶり符号を修正）
+    nonisolated static let asShotWhiteBalanceEstimateVersion = 2
+
     /// 永続値を優先して撮影時ホワイトバランスを返し、未取得時は画像から取得して保存する。
     func asShotWhiteBalance(for photo: Photo) async -> WhiteBalanceSample? {
-        if photo.asShotWhiteBalanceFetchedAt != nil {
+        // 旧版の推定ロジック（グレーワールド推定の色かぶり符号が逆）で保存した推定値は取り直す。
+        // RAW の実測値と取得不能の記録はロジック変更の影響を受けないので据え置く
+        let isStaleEstimate = photo.asShotWhiteBalanceIsEstimated == true
+            && photo.asShotWhiteBalanceEstimateVersion != Self.asShotWhiteBalanceEstimateVersion
+        if photo.asShotWhiteBalanceFetchedAt != nil, !isStaleEstimate {
             guard let temperature = photo.asShotTemperatureKelvin,
                   let tint = photo.asShotTint,
                   let isEstimated = photo.asShotWhiteBalanceIsEstimated else {
@@ -162,7 +182,13 @@ extension ContentViewModel {
             photo.asShotTemperatureKelvin = sample.temperatureKelvin
             photo.asShotTint = sample.tint
             photo.asShotWhiteBalanceIsEstimated = sample.isEstimated
+        } else {
+            // 取り直しに失敗した旧推定値は符号が逆のまま残さず、取得不能として扱う
+            photo.asShotTemperatureKelvin = nil
+            photo.asShotTint = nil
+            photo.asShotWhiteBalanceIsEstimated = nil
         }
+        photo.asShotWhiteBalanceEstimateVersion = Self.asShotWhiteBalanceEstimateVersion
         // 取得不能も記録し、ファイルが壊れている場合に選択のたび再試行しない。
         photo.asShotWhiteBalanceFetchedAt = Date()
         try? modelContext?.save()
@@ -183,7 +209,14 @@ extension ContentViewModel {
         photo.pixelWidth   = exif.pixelWidth
         photo.pixelHeight  = exif.pixelHeight
         photo.fileSizeBytes = exif.fileSizeBytes
-        if let date = exif.shootingDate { photo.shootingDate = date }
+        if let date = exif.shootingDate {
+            photo.shootingDate = date
+            photo.shootingDateFromMetadata = true
+        } else if photo.phAssetLocalIdentifier == nil {
+            // フォルダ写真で撮影日時が無い場合、shootingDate はレコード作成日時のままのため表示させない。
+            // iCloud写真は PHAsset の作成日時が入っているので判定を変えない
+            photo.shootingDateFromMetadata = false
+        }
         photo.exifFetchedAt = Date()
     }
 

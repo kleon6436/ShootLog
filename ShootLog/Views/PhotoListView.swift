@@ -23,6 +23,8 @@ struct PhotoListView: View {
     let photos: [Photo]
     @Binding var selection: Photo?
     let contextMenuActions: PhotoContextMenuActions
+    // フォルダスキャン時の属性スナップショット。サムネイルのディスクキャッシュキー算出で再利用する
+    var fileAttributesSnapshots: [URL: FileAttributesSnapshot] = [:]
 
     // minimum/maximum のみ指定し、閾値は意図的にハードコードしない（LazyVGridのadaptive挙動に一任）
     // セル間隔(10) < 外周padding(Spacing.xLarge=12)で階層をつくる
@@ -35,6 +37,7 @@ struct PhotoListView: View {
                     PhotoGridCell(
                         photo: photo,
                         isSelected: selection?.id == photo.id,
+                        snapshot: fileAttributesSnapshots[photo.fileURL],
                         actions: contextMenuActions
                     ) {
                         selection = photo
@@ -51,6 +54,7 @@ struct PhotoListView: View {
 private struct PhotoGridCell: View {
     let photo: Photo
     let isSelected: Bool
+    let snapshot: FileAttributesSnapshot?
     let actions: PhotoContextMenuActions
     let onSelect: () -> Void
     @State private var vm = PhotoThumbnailViewModel()
@@ -96,17 +100,17 @@ private struct PhotoGridCell: View {
             .help(photo.displayFileName) // キャプション行を廃止したため、ファイル名はツールチップで提供する
             .accessibilityLabel(accessibilityLabelText)
             .accessibilityAddTraits(.isButton)
-            .task { await vm.load(photo: photo) }
+            .task { await vm.load(photo: photo, snapshot: snapshot) }
     }
 
     private var favoriteBadge: some View {
         Circle()
-            .fill(Color.black.opacity(0.45))
+            .fill(Color.photoBadgeScrim)
             .frame(width: 18, height: 18)
             .overlay {
                 Image(systemName: "star.fill")
                     .font(.system(size: 11))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(Color.favoriteStar)
             }
             .padding(5)
             .accessibilityHidden(true) // 状態はセル全体のaccessibilityLabelで伝える

@@ -16,7 +16,8 @@ import SwiftData
 ///   編集時に以降の現行世代へ自動更新される（手動レンズ値は既定 0 で見た目を変えない）。version 1 は据え置き。
 /// - 4: 絶対 Kelvin/Tint とモードを持つホワイトバランスを保存する。旧値は従来の相対経路を維持する。
 /// - 5: カラーグレーディングをトーン域マスク方式（Metal カーネル）で解釈する。version 2〜4 のレコードは
-///   編集時に 5 へ自動更新される（カラーグレーディング未使用時の見た目は不変）。version 1 は据え置き。
+///   編集時に現行世代へ自動更新される。ただしカラーグレーディングが中立でない間は 4 で止め、旧方式の
+///   見た目を凍結する（`bumpedSchemaVersion(from:for:)`）。version 1 は据え置き。
 /// - 6: `masks`（ローカル調整）キーを含む blob 世代の記録。**読み取り分岐には使わない。**
 ///   `masks` は旧世代に解釈が存在しない純粋な追加フィールドで、version 5 以前のレコードでは
 ///   定義上必ず空配列になるため、既定値だけで既存レコードの見た目不変が満たされる。
@@ -80,9 +81,28 @@ final class DevelopSettings {
         let encoded = try DevelopSettings.encode(newValue)
         parametersData = encoded
         updatedAt = .now
-        // version 2〜5 のレコードは編集時に現行世代へ引き上げる。追加された値は中立が既定のため
-        // 既存の見た目を変えない。version 1 は据え置き（v1→v2 は露出・WB 委譲が入るため）。
-        if (2...5).contains(schemaVersion) { schemaVersion = Self.currentSchemaVersion }
+        schemaVersion = Self.bumpedSchemaVersion(from: schemaVersion, for: newValue)
+    }
+
+    /// 編集時に引き上げる先の世代。
+    ///
+    /// version 2〜5 のレコードは現行世代へ引き上げる。追加された値は中立が既定のため既存の見た目を
+    /// 変えない。version 1 は据え置き（v1→v2 は露出・WB 委譲が入るため）。
+    ///
+    /// ただし version 2〜4 でカラーグレーディング（`colorBalance`）が中立でない場合は 4 で止める。
+    /// version 5 を跨ぐと `usesToneMaskedColorGrading` が立ち、旧方式（`applyColorBalanceLegacy`）で
+    /// 描いていたグレーディングが新方式に切り替わって、無関係なスライダー編集だけで見た目が変わるため。
+    /// 4 は手動レンズ補正・絶対 Kelvin/Tint WB を含むので、それ以外の編集機能は失われない。
+    /// グレーディングを中立へ戻した時点で現行世代へ引き上がる。
+    static func bumpedSchemaVersion(from version: Int, for parameters: DevelopParameters) -> Int {
+        switch version {
+        case 2...4:
+            return parameters.colorBalance.isNeutral ? currentSchemaVersion : 4
+        case 5:
+            return currentSchemaVersion
+        default:
+            return version
+        }
     }
 
     /// `DevelopParameters` を JSON エンコードする。NaN / Inf を含む場合など `JSONEncoder` は throw する。

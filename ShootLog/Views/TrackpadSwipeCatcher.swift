@@ -112,7 +112,9 @@ struct TrackpadSwipeCatcher: NSViewRepresentable {
                 return
             }
 
-            // ズーム中はスワイプ判定を行わず、デルタをそのままパンへ渡す
+            // ズーム中はスワイプ判定を行わず、デルタをそのままパンへ渡す。
+            // パンは通常のスクロールビューと同じくシステムのスクロール方向設定に従わせるため、
+            // スワイプと違って物理方向への正規化は行わない
             guard isSwipeEnabled else {
                 onScrollDelta(CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY))
                 return
@@ -134,8 +136,13 @@ struct TrackpadSwipeCatcher: NSViewRepresentable {
 
             // 慣性スクロール（momentumPhase）も蓄積対象にする。
             // コミット済みロックがあるため素早いフリックを拾っても二重発火しない
-            accumulatedX += event.scrollingDeltaX
-            accumulatedY += event.scrollingDeltaY
+            // スワイプ判定は指の物理的な移動方向で行う。scrollingDelta はシステム設定
+            // 「ナチュラルなスクロール」で符号が反転するため、isDirectionInvertedFromDevice で
+            // 正規化する（ナチュラル ON = 反転済み = デルタの符号が指の移動方向と一致）。
+            // これにより設定に関わらず「指を左へ = 次の写真」になる
+            let physicalSign: CGFloat = event.isDirectionInvertedFromDevice ? 1 : -1
+            accumulatedX += event.scrollingDeltaX * physicalSign
+            accumulatedY += event.scrollingDeltaY * physicalSign
 
             guard !hasCommitted else { return }
 
@@ -144,6 +151,7 @@ struct TrackpadSwipeCatcher: NSViewRepresentable {
             guard abs(accumulatedX) >= required, abs(accumulatedX) > abs(accumulatedY) else { return }
 
             hasCommitted = true
+            // accumulatedX は指の移動方向（負 = 左へ動かした）
             if accumulatedX < 0 {
                 onSwipeLeft()
             } else {

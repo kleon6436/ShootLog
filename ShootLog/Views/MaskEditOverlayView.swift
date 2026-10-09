@@ -15,6 +15,12 @@ struct MaskEditOverlayView: View {
     @State private var brushCursorLocation: CGPoint?
     /// ドラッグ 1 回につき `beginBrushStroke` を 1 度だけ呼ぶためのラッチ。
     @State private var isBrushStrokeActive = false
+    /// ドラッグジェスチャーが生存中か。`@GestureState` は `onEnded` を経ずにジェスチャーが
+    /// キャンセルされた場合（ウィンドウ非アクティブ化・システムジェスチャーへの横取り等）も
+    /// 自動で false に戻るため、その変化を見てラッチ解除とストローク確定を行う。
+    /// これが無いとラッチが true のまま残り、次のドラッグで `beginBrushStroke` が呼ばれず
+    /// ストロークが丸ごと失われる
+    @GestureState private var isBrushDragging = false
 
     private var maskGeometry: MaskGeometry? {
         guard let previewImageSize = developViewModel.previewImage?.size else { return nil }
@@ -91,11 +97,7 @@ struct MaskEditOverlayView: View {
                     }
 
                     if let selectedAIMask {
-                        aiRefineLayer(
-                            id: selectedAIMask.id,
-                            kind: selectedAIMask.reference.kind,
-                            geometry: maskGeometry
-                        )
+                        aiRefineLayer(id: selectedAIMask.id, geometry: maskGeometry)
                     }
                 }
             }
@@ -124,6 +126,7 @@ struct MaskEditOverlayView: View {
             }
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating($isBrushDragging) { _, state, _ in state = true }
                     .onChanged { value in
                         brushCursorLocation = value.location
                         let point = geometry.basePoint(fromDisplay: CGPoint(
@@ -142,6 +145,10 @@ struct MaskEditOverlayView: View {
                         developViewModel.endBrushStroke()
                     }
             )
+            .onChange(of: isBrushDragging) { _, isDragging in
+                guard !isDragging else { return }
+                finishInterruptedBrushStrokeIfNeeded()
+            }
             .frame(width: frame.width, height: frame.height)
             .position(x: frame.midX, y: frame.midY)
             .focusable()
@@ -193,6 +200,19 @@ struct MaskEditOverlayView: View {
         }
     }
 
+    /// `onEnded` を経ずに終わったドラッグの後始末。ラッチを解除し、ViewModel 側に進行中の
+    /// ストロークが残っていれば、それまでに描いた分を確定させる（キャンセル専用 API は無く、
+    /// 描いた軌跡を黙って捨てるより確定の方がユーザーの意図に沿うため）。
+    /// 正常終了時は `onEnded` が先にラッチを下ろすので何もしない。仮に呼び順が逆でも、
+    /// `endBrushStroke` は進行中ストロークが無ければ何もしないため二重確定にならない
+    private func finishInterruptedBrushStrokeIfNeeded() {
+        guard isBrushStrokeActive else { return }
+        isBrushStrokeActive = false
+        if developViewModel.activeBrushStroke != nil {
+            developViewModel.endBrushStroke()
+        }
+    }
+
     /// ブラシ半径を比率で増減する。VM 側はクランプしないので、許容範囲へ収めるのは UI の責務。
     private func adjustBrushRadius(byRatio ratio: Double) {
         let range = DevelopViewModel.brushRadiusRange
@@ -201,10 +221,11 @@ struct MaskEditOverlayView: View {
     }
 
     /// AI マスク選択中に画像全体へ敷くクリック領域。クリックした位置のインスタンスだけへ
-    /// 絞り込んだマスクを作り直す。線形・放射状のハンドルとは `if case` で排他になるため、
+    /// 絞り込んだマスクを作り直す（`regenerateAIMask(id:clickPoint:)`。ラスタ参照だけを
+    /// その場で差し替え、ローカル調整・反転・濃度・ぼかし・名前・重なり順は保つ）。線形・放射状のハンドルとは `if case` で排他になるため、
     /// ドラッグジェスチャーと競合しない（輝度レンジは幾何操作を持たないので何も出さない）。
     @ViewBuilder
-    private func aiRefineLayer(id: UUID, kind: AIMaskKind, geometry: MaskGeometry) -> some View {
+    private func aiRefineLayer(id: UUID, geometry: MaskGeometry) -> some View {
         Rectangle()
             .fill(.clear)
             .contentShape(Rectangle())
@@ -215,7 +236,7 @@ struct MaskEditOverlayView: View {
                 // 既にコンテナ座標系で報告される（`MaskGradientHandleView.onDrag` と同じ構造。
                 // 座標系のズレバグでオフセットを二重加算していたため撤去、Phase 3レビューで発覚）。
                 let point = geometry.basePoint(fromDisplay: location)
-                Task { await refineAIMask(id: id, kind: kind, at: point) }
+                Task { await developViewModel.regenerateAIMask(id: id, clickPoint: point) }
             }
             .disabled(developViewModel.isGeneratingAIMask)
             // フリーハンド操作自体の VoiceOver 代替は無いが、領域を隠さず「ポインタ操作専用」で
@@ -230,14 +251,6 @@ struct MaskEditOverlayView: View {
             .background(.regularMaterial, in: Capsule())
             .position(x: geometry.imageFrame.midX, y: geometry.imageFrame.minY + Self.hintTopInset)
             .allowsHitTesting(false)
-    }
-
-    /// 同じ種別・クリック位置指定でマスクを作り直し、成功したときだけ元のレイヤーを捨てる。
-    /// 失敗して何も残らない状態を作らないための順序で、`regenerateAIMask` と同じ契約。
-    /// カウント比較ではなく戻り値の ID で成否判定する（`regenerateAIMask` と同じ理由）。
-    private func refineAIMask(id: UUID, kind: AIMaskKind, at point: NormalizedPoint) async {
-        guard await developViewModel.addAIMask(kind: kind, clickPoint: point) != nil else { return }
-        developViewModel.removeMask(id: id)
     }
 
     @ViewBuilder

@@ -549,9 +549,13 @@ enum DevelopPipeline {
 
     private static func applyVignette(_ parameters: DevelopParameters, to image: CIImage) -> CIImage {
         guard parameters.vignette != 0 else { return image }
+        let extent = image.extent
+        guard !extent.isInfinite, !extent.isEmpty else { return image }
         let filter = CIFilter.vignetteEffect()
         filter.inputImage = image
-        filter.radius = Float(max(image.extent.width, image.extent.height) * 0.65)
+        // 既定の center は (150, 150) 固定なので、画像中心を明示する。
+        filter.center = CGPoint(x: extent.midX, y: extent.midY)
+        filter.radius = Float(max(extent.width, extent.height) * 0.65)
         filter.intensity = Float(parameters.vignette / 100 * 1.5)
         return filter.outputImage ?? image
     }

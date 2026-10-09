@@ -134,9 +134,8 @@ struct EXIFPanelView: View {
                                 ? "checkmark.circle.fill"
                                 : "exclamationmark.triangle.fill"
                         )
-                        // good/bad 状態を示す意味的ステータス色。SwiftUI のセマンティック動的カラーで
-                        // light/dark 自動対応しており、生の RGB リテラル直書きではないため CLAUDE.md 色規約の対象外
-                        .foregroundStyle(insight.kind == .positive ? .green : .orange)
+                        // good/bad 状態を示すステータス色。Color Set（StatusPositive / StatusWarning）で外観別に定義
+                        .foregroundStyle(insight.kind == .positive ? Color.statusPositive : Color.statusWarning)
                     }
                 }
             } header: {
@@ -153,7 +152,7 @@ struct EXIFPanelView: View {
             LabeledContent("exif.label.favorite") {
                 HStack(spacing: Spacing.xSmall) {
                     Image(systemName: vm.isFavorite ? "star.fill" : "star")
-                        .foregroundStyle(vm.isFavorite ? .yellow : .secondary)
+                        .foregroundStyle(vm.isFavorite ? Color.favoriteStar : Color.secondary)
                     Text(vm.isFavorite ? "exif.favorite.registered" : "exif.favorite.unregistered")
                         .foregroundStyle(vm.isFavorite ? .primary : .secondary)
                 }
@@ -269,9 +268,9 @@ private struct EXIFScoreRing: View {
 
     private var ringColor: Color {
         guard let scorePercent else { return .secondary }
-        if scorePercent >= 70 { return .green }
-        if scorePercent >= 40 { return .orange }
-        return .red
+        if scorePercent >= 70 { return .statusPositive }
+        if scorePercent >= 40 { return .statusWarning }
+        return .statusCritical
     }
 
     var body: some View {

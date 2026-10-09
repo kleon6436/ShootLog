@@ -131,6 +131,9 @@ final class DevelopViewModel {
     var splitPosition: CGFloat = 0.5
     /// Auto WB の推定不能など、ホワイトバランス操作に対するインライン通知。
     private(set) var whiteBalanceStatusMessage: String?
+    /// Auto WB 推定要求の世代。await 明けにこれと一致しない結果（Undo・写真切り替え・手動の WB 変更で
+    /// 取り消された推定）は書き込まない。
+    private var automaticWhiteBalanceToken = 0
     /// プレビュー上のクリッピング状態をビューア帯・ヒストグラム凡例に表示するか。
     /// 選択は UserDefaults(AppSettingsKeys.developClippingWarnings) へ永続化する。
     var showsClippingWarnings: Bool {
@@ -171,6 +174,10 @@ final class DevelopViewModel {
         guard previewImage == nil, !isRendering, let photo = currentPhoto else { return }
         guard parameters.isNeutral, rotation == 0, !Self.isEffectiveCrop(cropRect) else { return }
 
+        // デバウンス待ちの描画・集計を止める。世代だけ進めて放置すると、待ち明けの古い描画が
+        // `isRendering = true` を立てたまま後始末されずスピナーが残る。
+        renderTask?.cancel()
+        histogramTask?.cancel()
         isRendering = true
         let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
         let rot = rotation
@@ -193,13 +200,16 @@ final class DevelopViewModel {
                 asShotWhiteBalance: nil,
                 maskRasters: [:]
             )
-            guard generation == self.renderGeneration else { return }
+            guard generation == self.renderGeneration, self.currentPhoto?.id == photo.id else { return }
             self.isRendering = false
             guard let rendered else { return }
             self.previewImage = NSImage(cgImage: rendered, size: .zero)
             self.didPrepareMaskEditingPreview = true
             if self.histogram == nil {
-                self.histogram = await HistogramData.make(from: rendered)
+                let computed = await HistogramData.make(from: rendered)
+                // 集計中に写真切り替え・再描画が入っていたら、古い写真の集計で上書きしない。
+                guard generation == self.renderGeneration, self.currentPhoto?.id == photo.id else { return }
+                self.histogram = computed
             }
         }
     }
@@ -219,6 +229,13 @@ final class DevelopViewModel {
     /// プリセット適用・ペースト直前の状態。1 段だけ戻せる。
     private(set) var canUndo = false
     private var undoParameters: DevelopParameters?
+    /// 適用直前のレコードの `schemaVersion`（レコードが無ければ `nil`）。適用で `setParameters` が
+    /// 世代を引き上げても、Undo で元の解釈世代（v1 の RAW、旧方式カラーグレーディングの v4 等）へ戻す。
+    private var undoSchemaVersion: Int?
+    /// この写真で中立の調整値を保存したか。中立でもレコードを残す経路（Undo 保持・ラスタ所有）が
+    /// あるため、写真を離れる時点でそれを掃除する必要があるかの目印にする（通常の写真送りで余計な
+    /// フェッチをしないため）。
+    private var mayHaveKeptNeutralRecord = false
 
     /// 「調整をペースト」に使えるクリップボードがあるか。
     private(set) var canPaste = false
@@ -246,6 +263,13 @@ final class DevelopViewModel {
     private(set) var currentPhoto: Photo?
     /// 写真切り替え検知用（`.task(id:)` 等、View 側は `currentPhoto` 自体に触れない）。
     var currentPhotoID: UUID? { currentPhoto?.id }
+    /// `currentPhoto` に属する DevelopSettings。選択切り替え直後は `ContentViewModel.currentDevelopSettings`
+    /// が既に次の写真を指していることがあるため、直接読まずに photoID で照合して引く。
+    // DevelopViewModelAIMask.swift から参照するため internal
+    var currentPhotoDevelopSettings: DevelopSettings? {
+        guard let photoID = currentPhoto?.id else { return nil }
+        return content?.developSettings(forPhotoID: photoID)
+    }
     // DevelopViewModelAIMask.swift から参照するため private(set)
     private(set) var displaySize: CGSize = .zero
     /// `EditInfo` 由来の回転角。プレビューにも焼き込む。
@@ -275,6 +299,16 @@ final class DevelopViewModel {
         !parameters.isNeutral || rotation != 0 || Self.isEffectiveCrop(cropRect)
     }
 
+    /// 現在の状態で `previewImage` を（中立でも）維持し描き直すべきか。`render()` の中立最適化を
+    /// スキップする条件と同じで、調整・回転・トリミングがあるか、マスク編集中か、マスクセクション用の
+    /// ベースプレビューを用意済みか。表示サイズ・色空間・回転/トリミング変更や `reset()` で
+    /// `shouldRender` だけを見て `clearPreview()` すると、マスク編集用のベースプレビューが消えたまま
+    /// 二度と作られず（`prepareMaskEditingPreviewIfNeeded` は写真切り替え時にしか呼ばれない）、
+    /// `canEditMasks` が `false` に固着する。
+    private var keepsPreview: Bool {
+        shouldRender || maskEditMode || didPrepareMaskEditingPreview
+    }
+
     /// 実質的なトリミング（全体矩形・退化矩形でない）か。
     static func isEffectiveCrop(_ rect: CGRect?) -> Bool {
         guard let rect else { return false }
@@ -296,7 +330,9 @@ final class DevelopViewModel {
     private var renderGeneration = 0
     /// デバウンス待ちの保存内容（対象写真 ID と調整値）。写真切り替え時に取りこぼさないよう
     /// `load` の冒頭でこの内容を即時フラッシュする。
-    private var pendingPersist: (photoID: UUID, parameters: DevelopParameters)?
+    /// `keepsRecord` は予約時点で 1 段 Undo が可能だったか（`ContentViewModel.persistDevelopParameters`
+    /// の `keepingRecord` へ渡す）。
+    private var pendingPersist: (photoID: UUID, parameters: DevelopParameters, keepsRecord: Bool)?
 
     /// 連続操作をまとめる待ち時間。描画は体感優先で短く、保存は書き込み削減のため長めに取る。
     /// テストから短縮できるようにインスタンス値で持つ。
@@ -346,12 +382,18 @@ final class DevelopViewModel {
         self.rotation = rotation
         self.cropRect = cropRect
 
+        // 選択中写真のキャッシュではなく、ロード対象の写真に属するレコードを読む。
+        let loadedSettings = currentPhotoDevelopSettings
+        // 前回 Undo のために残した中立レコードが既にあれば、この写真を離れる時点で掃除対象にする
+        mayHaveKeptNeutralRecord = loadedSettings?.parameters.isNeutral ?? false
         isApplyingLoadedState = true
-        parameters = content?.currentDevelopSettings?.parameters ?? .neutral
+        parameters = loadedSettings?.parameters ?? .neutral
         isApplyingLoadedState = false
 
         undoParameters = nil
+        undoSchemaVersion = nil
         canUndo = false
+        cancelPendingAutomaticWhiteBalance()
         canPaste = Self.clipboard != nil
         clearPreview()
         histogram = nil
@@ -372,9 +414,9 @@ final class DevelopViewModel {
         isAsShotWhiteBalanceLoaded = false
         // version 1 の既存 RAW レコードは標準チェーンのまま（色が変わらないように）。
         // レコードが無い新規は version 2 相当として委譲する。
-        rawMappingActive = isRAW && (content?.currentDevelopSettings?.usesRAWParameterMapping ?? true)
-        manualLensCorrectionActive = content?.currentDevelopSettings?.usesManualLensCorrection ?? true
-        toneMaskedColorGradingActive = content?.currentDevelopSettings?.usesToneMaskedColorGrading ?? true
+        rawMappingActive = isRAW && (loadedSettings?.usesRAWParameterMapping ?? true)
+        manualLensCorrectionActive = loadedSettings?.usesManualLensCorrection ?? true
+        toneMaskedColorGradingActive = loadedSettings?.usesToneMaskedColorGrading ?? true
 
         if let photo {
             Task { [weak self] in
@@ -399,7 +441,12 @@ final class DevelopViewModel {
                 let usesToneMaskedColorGrading = toneMaskedColorGradingActive
                 let asShot = usesToneMaskedColorGrading ? asShotWhiteBalance : nil
                 let generation = renderGeneration
+                let debounce = renderDebounce
                 renderTask = Task { [weak self] in
+                    // 写真をキー送りで素早く通過するたびにデコードを始めないよう、他の描画要求と同じく少し待つ
+                    // （待機中に次の写真へ切り替われば load 冒頭の renderTask.cancel() で取り消される）
+                    try? await Task.sleep(for: debounce)
+                    guard !Task.isCancelled else { return }
                     await self?.render(
                         photo: photo, parameters: params, rotation: rot, cropRect: crop,
                         useRAWParameterMapping: mapping, usesManualLensCorrection: manualLensCorrection,
@@ -442,6 +489,7 @@ final class DevelopViewModel {
     func selectWhiteBalanceMode(_ mode: WhiteBalanceSettings.Mode) {
         switch mode {
         case .custom:
+            cancelPendingAutomaticWhiteBalance()
             let baseK = asShotWhiteBalance?.temperatureKelvin ?? 6_500
             let baseTint = asShotWhiteBalance?.tint ?? 0
             var seeded = WhiteBalanceSettings(mode: mode, temperatureKelvin: baseK, tint: baseTint)
@@ -459,12 +507,14 @@ final class DevelopViewModel {
             parameters.whiteBalance = seeded
             applyAutomaticWhiteBalance(restoringOnFailureTo: previous)
         default:
+            cancelPendingAutomaticWhiteBalance()
             parameters.whiteBalance = WhiteBalanceSettings.preset(mode)
         }
     }
 
     /// ホワイトバランスの色温度を変更する。As Shot からの初回編集時は撮影時値を基準に Custom へ切り替える。
     func setWhiteBalanceTemperature(_ kelvin: Double) {
+        cancelPendingAutomaticWhiteBalance()
         if parameters.whiteBalance.mode == .asShot {
             let baseTint = asShotWhiteBalance?.tint ?? 0
             var whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: kelvin, tint: baseTint)
@@ -479,6 +529,7 @@ final class DevelopViewModel {
 
     /// ホワイトバランスの色かぶりを変更する。As Shot からの初回編集時は撮影時値を基準に Custom へ切り替える。
     func setWhiteBalanceTint(_ value: Double) {
+        cancelPendingAutomaticWhiteBalance()
         if parameters.whiteBalance.mode == .asShot {
             let baseK = asShotWhiteBalance?.temperatureKelvin ?? 6_500
             var whiteBalance = WhiteBalanceSettings(mode: .custom, temperatureKelvin: baseK, tint: value)
@@ -499,6 +550,8 @@ final class DevelopViewModel {
         let photoID = photo.id
         let previousWhiteBalance = restoreTarget ?? parameters.whiteBalance
         let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        automaticWhiteBalanceToken &+= 1
+        let token = automaticWhiteBalanceToken
         Task { [weak self] in
             guard let self else { return }
             let source = await self.engine.renderPreview(
@@ -514,7 +567,7 @@ final class DevelopViewModel {
                 asShotWhiteBalance: nil,
                 maskRasters: resolvedMaskRasters(for: .neutral)
             )
-            guard self.currentPhoto?.id == photoID else { return }
+            guard self.currentPhoto?.id == photoID, self.automaticWhiteBalanceToken == token else { return }
             guard let source,
                   let settings = WhiteBalanceResolver.automaticSettings(from: source) else {
                 self.whiteBalanceStatusMessage = String(localized: "develop.whiteBalance.autoUnavailable")
@@ -527,7 +580,7 @@ final class DevelopViewModel {
                 } else {
                     await self.engine.asShotNeutral(for: photo.fileURL)
                 }
-                guard self.currentPhoto?.id == photoID else { return }
+                guard self.currentPhoto?.id == photoID, self.automaticWhiteBalanceToken == token else { return }
                 self.asShotWhiteBalance = fetchedAsShot
                 self.isAsShotWhiteBalanceLoaded = true
             }
@@ -535,12 +588,22 @@ final class DevelopViewModel {
             let baseK = self.asShotWhiteBalance?.temperatureKelvin ?? 6_500
             let baseTint = self.asShotWhiteBalance?.tint ?? 0
             var seeded = settings
-            seeded.temperatureKelvin = baseK + (settings.temperatureKelvin - 6_500)
+            // `automaticSettings` の色温度は灰色仮定での「撮影時相当」の推定値（暖色の画像ほど高い K。
+            // 非RAW の as-shot 推定にも同じ値を使う）。このアプリでは K が高いほど暖色に仕上がるので、
+            // 中立化するには 6500K からのずれを逆向きに当てる（暖色の画像は K を下げる）。
+            // 色かぶりは推定値自体が補正方向（緑かぶり → 正 = マゼンタ）なので加算のまま。
+            seeded.temperatureKelvin = baseK - (settings.temperatureKelvin - 6_500)
             seeded.tint = baseTint + settings.tint
             seeded.mode = .auto
             seeded.normalize()
             self.parameters.whiteBalance = seeded
         }
+    }
+
+    /// 実行中の Auto WB 推定の結果を捨てる。推定完了前に Undo・手動の WB 変更・リセットが入ったとき、
+    /// 後から届いた推定値で上書きしないようにする。
+    private func cancelPendingAutomaticWhiteBalance() {
+        automaticWhiteBalanceToken &+= 1
     }
 
     func toggleBeforeAfter() {
@@ -557,14 +620,18 @@ final class DevelopViewModel {
     }
 
     /// 回転・トリミングの変更を受けて再レンダーする。調整も幾何変換も無くなればプレビューを解除する。
-    func updateEditGeometry(rotation: Int, cropRect: CGRect?) {
+    /// - Parameter photoID: その回転・トリミングが属する写真。指定時、編集中の写真と一致しなければ無視する。
+    ///   写真切り替え直後は `EditInfo` が先に次の写真へ切り替わり、`load` より前に変更通知が届くため、
+    ///   新しい写真の幾何で前の写真を描き直さないようにする（正しい幾何は `load` が受け取る）。
+    func updateEditGeometry(rotation: Int, cropRect: CGRect?, forPhotoID photoID: UUID? = nil) {
+        if let photoID, photoID != currentPhoto?.id { return }
         guard rotation != self.rotation || cropRect != self.cropRect else { return }
         self.rotation = rotation
         self.cropRect = cropRect
         guard currentPhoto != nil else { return }
         let wasComparingSplit = isComparingSplit
         invalidateBeforeImage()
-        if shouldRender {
+        if keepsPreview {
             scheduleRender()
             if wasComparingSplit {
                 ensureBeforeImage()
@@ -588,7 +655,7 @@ final class DevelopViewModel {
         let wasComparingSplit = isComparingSplit
         previewColorSpace = colorSpace
         invalidateBeforeImage()
-        if currentPhoto != nil, shouldRender {
+        if currentPhoto != nil, keepsPreview {
             scheduleRender()
             if wasComparingSplit {
                 ensureBeforeImage()
@@ -616,7 +683,7 @@ final class DevelopViewModel {
         guard changed else { return }
         let wasComparingSplit = isComparingSplit
         invalidateBeforeImage()
-        if changed, currentPhoto != nil, shouldRender {
+        if changed, currentPhoto != nil, keepsPreview {
             scheduleRender()
             if wasComparingSplit {
                 ensureBeforeImage()
@@ -643,7 +710,8 @@ final class DevelopViewModel {
         clearPreview()
         histogram = nil
         isRendering = false
-        content?.resetDevelop()
+        // selectedPhoto ではなく、編集中の写真のレコードを消す。
+        if let photoID = currentPhoto?.id { content?.resetDevelop(forPhotoID: photoID) }
         // reset で旧レコードは削除され、次の保存は schemaVersion 5（RAW は露出・WB 委譲も有効）。
         manualLensCorrectionActive = true
         rawMappingActive = isRAW
@@ -651,8 +719,12 @@ final class DevelopViewModel {
         selectedMaskLayerID = nil
         clearBrushTransientState()
         undoParameters = nil
+        undoSchemaVersion = nil
         canUndo = false
-        if currentPhoto != nil, shouldRender {
+        cancelPendingAutomaticWhiteBalance()
+        // マスクセクション用のベースプレビューを用意済みなら、中立に戻っても描き直して維持する
+        // （`keepsPreview` 参照。`clearPreview()` で `maskEditMode` は既に落ちている）。
+        if currentPhoto != nil, keepsPreview {
             scheduleRender()
         } else if currentPhoto != nil {
             scheduleHistogramOnly(generation: renderGeneration)
@@ -665,6 +737,8 @@ final class DevelopViewModel {
 
     /// セクション単位で調整を中立へ戻す。didSet 経由でプレビュー再描画・保存が予約される。
     func resetSection(_ section: DevelopSection) {
+        // 実行中の Auto WB 推定が後から届いて、リセットしたホワイトバランスを Auto へ戻さないようにする
+        if section == .whiteBalance { cancelPendingAutomaticWhiteBalance() }
         guard parameters.isModified(in: section) else { return }
         parameters.reset(section)
     }
@@ -680,35 +754,85 @@ final class DevelopViewModel {
     /// クリップボードの調整値を適用する。直前の状態は 1 段だけ戻せる。
     /// AI マスクは既定で含めない（被写体位置が違う写真へラスタを貼るとほぼ確実に不正になるため。
     /// グラデーション・輝度レンジは同一シーンの連写へ渡す用途が主なので含める。プラン §3.6）。
+    ///
+    /// 貼り付け先の写真が持つ AI マスクレイヤーは残す。クリップボード側の AI マスクは移せない以上、
+    /// `masks` を丸ごと差し替えると貼り付け先で生成した AI マスクだけが一方的に消え、そのラスタも
+    /// 写真切り替え時の GC で失われる。マスクを含めないプリセット置き換え（`applyPreset`）が
+    /// 現在のマスクを保持するのと揃え、AI マスク（この写真固有）は残し、移せるレイヤー
+    /// （グラデーション・輝度レンジ・ブラシ）だけをクリップボード側で置き換える。
+    /// 残した AI レイヤーは元の相対順のまま下層に置き、貼り付けたレイヤーをその上に積む。
     func pasteAdjustments() {
         guard let clip = Self.clipboard else { return }
         var filtered = clip
-        filtered.masks = clip.masks.filter { layer in
-            if case .ai = layer.source { return false }
-            return true
-        }
-        applyReplacingParameters(filtered, duplicatingAIMaskRastersFrom: 0)
+        let ownAIMasks = parameters.masks.filter { Self.isAIMaskLayer($0) }
+        filtered.masks = ownAIMasks + clip.masks.filter { !Self.isAIMaskLayer($0) }
+        // 外来レイヤーは AI を含まないので複製は実質 no-op だが、開始位置は自前の AI レイヤーの後ろにする
+        // （0 から指定すると貼り付け先自身の AI ラスタまで複製してしまう）。
+        applyReplacingParameters(filtered, duplicatingAIMaskRastersFrom: ownAIMasks.count)
+    }
+
+    /// AI マスク（写真固有のラスタを参照するレイヤー）か。
+    nonisolated private static func isAIMaskLayer(_ layer: MaskLayer) -> Bool {
+        if case .ai = layer.source { return true }
+        return false
     }
 
     /// プリセット適用・ペーストを 1 段だけ取り消す。
     func undoLastApply() {
         guard let target = undoParameters else { return }
+        // 適用で起動した Auto WB の再推定が後から届いて、戻した値を上書きしないようにする。
+        cancelPendingAutomaticWhiteBalance()
         undoParameters = nil
         canUndo = false
+        // 適用で引き上がった解釈世代を適用前へ戻してから値を戻す（次の保存の `setParameters` は
+        // 戻した世代を起点に判定する）。フラグを先に同期し、didSet の再描画が正しい経路で走るようにする。
+        if let version = undoSchemaVersion, let settings = currentPhotoDevelopSettings,
+           settings.schemaVersion != version {
+            settings.schemaVersion = version
+            syncSchemaGatedFlags()
+        }
+        undoSchemaVersion = nil
         parameters = target
     }
 
     /// `parameters` を丸ごと差し替える。didSet でプレビュー再描画・永続化が予約される。
     /// - Parameter index: 取り込んだ（＝この写真のものではない）マスクレイヤーの開始位置。
     ///   指定すると、そこから末尾までの AI マスクのラスタを複製してから差し替える。
+    ///
+    /// 適用後のホワイトバランスが Auto で、適用前と値が変わる場合（＝取り込んだ側の Auto）は、
+    /// この写真で推定し直す。Auto の色温度・色かぶりは推定元写真の画像から求めた値なので、
+    /// そのまま別写真へ持ち込むと「Auto 表示なのに元写真向けの補正」が掛かったままになるため。
+    /// 推定完了までの中間フレームは as-shot 値でシードして恒等にし（`selectWhiteBalanceMode(.auto)`
+    /// と同じ）、推定失敗時は適用前のホワイトバランスへ戻す。相対適用（`applying(delta:)`）でも
+    /// 差分側が Auto なら結果は Auto になるので同じ扱いで再推定する。
     // DevelopViewModelPresets.swift から参照するため internal
     func applyReplacingParameters(_ new: DevelopParameters, duplicatingAIMaskRastersFrom index: Int? = nil) {
         guard new != parameters else { return }
         var target = new
         if let index { duplicateAIMaskRasters(in: &target, from: index) }
+        let previousWhiteBalance = parameters.whiteBalance
+        let needsAutomaticWhiteBalance = target.whiteBalance.mode == .auto
+            && target.whiteBalance != previousWhiteBalance
+        if needsAutomaticWhiteBalance {
+            var seeded = WhiteBalanceSettings(
+                mode: .auto,
+                temperatureKelvin: asShotWhiteBalance?.temperatureKelvin ?? 6_500,
+                tint: asShotWhiteBalance?.tint ?? 0
+            )
+            seeded.normalize()
+            target.whiteBalance = seeded
+        }
         undoParameters = parameters
+        undoSchemaVersion = currentPhotoDevelopSettings?.schemaVersion
         canUndo = true
         parameters = target
+        if needsAutomaticWhiteBalance {
+            applyAutomaticWhiteBalance(restoringOnFailureTo: previousWhiteBalance)
+        } else if target.whiteBalance != previousWhiteBalance {
+            // 置き換え前に走っていた Auto 推定（ユーザー操作由来）の結果で、適用した WB を上書きしない。
+            // WB が変わらない適用なら、走っている推定はそのまま完了させてよい。
+            cancelPendingAutomaticWhiteBalance()
+        }
     }
 
     /// プリセット/ペーストで取り込んだ AI マスクレイヤーの `rasterID` を再発行し、`MaskRaster` を複製する。
@@ -720,7 +844,7 @@ final class DevelopViewModel {
     /// 未解決の `rasterID` は描画側で全面 0 として扱われて実害が無く、レイヤー種別を保てば
     /// この写真向けの「再生成」導線をそのまま使えるため。
     private func duplicateAIMaskRasters(in parameters: inout DevelopParameters, from index: Int) {
-        guard index < parameters.masks.count, let settings = content?.currentDevelopSettings else { return }
+        guard index < parameters.masks.count, let settings = currentPhotoDevelopSettings else { return }
         for position in index..<parameters.masks.count {
             guard case .ai(var reference) = parameters.masks[position].source,
                   let original = settings.maskRasters.first(where: { $0.id == reference.rasterID })
@@ -739,7 +863,7 @@ final class DevelopViewModel {
     /// 辞書に無い `rasterID` は描画側で全面 0 として扱われる。
     // DevelopViewModelAIMask.swift から参照するため internal
     func resolvedMaskRasters(for snapshot: DevelopParameters) -> [UUID: CGImage] {
-        guard let settings = content?.currentDevelopSettings else { return [:] }
+        guard let settings = currentPhotoDevelopSettings else { return [:] }
         var result: [UUID: CGImage] = [:]
         for layer in snapshot.masks where layer.isEnabled {
             guard case .ai(let reference) = layer.source else { continue }
@@ -850,9 +974,9 @@ final class DevelopViewModel {
                 asShotWhiteBalance: nil,
                 maskRasters: resolvedMaskRasters(for: .neutral)
             )
-            guard generation == self.renderGeneration, let base else { return }
+            guard generation == self.renderGeneration, self.currentPhoto?.id == photo.id, let base else { return }
             let computed = await HistogramData.make(from: base)
-            guard generation == self.renderGeneration else { return }
+            guard generation == self.renderGeneration, self.currentPhoto?.id == photo.id else { return }
             self.histogram = computed
         }
     }
@@ -868,6 +992,8 @@ final class DevelopViewModel {
         asShotWhiteBalance: WhiteBalanceSample?,
         generation: Int
     ) async {
+        // 既に supersede された要求は何もしない（`isRendering` を立てると後始末する世代が無い）。
+        guard generation == renderGeneration else { return }
         // 調整も回転・トリミングも無ければエンジンを呼ばず、ベース画像表示へ戻す。
         // ただしマスクセクションを一度でも開いていれば例外。`previewImage` を消すと
         // `canEditMasks` が落ち、マスクを削除して無調整に戻ったときに再追加できなくなる
@@ -913,7 +1039,7 @@ final class DevelopViewModel {
         previewImage = NSImage(cgImage: rendered, size: .zero)
 
         let computed = await HistogramData.make(from: rendered)
-        guard generation == renderGeneration else { return }
+        guard generation == renderGeneration, currentPhoto?.id == photo.id else { return }
         histogram = computed
     }
 
@@ -974,6 +1100,10 @@ final class DevelopViewModel {
 
     /// 現像プレビューを消し、分割比較・マスク編集も終了する。
     /// マスク編集は表示基準に `previewImage` を使うため、プレビューが消えたら続行できない（§1.5.2）。
+    ///
+    /// `didPrepareMaskEditingPreview` はここでは落とさない（写真単位の「マスク用ベースを維持する」
+    /// 意思表示で、`load` でだけ戻す）。呼び出し側は `keepsPreview` が真ならこれを呼ばずに
+    /// `scheduleRender()` で描き直すこと。
     private func clearPreview() {
         previewImage = nil
         isComparingSplit = false
@@ -998,7 +1128,7 @@ final class DevelopViewModel {
     /// レコード由来のゲートフラグを再同期する。カラーグレーディング方式が切り替わったら再描画する。
     private func syncSchemaGatedFlags() {
         // レコードが中立で削除された場合は新規レコード相当（現行世代）として扱う。
-        let settings = content?.currentDevelopSettings
+        let settings = currentPhotoDevelopSettings
         rawMappingActive = isRAW && (settings?.usesRAWParameterMapping ?? true)
         manualLensCorrectionActive = settings?.usesManualLensCorrection ?? true
         let wasToneMasked = toneMaskedColorGradingActive
@@ -1021,11 +1151,18 @@ final class DevelopViewModel {
             return
         }
         let params = parameters
-        pendingPersist = (photoID, params)
+        // プリセット/ペーストの 1 段 Undo が残っている間は、中立になってもレコードを消さない。
+        // 消すと cascade で MaskRaster が消え（Undo で戻した AI マスクのラスタが失われる）、
+        // schemaVersion も失われる（v1 の RAW レコードが Undo 後に現行世代として作り直され見た目が変わる）。
+        let keepsRecord = undoParameters != nil
+        if params.isNeutral { mayHaveKeptNeutralRecord = true }
+        pendingPersist = (photoID, params, keepsRecord)
         persistTask = Task { [weak self] in
             try? await Task.sleep(for: self?.persistDebounce ?? .zero)
             guard !Task.isCancelled else { return }
-            self?.content?.updateDevelopParameters(params)
+            // selectedPhoto 宛ての保存にすると、選択切り替え直後（load 前）に満了した場合に
+            // 別写真へ書き込んでしまうため、予約時点の写真 ID を宛先にする。
+            self?.content?.persistDevelopParameters(params, forPhotoID: photoID, keepingRecord: keepsRecord)
             self?.syncSchemaGatedFlags()
             self?.pendingPersist = nil
         }
@@ -1038,16 +1175,30 @@ final class DevelopViewModel {
     /// `ContentViewModel.selectPhoto` が先に走るため `currentDevelopSettings` は既に次の写真を
     /// 指している。離れる写真はまだ差し替えていない `currentPhoto` から引く。
     /// デバウンス保存のフラッシュ後に呼ぶこと（未保存の blob を基準に到達判定しないため）。
+    ///
+    /// GC 後、中立かつラスタを持たないレコードが残っていれば削除する。Undo のために中立でも残した
+    /// レコード（`persistDevelopParameters(keepingRecord:)`）は、写真を離れて Undo できなくなった
+    /// 時点で「中立なら行を持たない」という通常の不変条件へ戻す。
     private func collectOrphanedMaskRastersForLeavingPhoto() {
-        guard let photoID = currentPhoto?.id, let context = content?.modelContext else { return }
+        guard let photoID = currentPhoto?.id, let content = self.content, let context = content.modelContext else { return }
         MaskRasterGarbageCollector.collect(forPhotoID: photoID, in: context)
+        // 調整値が中立のときだけ確認する（通常の写真送りで余計なフェッチを増やさない）。
+        // 保留中の保存は呼び出し前にフラッシュ済みなので、`parameters` はレコードと一致している。
+        if mayHaveKeptNeutralRecord, parameters.isNeutral,
+           let settings = content.developSettings(forPhotoID: photoID),
+           settings.maskRasters.isEmpty, settings.parameters.isNeutral {
+            content.resetDevelop(forPhotoID: photoID)
+        }
     }
 
     /// デバウンス待ちの保存を即時に書き込む。写真切り替えで取りこぼさないため `load` の冒頭で呼ぶ。
-    private func flushPendingPersist() {
+    /// 書き出し開始前にも呼び、直前のスライダー操作を書き出しへ反映させる（SidebarViewModel から呼ぶため internal）
+    func flushPendingPersist() {
         persistTask?.cancel()
         guard let pending = pendingPersist else { return }
         pendingPersist = nil
-        content?.persistDevelopParameters(pending.parameters, forPhotoID: pending.photoID)
+        content?.persistDevelopParameters(
+            pending.parameters, forPhotoID: pending.photoID, keepingRecord: pending.keepsRecord
+        )
     }
 }

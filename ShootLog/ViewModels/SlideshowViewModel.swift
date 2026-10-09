@@ -32,10 +32,19 @@ final class SlideshowViewModel: ContentViewModelProxy {
     // 単純な委譲は ContentViewModelProxy のデフォルト実装に任せる。
     // 写真送りの2つだけは進捗リセットと先読みが必要なため独自実装で上書きする
 
-    // 「前へ」ボタン用。進捗バーもリセットする
+    // 「前へ」ボタン用。進捗バーもリセットする。
+    // 「次へ」（advanceSlideshow）が末尾で先頭へループするのと対称に、先頭では末尾へループする
     func selectPrevious() {
         progress = 0
-        content.selectPrevious()
+        let list = content.visiblePhotos
+        guard !list.isEmpty else { return }
+        if let selectedPhoto = content.selectedPhoto,
+           let index = list.firstIndex(where: { $0.id == selectedPhoto.id }),
+           index == 0 {
+            content.selectPhoto(list.last)
+        } else {
+            content.selectPrevious()
+        }
         prefetchNeighbors()
     }
 

@@ -106,7 +106,8 @@ final class ContentViewModel {
     var isDevelopExportPresented: Bool = false
     var developExportViewModel: DevelopExportViewModel?
     var developExportTask: Task<Void, Never>?
-    var developExportInputAccessURL: URL?
+    // シート表示前の入力ヘッダ読み取り（バックグラウンド）。連打時は前回分をキャンセルする
+    var developExportPresentTask: Task<Void, Never>?
 
     // サイドバーモードの現像編集パネルが参照する。selectPhoto で遅延ロードする
     var currentDevelopSettings: DevelopSettings?
@@ -121,11 +122,8 @@ final class ContentViewModel {
     var isUpscaleExportPresented: Bool = false
     var upscaleExportViewModel: UpscaleExportViewModel?
     var upscaleExportTask: Task<Void, Never>?
-
-    // 超解像書き出し専用の入力ファイルの読み取りアクセス。フォルダ全体の bookmarkScopedURL
-    // （ContentViewModelFolder.swift、フォルダ切替のたびに解放される）とは独立して保持し、
-    // 書き出し処理中にフォルダ側のスコープ解放の影響を受けないようにする
-    var upscaleInputAccessURL: URL?
+    // シート表示前の入力ヘッダ読み取り（バックグラウンド）。連打時は前回分をキャンセルする
+    var upscaleExportPresentTask: Task<Void, Never>?
 
     // 選択中写真のインデックス（未フィルタの photos 基準）
     var selectedIndex: Int {
@@ -174,6 +172,12 @@ final class ContentViewModel {
     // 段階挿入中に一覧末尾で「次へ」が押された際の待機Task。
     // 連打で複数溜まらないよう常に1本だけ保持し、フォルダ切替時にキャンセルする
     var pendingSelectNextTask: Task<Void, Never>?
+
+    // 「写真ライブラリを開く」の権限確認〜読み込みTask。二重起動（ダブルクリック等）を防ぐため1本だけ保持する
+    var photosLibraryOpenTask: Task<Void, Never>?
+
+    // cancelPhotoStaging の実行中（各生成器の停止待ち）の数。手動の再解析を止めるために使う
+    var photoStagingCancelCount = 0
 
     // 分析シートのEXIF一括取得Task。シートを開き直した際に前回分をキャンセルする
     var analysisTask: Task<Void, Never>?

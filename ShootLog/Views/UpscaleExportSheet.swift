@@ -120,7 +120,7 @@ struct UpscaleExportSheet: View {
         VStack(alignment: .leading, spacing: Spacing.small) {
             Text("upscale.sizeLimit.exceeded")
                 .font(.caption)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.statusWarning)
                 .padding(.leading, Self.formSectionLabelLeadingInset - Spacing.medium)
 
             HStack {
@@ -203,7 +203,7 @@ struct UpscaleExportSheet: View {
         VStack(spacing: Spacing.xLarge) {
             Label("upscale.failed.title", systemImage: "exclamationmark.triangle")
                 .font(.headline)
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusCritical)
 
             Text(error.errorDescription ?? "")
                 .font(.caption)

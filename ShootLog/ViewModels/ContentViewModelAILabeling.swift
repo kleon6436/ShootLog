@@ -37,7 +37,10 @@ extension ContentViewModel {
                     guard let self else { return }
                     guard aiLabelingToken == self.aiLabelingToken else { return }
                     self.aiLabelingReanalysisURLs.remove(url)
-                    if let index = photoIndex[url], self.photos.indices.contains(index) {
+                    // 索引はバッチ開始時点の photos 基準。写真ソースの切り替え途中に届いた結果を
+                    // 別の写真へ書き込まないよう、URL が一致する場合だけ反映する
+                    if let index = photoIndex[url], self.photos.indices.contains(index),
+                       self.photos[index].fileURL == url {
                         let photo = self.photos[index]
                         if let result {
                             photo.aiCategoryRawValues = result.categories.map(\.rawValue)
@@ -47,7 +50,13 @@ extension ContentViewModel {
                             self.addDetectedAICategories(result.categories)
                         } else {
                             // キャンセル時は onResult が呼ばれないため、ここに来るのは実際の失敗だけ。
-                            // 既存の分類結果があれば残す
+                            // 既存の分類結果があれば残す。ただし旧スキーマ版の結果は誤分類を含み得るため、
+                            // 現行版の印を付けて残すと「現行版の結果」として扱われ続けてしまう。消してから失敗を記録する
+                            if (photo.aiLabelingSchemaVersion ?? 1) < AILabelingGenerator.currentSchemaVersion {
+                                photo.aiCategoryRawValues = []
+                                photo.aiRawIdentifiers = []
+                                photo.aiLabelingFetchedAt = nil
+                            }
                             photo.aiLabelingFailedAt = Date()
                         }
                         photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
@@ -132,6 +141,9 @@ extension ContentViewModel {
     /// 指定した写真を先頭に、まだ処理していない写真も含めて現在の写真ソースのバッチを組み直す。
     func reanalyzeAI(_ requested: [Photo]) {
         guard !requested.isEmpty else { return }
+        // 写真ソースの切り替え中（cancelPhotoStaging の待機中）に始めると、旧ソースの写真を
+        // セキュリティスコープ解放後に解析して失敗を記録してしまうため受け付けない
+        guard photoStagingCancelCount == 0 else { return }
         let urls = Set(requested.map(\.fileURL))
         aiLabelingReanalysisURLs.formUnion(urls)
         aiQualityDiagnosisReanalysisURLs.formUnion(urls)

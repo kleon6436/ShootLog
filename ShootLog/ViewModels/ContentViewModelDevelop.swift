@@ -15,21 +15,66 @@ extension ContentViewModel {
         currentDevelopSettings = all.first(where: { $0.photoID == photo.id })
     }
 
-    // 現像調整値を更新する。中立状態なら行を作らず、既存行があれば削除する
+    // 指定写真の DevelopSettings を返す（なければ nil）。選択切り替え直後は currentDevelopSettings が
+    // 既に次の写真を指していることがあるため、photoID が一致するときだけキャッシュを使う。
+    // 選択中写真のキャッシュは selectPhoto で loadDevelopSettings 済み（行が無ければ nil）なので
+    // 引き直さない（描画のたびに全件 fetch しないため）。それ以外の写真はストアから引く
+    func developSettings(forPhotoID photoID: UUID) -> DevelopSettings? {
+        if let cached = currentDevelopSettings, cached.photoID == photoID { return cached }
+        if selectedPhoto?.id == photoID { return nil }
+        guard let context = modelContext else { return nil }
+        return storedDevelopSettings(forPhotoID: photoID, context: context)
+    }
+
+    // 選択中写真の現像調整値を更新する。中立状態なら行を作らず、既存行があれば削除する
     // （neutral をわざわざ永続化しない）
     func updateDevelopParameters(_ parameters: DevelopParameters) {
-        guard let context = modelContext, let photo = selectedPhoto else { return }
+        guard let photo = selectedPhoto else { return }
+        persistDevelopParameters(parameters, forPhotoID: photo.id)
+    }
+
+    // 写真 ID を指定して現像調整値を保存する。DevelopViewModel のデバウンス保存・写真切り替え時の
+    // フラッシュはこの経路を使う（selectedPhoto は保存時点で既に別写真へ切り替わっていることがあるため）。
+    // currentDevelopSettings キャッシュは、対象が選択中写真のときだけ追従させる
+    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadDevelopSettings と
+    // 同じ「全件 fetch して first(where:)」パターンを踏襲する
+    //
+    // 中立なら原則として行を削除するが、次のどちらかなら行を残して中立値を書き込む:
+    // - keepingRecord（呼び出し側が 1 段 Undo を保持している）。プリセット/ペーストで中立になった直後に
+    //   行を消すと、cascade で MaskRaster が消えて Undo で戻した AI マスクがラスタを失い（プレビューは
+    //   デコードキャッシュで見えても書き出しでは効かない）、schemaVersion も失われて v1 の RAW レコードが
+    //   Undo 後に現行世代として作り直される（見た目が変わる）ため。
+    // - 行がまだ MaskRaster を所有している。ラスタの回収は到達可能性ベースの GC
+    //   （MaskRasterGarbageCollector、写真を離れる時点）に一本化しており、ここで cascade 削除すると
+    //   その前提（Undo で戻せる間はラスタが生きている）を崩すため。
+    // 残した中立行は、写真を離れる時点で GC 後にラスタが無ければ DevelopViewModel が削除する
+    func persistDevelopParameters(
+        _ parameters: DevelopParameters,
+        forPhotoID photoID: UUID,
+        keepingRecord: Bool = false
+    ) {
+        guard let context = modelContext else { return }
 
         if parameters.isNeutral {
-            if let existing = currentDevelopSettings {
+            if let existing = storedDevelopSettings(forPhotoID: photoID, context: context) {
+                if keepingRecord || !existing.maskRasters.isEmpty {
+                    do {
+                        try existing.setParameters(parameters)
+                    } catch {
+                        self.error = ShootLogError.photoDataSaveFailed
+                        return
+                    }
+                    saveOrReportError(context)
+                    return
+                }
                 context.delete(existing)
-                currentDevelopSettings = nil
             }
+            if currentDevelopSettings?.photoID == photoID { currentDevelopSettings = nil }
             saveOrReportError(context)
             return
         }
 
-        let settings = developSettingsOrCreate(for: photo, context: context)
+        let settings = developSettingsOrCreate(forPhotoID: photoID, context: context)
         do {
             try settings.setParameters(parameters)
         } catch {
@@ -41,77 +86,52 @@ extension ContentViewModel {
         saveOrReportError(context)
     }
 
-    // 写真 ID を指定して現像調整値を保存する。写真切り替え時に、切り替え前の写真の
-    // デバウンス保存を取りこぼさないための経路。currentDevelopSettings キャッシュには触らない
-    // （対象写真は通常もう選択中ではないため）
-    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadDevelopSettings と
-    // 同じ「全件 fetch して first(where:)」パターンを踏襲する
-    func persistDevelopParameters(_ parameters: DevelopParameters, forPhotoID photoID: UUID) {
-        guard let context = modelContext else { return }
-        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
-        let existing = all.first(where: { $0.photoID == photoID })
-
-        if parameters.isNeutral {
-            if let existing { context.delete(existing) }
-            saveOrReportError(context)
-            if currentDevelopSettings?.photoID == photoID { currentDevelopSettings = nil }
-            return
-        }
-
-        if let existing {
-            do {
-                try existing.setParameters(parameters)
-            } catch {
-                self.error = ShootLogError.photoDataSaveFailed
-                return
-            }
-        } else {
-            let settings = DevelopSettings(photoID: photoID)
-            do {
-                try settings.setParameters(parameters)
-            } catch {
-                self.error = ShootLogError.photoDataSaveFailed
-                return
-            }
-            context.insert(settings)
-        }
-        saveOrReportError(context)
-    }
-
     // AI マスクのラスタ（子 @Model の MaskRaster）を挿す親を用意して返す。
-    // updateDevelopParameters は中立の調整値では行を作らないため、マスク追加の時点では
+    // persistDevelopParameters は中立の調整値では行を作らないため、マスク追加の時点では
     // まだ DevelopSettings が存在しないことがある。ラスタは親なしでは cascade 削除に
-    // 乗らず孤児になるので、追加前にここで確実に作る
-    func developSettingsForMaskRaster() -> DevelopSettings? {
-        guard let context = modelContext, let photo = selectedPhoto else { return nil }
-        return developSettingsOrCreate(for: photo, context: context)
+    // 乗らず孤児になるので、追加前にここで確実に作る。
+    // 対象は呼び出し側（DevelopViewModel.currentPhoto）の写真 ID で指定する
+    func developSettingsForMaskRaster(forPhotoID photoID: UUID) -> DevelopSettings? {
+        guard let context = modelContext else { return nil }
+        return developSettingsOrCreate(forPhotoID: photoID, context: context)
     }
 
     // 現像調整を全リセットする。resetEdits()（回転・トリミング）とは独立
     func resetDevelop() {
-        guard let context = modelContext, let settings = currentDevelopSettings else { return }
+        guard let photo = selectedPhoto else { return }
+        resetDevelop(forPhotoID: photo.id)
+    }
+
+    // 写真 ID を指定して現像調整を全リセットする（DevelopViewModel.reset 用）
+    func resetDevelop(forPhotoID photoID: UUID) {
+        guard let context = modelContext,
+              let settings = storedDevelopSettings(forPhotoID: photoID, context: context) else { return }
         context.delete(settings)
-        currentDevelopSettings = nil
+        if currentDevelopSettings?.photoID == photoID { currentDevelopSettings = nil }
         saveOrReportError(context)
     }
 
     // MARK: - Private
 
-    // DevelopSettings を取得する。なければ新規作成して currentDevelopSettings にセットする。
+    // DevelopSettings を取得する。なければ新規作成する。対象が選択中写真なら currentDevelopSettings にセットする。
     // currentDevelopSettings が未ロード（loadDevelopSettings を経ずに selectedPhoto が
     // 入った経路）でも photoID 重複行を作らないよう、作成前に必ずストアを引き直す
-    private func developSettingsOrCreate(for photo: Photo, context: ModelContext) -> DevelopSettings {
-        if let existing = currentDevelopSettings, existing.photoID == photo.id { return existing }
-
-        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
-        if let stored = all.first(where: { $0.photoID == photo.id }) {
-            currentDevelopSettings = stored
-            return stored
+    private func developSettingsOrCreate(forPhotoID photoID: UUID, context: ModelContext) -> DevelopSettings {
+        let settings: DevelopSettings
+        if let stored = storedDevelopSettings(forPhotoID: photoID, context: context) {
+            settings = stored
+        } else {
+            settings = DevelopSettings(photoID: photoID)
+            context.insert(settings)
         }
-
-        let settings = DevelopSettings(photoID: photo.id)
-        context.insert(settings)
-        currentDevelopSettings = settings
+        if selectedPhoto?.id == photoID { currentDevelopSettings = settings }
         return settings
+    }
+
+    // キャッシュが一致すればそれを、なければストアから引き直した DevelopSettings を返す
+    private func storedDevelopSettings(forPhotoID photoID: UUID, context: ModelContext) -> DevelopSettings? {
+        if let cached = currentDevelopSettings, cached.photoID == photoID { return cached }
+        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
+        return all.first(where: { $0.photoID == photoID })
     }
 }

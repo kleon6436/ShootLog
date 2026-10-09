@@ -102,7 +102,9 @@ final class ImageLoader: Sendable {
     }
 
     // 指定 URL のサムネイルを返す（メモリ→ディスク→ImageIO の順で確認）
-    func thumbnail(for url: URL) async -> NSImage? {
+    // snapshot（フォルダスキャン時の FileAttributesSnapshot）を渡すと、ディスクキャッシュキーの
+    // 更新日時・サイズをそこから取り、ルックアップごとの属性取得システムコールを省く
+    func thumbnail(for url: URL, snapshot: FileAttributesSnapshot? = nil) async -> NSImage? {
         let key = url as NSURL
 
         // 1. メモリキャッシュ
@@ -123,7 +125,11 @@ final class ImageLoader: Sendable {
             return nil
         }
 
-        let diskURL = ThumbnailDiskCache.fileURL(for: url)
+        let diskURL = ThumbnailDiskCache.fileURL(
+            for: url,
+            modificationDate: snapshot?.modificationDate,
+            fileSize: snapshot?.size
+        )
         let diskImage = await Task.detached(priority: .utility) {
             NSImage(contentsOf: diskURL)
         }.value

@@ -11,10 +11,14 @@ struct VisionLabelClassification: Equatable, Sendable {
 enum VisionLabelClassifier {
     static let maximumRawIdentifierCount = 10
 
+    /// 画像を分類する。Visionの実行失敗・結果欠落時は `nil` を返す。
+    /// 呼び出し側は `nil` を「分類済み・カテゴリなし」として永続化せず、失敗として記録する
+    /// （`Photo.aiLabelingFailedAt`。再試行の条件は `ContentViewModel.shouldRetryAIFailure`）。
     static func classify(
         _ image: CGImage,
         maxResults: Int = Self.maximumRawIdentifierCount
-    ) -> VisionLabelClassification {
+    ) -> VisionLabelClassification? {
+        // 呼び出し側が結果件数0を明示した場合は失敗ではないため、空の分類結果を返す。
         guard maxResults > 0 else {
             return VisionLabelClassification(categories: [], rawIdentifiers: [])
         }
@@ -26,11 +30,11 @@ enum VisionLabelClassifier {
             let handler = VNImageRequestHandler(cgImage: image, options: [:])
             try handler.perform([request])
         } catch {
-            return VisionLabelClassification(categories: [], rawIdentifiers: [])
+            return nil
         }
 
         guard let results = request.results else {
-            return VisionLabelClassification(categories: [], rawIdentifiers: [])
+            return nil
         }
 
         let rankedResults = results.sorted { $0.confidence > $1.confidence }
@@ -63,139 +67,138 @@ enum VisionLabelClassifier {
     private static let labelCategories: [String: AISubjectCategory] = {
         let groupedLabels: [(AISubjectCategory, [String])] = [
             (.person, [
-                "acrobat", "adult", "apron", "athletics", "baby", "badminton", "ballet", "ballet_dancer", "baseball", "basketball", "bellydance", "bib",
-                "bowling", "bowtie", "boxing", "breakdancing", "bride", "bridesmaid", "cheerleading", "child", "clothing", "clown", "concert", "conference",
-                "costume", "cowboy_hat", "crowd", "cycling", "dancing", "deejay", "diving", "dressage", "earmuffs", "entertainer", "equestrian", "eyeglasses",
-                "fedora", "fencing_sport", "fishing", "graduation", "groom", "gymnastics", "hardhat", "hat", "headgear", "helmet", "hiking", "hockey",
-                "hoodie", "hula", "hunting", "jacket", "jeans", "jockey_horse", "juggling", "kickboxing", "kilt", "kimono", "lab_coat", "leotard",
-                "loafer", "martial_arts", "military_uniform", "mitten", "moccasin", "motocross", "music", "necktie", "orchestra", "parade", "parasailing", "people",
-                "performance", "ping_pong", "polo", "poncho", "putt", "rafting", "recreation", "rodeo", "rugby", "safety_vest", "samba", "santa_claus",
-                "sari", "scarf", "singer", "skateboarding", "skiing", "snowboarding", "soccer", "sport", "stroller", "sumo", "sunglasses", "surfing",
-                "swimsuit", "teen", "tennis", "tuxedo", "volleyball", "wedding", "wedding_dress", "workout", "wrestling", "yoga"
+                "acrobat", "adult", "apron", "archery", "athletics", "baby", "badminton", "ballet", "ballet_dancer", "ballgames", "baseball", "baseball_hat",
+                "basketball", "bathrobe", "beanie", "beekeeping", "bellydance", "bib", "bowling", "bowtie", "boxing", "breakdancing", "bride", "bridesmaid",
+                "bullfighting", "bungee", "celebration", "ceremony", "cheerleading", "child", "cloak", "clothing", "clown", "concert", "conference", "costume",
+                "cowboy_hat", "cricket_sport", "crowd", "cycling", "dancing", "deejay", "diving", "dragon_parade", "dressage", "earmuffs", "entertainer", "equestrian",
+                "eyeglasses", "fedora", "fencing_sport", "fishing", "football", "golf", "gown", "graduation", "groom", "gymnastics", "hardhat", "hat",
+                "headgear", "helmet", "henna", "hiking", "hockey", "hoodie", "hula", "hunting", "ice_skating", "jacket", "jeans", "jockey_horse",
+                "juggling", "kickboxing", "kilt", "kimono", "kiteboarding", "lab_coat", "leotard", "loafer", "martial_arts", "military_uniform", "mitten", "moccasin",
+                "motocross", "music", "necktie", "orchestra", "paintball", "parachute", "parade", "parasailing", "people", "performance", "ping_pong", "polo",
+                "poncho", "putt", "rafting", "recreation", "rock_climbing", "rodeo", "rollerskating", "rugby", "safety_vest", "samba", "santa_claus", "sari",
+                "scarf", "scuba", "singer", "skateboarding", "skating", "skiing", "skydiving", "sledding", "snorkeling", "snowboarding", "soccer", "softball",
+                "sombrero", "sport", "squash_sport", "stroller", "suit", "sumo", "sunbathing", "sunglasses", "sunhat", "surfing", "swimming", "swimsuit",
+                "tattoo", "teen", "tennis", "tuxedo", "volleyball", "wakeboarding", "waterpolo", "watersport", "wedding", "wedding_dress", "wetsuit", "windsurfing",
+                "winter_sport", "workout", "wrestling", "yoga"
             ]),
             (.animal, [
                 "adult_cat", "alligator_crocodile", "anchovy", "angelfish", "animal", "ant", "arachnid", "arthropods", "australian_shepherd", "barnacle", "barracuda", "basenji",
                 "basset", "beagle", "bear", "bee", "beehive", "bernese_mountain", "bichon", "bird", "bison", "boar", "bobcat", "bulldog",
-                "butterfly", "camel", "canine", "cat", "caterpillar", "cephalopod", "cetacean", "chameleon", "cheetah", "chihuahua", "chinchilla", "clownfish",
-                "cockatoo", "collie", "cougar", "cow", "coyote_wolf", "crab", "dachshund", "dalmatian", "deer", "dinosaur", "doberman", "dog",
-                "dolphin", "donkey", "dove", "dragonfly", "eagle", "elephant", "elk", "feline", "ferret", "fish", "flamingo", "fox",
-                "frog", "gastropod", "gecko", "gerbil", "german_shepherd", "giraffe", "goat", "goldfish", "greyhound", "gull", "guppy", "hamster",
-                "hedgehog", "heron", "hippopotamus", "horse", "hound", "hummingbird", "husky", "hyena", "iguana", "insect", "irish_wolfhound", "jack_russell_terrier",
-                "jellyfish", "kangaroo", "kitten", "koala", "koi", "ladybug", "lemur", "leopard", "lion", "lionfish", "lizard", "llama",
-                "lobster", "lynx", "malamute", "malinois", "mammal", "marsupial", "mastiff", "millipede", "mollusk", "monitor_lizard", "moose", "moth",
-                "newfoundland", "ostrich", "otter", "owl", "oyster", "panda", "parakeet", "parrot", "peacock", "pelican", "penguin", "peregrine",
-                "pig", "pigeon", "pitbull", "pomeranian", "poodle", "porcupine", "prairie_dog", "puffer_fish", "puffin", "pug", "python", "rabbit",
-                "raccoon", "raptor", "rat", "rattlesnake", "raven", "reptile", "retriever", "rhinoceros", "ridgeback", "rodent", "roe", "rottweiler",
-                "saint_bernard", "salmon", "sandpiper", "schnauzer", "scorpion", "seabass", "seahorse", "seal", "sealion", "setter", "shark", "sheep",
-                "sheepdog", "shellfish", "skunk", "snail", "snake", "snake_other", "spaniel", "sparrow", "spider", "squirrel", "starfish", "stingray",
-                "stork", "swan", "tiger", "toad", "tortoise", "toucan", "trout", "tuna", "turtle", "ungulates", "vizsla", "vulture",
+                "butterfly", "camel", "canine", "cat", "caterpillar", "centipede", "cephalopod", "cetacean", "chameleon", "cheetah", "chihuahua", "chinchilla",
+                "clownfish", "cockatoo", "collie", "conch", "corgi", "cougar", "cow", "coyote_wolf", "crab", "dachshund", "dalmatian", "deer",
+                "dinosaur", "doberman", "dog", "dolphin", "donkey", "dove", "dragonfly", "eagle", "elephant", "elk", "feline", "ferret",
+                "fish", "flamingo", "fox", "frog", "gastropod", "gecko", "gerbil", "german_shepherd", "giraffe", "goat", "goldfish", "greyhound",
+                "gull", "guppy", "hamster", "hedgehog", "heron", "hippopotamus", "horse", "hound", "hummingbird", "husky", "hyena", "iguana",
+                "insect", "irish_wolfhound", "jack_russell_terrier", "jellyfish", "kangaroo", "kitten", "koala", "koi", "ladybug", "lemur", "leopard", "lion",
+                "lionfish", "lizard", "llama", "lobster", "lynx", "mackerel", "malamute", "malinois", "mammal", "marsupial", "mastiff", "millipede",
+                "mollusk", "monitor_lizard", "moose", "moth", "nest", "newfoundland", "ostrich", "otter", "owl", "oyster", "panda", "parakeet",
+                "parrot", "peacock", "pelican", "penguin", "peregrine", "pig", "pigeon", "pitbull", "pomeranian", "poodle", "porcupine", "prairie_dog",
+                "puffer_fish", "puffin", "pug", "python", "rabbit", "raccoon", "raptor", "rat", "rattlesnake", "raven", "reptile", "retriever",
+                "rhinoceros", "ridgeback", "rodent", "rottweiler", "saint_bernard", "salmon", "sandpiper", "sardine", "scarab", "schnauzer", "scorpion", "seabass",
+                "seahorse", "seal", "sealion", "setter", "shark", "sheep", "sheepdog", "shellfish", "skunk", "snail", "snake", "snake_other",
+                "snapper", "spaniel", "sparrow", "spider", "spiderweb", "squirrel", "starfish", "stingray", "stork", "sunfish", "swan", "swordfish",
+                "terrier", "tiger", "toad", "tortoise", "toucan", "trout", "tuna", "turtle", "ungulates", "urchin", "vizsla", "vulture",
                 "walrus", "weimaraner", "whale", "woodpecker", "worm", "zebra", "zoo"
             ]),
             (.food, [
                 "almond", "antipasti", "apple", "apricot", "artichoke", "arugula", "asparagus", "avocado", "bacon", "bagel", "baked_goods", "baklava",
                 "banana", "bean", "beef", "beer", "beet", "bell_pepper", "berry", "birthday_cake", "biryani", "biscotti", "biscuit", "blackberry",
-                "blueberry", "bread", "broccoli", "brownie", "bruschetta", "bubble_tea", "burrito", "butter", "cake", "cake_regular", "candy", "cantaloupe",
-                "caprese", "caramel", "carrot", "cashew", "casserole", "celery", "cereal", "cheese", "cheesecake", "cherry", "chestnut", "chewing_gum",
-                "chives", "chocolate", "chocolate_chip", "citrus_fruit", "cocktail", "coconut", "coffee", "coffee_bean", "coleslaw", "condiment", "cookie", "corn",
-                "cranberry", "crepe", "croissant", "cucumber", "cupcake", "curry", "daikon", "dessert", "dill", "donut", "drink", "dumpling",
-                "durian", "edamame", "egg", "eggplant", "falafel", "fig", "flan", "fondue", "food", "fried_chicken", "fried_egg", "fries",
-                "frozen", "frozen_dessert", "fruit", "fruitcake", "garlic", "grape", "grapefruit", "green_beans", "grilled_chicken", "guacamole", "guava", "gyoza",
-                "habanero", "ham", "hamburger", "honey", "honeydew", "hotdog", "hummus", "ice_cream", "jalapeno", "jello", "jelly", "juice",
-                "juicer", "kebab", "kettle", "kiwi", "kohlrabi", "leek", "lemon", "lemongrass", "lime", "liquor", "lychee", "macadamia",
-                "mandarine", "mango", "mangosteen", "margarita", "marshmallow", "martini", "matzo", "meat", "meatball", "melon", "milkshake", "mojito",
-                "mushroom", "mustard", "naan", "nachos", "nectarine", "nut", "oatmeal", "omelet", "onion", "oranges", "paella", "pancake",
-                "papaya", "passionfruit", "pasta", "pastry", "pea", "peach", "peanut", "pear", "pecan", "pepper_veggie", "pepperoni", "persimmon",
-                "pickle", "pie", "pierogi", "pineapple", "pistachio", "pita", "pizza", "plum", "pomegranate", "popcorn", "popsicle", "potato",
-                "poultry", "pretzel", "pudding", "pumpkin", "quesadilla", "quinoa", "radish", "rambutan", "ramen", "raspberry", "raw_glass", "red_wine",
-                "rhubarb", "rice", "risotto", "salad", "salami", "samosa", "sandwich", "satay", "sauerkraut", "sausage", "scallop", "scrambled_eggs",
-                "seafood", "shawarma", "smoothie", "soup", "spaghetti", "springroll", "steak", "stir_fry", "strawberry", "strudel", "sugar_cube", "sushi",
-                "tableware", "taco", "taffy", "tapioca_pearls", "taro", "tea_drink", "tempura", "tequila", "teriyaki", "tiramisu", "tomato", "tortilla",
-                "turmeric", "vegetable", "waffle", "wasabi", "watermelon", "wheat", "white_bread", "white_wine", "wine", "wonton", "yogurt", "yolk",
+                "blueberry", "bread", "broccoli", "brownie", "bruschetta", "bubble_tea", "burrito", "butter", "cake", "cake_regular", "candy", "candy_cane",
+                "candy_other", "cantaloupe", "caprese", "caramel", "carrot", "cashew", "casserole", "cauliflower", "celery", "cereal", "cheese", "cheesecake",
+                "cherry", "chestnut", "chewing_gum", "chives", "chocolate", "chocolate_chip", "citrus_fruit", "clam", "cocktail", "coconut", "coffee", "coffee_bean",
+                "coleslaw", "condiment", "cookie", "corn", "cranberry", "crepe", "croissant", "cucumber", "cupcake", "curry", "daikon", "dessert",
+                "dill", "donut", "drink", "dumpling", "durian", "edamame", "egg", "eggplant", "falafel", "fig", "flan", "fondue",
+                "food", "fried_chicken", "fried_egg", "fries", "frozen", "frozen_dessert", "fruit", "fruitcake", "garlic", "gingerbread", "grape", "grapefruit",
+                "green_beans", "grilled_chicken", "guacamole", "guava", "gyoza", "habanero", "ham", "hamburger", "honey", "honeydew", "hotdog", "hummus",
+                "ice_cream", "jalapeno", "jello", "jelly", "juice", "kebab", "kiwi", "kohlrabi", "leek", "lemon", "lemongrass", "lettuce",
+                "lime", "liquor", "lollipop", "lychee", "macadamia", "mandarine", "mango", "mangosteen", "margarita", "marshmallow", "martini", "matzo",
+                "meat", "meatball", "melon", "milkshake", "mojito", "muffin", "mushroom", "mussel", "mustard", "naan", "nachos", "nectarine",
+                "nut", "oatmeal", "omelet", "onion", "oranges", "paella", "pancake", "papaya", "passionfruit", "pasta", "pastry", "pea",
+                "peach", "peanut", "pear", "pecan", "pepper_veggie", "pepperoni", "persimmon", "pickle", "pie", "pierogi", "pineapple", "pistachio",
+                "pita", "pizza", "plum", "pomegranate", "popcorn", "popsicle", "potato", "poultry", "pretzel", "pudding", "pumpkin", "quesadilla",
+                "quinoa", "radish", "rambutan", "ramen", "raspberry", "red_wine", "rhubarb", "rice", "risotto", "roe", "salad", "salami",
+                "samosa", "sandwich", "sangria", "satay", "sauerkraut", "sausage", "scallop", "scone", "scrambled_eggs", "seafood", "seasonings", "sesame",
+                "shawarma", "shellfish_prepared", "smoothie", "soda", "souffle", "soup", "souvlaki", "spaghetti", "spareribs", "sparkling_wine", "spice", "spinach",
+                "springroll", "starfruit", "steak", "stir_fry", "strawberry", "strudel", "sugar_cube", "sunflower_seeds", "sushi", "tabbouleh", "taco", "taffy",
+                "tapas", "tapioca_pearls", "taro", "tea_drink", "tempura", "tequila", "teriyaki", "tiramisu", "tomato", "tortilla", "turmeric", "vegetable",
+                "waffle", "wasabi", "watermelon", "wedding_cake", "wheat", "white_bread", "white_wine", "wine", "wine_bottle", "wonton", "yogurt", "yolk",
                 "zucchini"
             ]),
             (.landscape, [
-                "agriculture", "alley", "amusement_park", "archery", "aurora", "beach", "beekeeping", "bench", "billiards", "binoculars", "blizzard", "blue_sky",
-                "bridge", "camping", "canyon", "cave", "cityscape", "cliff", "cloudy", "coral_reef", "creek", "daytime", "desert", "dirt_road",
-                "embers", "fairground", "farm", "fire", "fireworks", "flame", "forest", "garden", "geyser", "glacier", "golf", "golf_course",
-                "haze", "hill", "ice", "ice_skating", "iceberg", "island", "jungle", "kayak", "kiteboarding", "lake", "land", "lava",
-                "lightning", "mangrove", "megalith", "moon", "mountain", "night_sky", "ocean", "orchard", "outdoor", "paintball", "parachute", "park",
-                "path", "patio", "rainbow", "river", "road", "rock_climbing", "rocks", "sand", "sand_dune", "scuba", "shore", "sidewalk",
-                "skatepark", "skating", "sky", "sledding", "snorkeling", "snow", "snowball", "snowman", "softball", "storm", "sun", "sunbathing",
-                "sundial", "sunset_sunrise", "trail", "underwater", "vineyard", "volcano", "wakeboarding", "water", "water_body", "waterfall", "waterpolo", "watersport",
-                "waterways", "wetland", "wind_turbine", "winter_sport"
+                "agriculture", "amusement_park", "aurora", "beach", "blizzard", "blue_sky", "camping", "canyon", "cave", "celestial_body", "celestial_body_other", "cliff",
+                "cloudy", "coral_reef", "creek", "daytime", "desert", "dirt_road", "embers", "fairground", "farm", "fire", "fireworks", "flame",
+                "forest", "garden", "geyser", "glacier", "golf_course", "haze", "hill", "ice", "iceberg", "island", "jungle", "lake",
+                "land", "lava", "lightning", "mangrove", "moon", "mountain", "night_sky", "ocean", "orchard", "outdoor", "park", "path",
+                "playground", "rainbow", "river", "road", "road_other", "rocks", "sand", "sand_dune", "sandcastle", "shore", "skatepark", "sky",
+                "snow", "snowball", "snowman", "storm", "sun", "sunset_sunrise", "thunderstorm", "tornado", "trail", "underwater", "vineyard", "volcano",
+                "water", "water_body", "waterfall", "waterways", "wetland"
             ]),
             (.building, [
-                "airport", "apartment", "aquarium", "arch", "arena", "atm", "auditorium", "balcony", "bar", "barn", "bathroom", "bathroom_room",
-                "bedroom", "bell", "belltower", "birdhouse", "bleachers", "blocks", "boathouse", "bodyboard", "brick", "brick_oven", "building", "carnival",
-                "carousel", "casino", "castle", "cellar", "chimney", "circus", "classroom", "clock_tower", "closet", "dam", "deck", "dome",
-                "domicile", "door", "driveway", "elevator", "escalator", "fence", "ferris_wheel", "fireplace", "fountain", "garage", "gargoyle", "gazebo",
-                "grave", "greenhouse", "hangar", "harbour", "hospital", "house_single", "houseboat", "hydrant", "igloo", "interior_room", "interior_shop", "kitchen",
-                "kitchen_room", "library", "lighthouse", "manhole", "monument", "museum", "nightclub", "obelisk", "parking_lot", "pergola", "pier",
-                "pool", "porch", "portal", "porthole", "pyramid", "restaurant", "roof", "ruins", "sandcastle", "shed", "shipyard", "silo",
-                "skyscraper", "smokestack", "stadium", "stained_glass", "stairs", "statue", "storefront", "street", "structure", "theater", "tower", "train_station",
-                "tunnel", "watermill", "windmill", "window", "pole"
+                "airport", "alley", "apartment", "aquarium", "arch", "arena", "auditorium", "balcony", "bar", "barn", "belltower", "bleachers",
+                "boathouse", "brick", "brick_oven", "bridge", "building", "carnival", "carousel", "casino", "castle", "cellar", "chimney", "circus",
+                "cityscape", "clock_tower", "crosswalk", "dam", "deck", "dock", "dome", "domicile", "door", "driveway", "elevator", "escalator",
+                "fence", "ferris_wheel", "fountain", "garage", "gargoyle", "gazebo", "grave", "greenhouse", "hangar", "harbour", "health_club", "hospital",
+                "house_single", "houseboat", "igloo", "library", "lighthouse", "megalith", "monument", "museum", "nightclub", "obelisk", "parking_lot", "patio",
+                "pergola", "pier", "pool", "porch", "portal", "pyramid", "restaurant", "rink", "rollercoaster", "roof", "ruins", "shed",
+                "shipyard", "sidewalk", "silo", "skyscraper", "smokestack", "stadium", "stained_glass", "stairs", "statue", "storefront", "street", "structure",
+                "theater", "tower", "train_station", "tunnel", "watermill", "wind_turbine", "windmill", "window"
             ]),
             (.vehicle, [
-                "aircraft", "airplane", "airshow", "ambulance", "atv", "automobile", "backhoe", "balloon", "balloon_hotair", "barge", "bicycle", "boat",
-                "boot", "bottle", "bouquet", "bowl", "briefcase", "broom", "bucket", "bulldozer", "bullfighting", "bungee", "bus", "cableway",
-                "cage", "cakestand", "caliper", "camera", "candy_cane", "canoe", "car", "car_seat", "cart", "chairlift", "convertible", "conveyance",
-                "crane_construction", "cruise_ship", "dock", "drone_machine", "engine_vehicle", "firetruck", "forklift", "formula_one_car", "go_kart", "hangglider", "helicopter", "jeep",
-                "jetski", "limousine", "mast", "monorail", "motorcycle", "motorhome", "nascar", "oar", "police_car", "propeller", "railroad", "rickshaw",
-                "road_other", "rocket", "rollercoaster", "rollerskates", "rowboat", "sailboat", "scooter", "semi_truck", "shopping_cart", "skateboard", "sled", "snowmobile",
-                "snowshoe", "speedboat", "sportscar", "streetcar", "submarine_water", "surfboard", "suv", "tire", "track_rail", "tractor", "traffic_light", "train",
-                "train_real", "train_toy", "tramway", "tricycle", "truck", "van", "vehicle", "vehicle_toy", "wagon", "warship", "watercraft", "wheel",
-                "wheelbarrow", "wheelchair", "windsurfing", "yacht"
+                "aircraft", "airplane", "airshow", "ambulance", "atv", "automobile", "backhoe", "balloon_hotair", "barge", "bicycle", "boat", "bulldozer",
+                "bus", "cableway", "canoe", "car", "cart", "chairlift", "convertible", "conveyance", "crane_construction", "cruise_ship", "dashboard", "drone_machine",
+                "engine_vehicle", "firetruck", "forklift", "formula_one_car", "go_kart", "grand_prix", "hangglider", "helicopter", "jeep", "jetski", "kayak", "limousine",
+                "mast", "monorail", "motorcycle", "motorhome", "motorsport", "nascar", "police_car", "propeller", "railroad", "rickshaw", "rocket", "rowboat",
+                "sailboat", "scooter", "semi_truck", "sled", "snowmobile", "speedboat", "sportscar", "streetcar", "submarine_water", "suv", "tire", "track_rail",
+                "tractor", "train", "train_real", "tramway", "tricycle", "truck", "van", "vehicle", "wagon", "warship", "watercraft", "wheel",
+                "wheelchair", "yacht"
             ]),
             (.plant, [
-                "acorn", "begonia", "blossom", "bonsai", "branch", "cactus", "candy_other", "cardboard_box", "carnation", "carton", "cauliflower", "celebration",
-                "celestial_body", "celestial_body_other", "centipede", "ceremony", "chainsaw", "chopsticks", "christmas_decoration", "christmas_tree", "chrysanthemum", "cigar", "cigarette", "cilantro",
-                "circuit_board", "clam", "cloak", "clover", "coin", "compass", "conch", "cord", "corgi", "corkscrew", "cornflower", "cosmetic_tool",
-                "crate", "cricket_sport", "crosswalk", "crutch", "daffodil", "dahlia", "daisy", "dandelion", "dartboard", "decanter", "decorative_plant", "diaper",
-                "dice", "doll", "domino", "dragon_parade", "drum", "dumbbell", "easter_egg", "eucalyptus_tree", "evergreen", "extinguisher", "ferns", "figurine",
-                "firecracker", "fishbowl", "fishtank", "flagpole", "flashlight", "flower", "flower_arrangement", "foliage", "grain", "grass", "herb", "holly",
-                "ivy", "lily", "maple_tree", "marigold", "mistletoe", "moss", "oak_tree", "orchid", "palm_tree", "petunia", "plant", "poinsettia",
-                "rice_field", "rose", "rosemary", "seaweed", "seed", "sequoia", "shrub", "snapdragon", "spinach", "sunflower", "sunflower_seeds", "tree",
-                "tulip", "vegetation", "watering_can", "willow"
+                "acorn", "begonia", "blossom", "bonsai", "bouquet", "branch", "cactus", "carnation", "christmas_tree", "chrysanthemum", "cilantro", "clover",
+                "cornflower", "daffodil", "dahlia", "daisy", "dandelion", "decorative_plant", "eucalyptus_tree", "evergreen", "ferns", "flower", "flower_arrangement", "foliage",
+                "grain", "grass", "herb", "holly", "ivy", "lily", "maple_tree", "marigold", "mistletoe", "moss", "oak_tree", "orchid",
+                "palm_tree", "petunia", "plant", "poinsettia", "rice_field", "rose", "rosemary", "seaweed", "seed", "sequoia", "shrub", "snapdragon",
+                "sunflower", "tree", "tulip", "vegetation", "willow"
             ]),
             (.indoor, [
-                "anvil", "appliance", "armchair", "backgammon", "bath", "bathrobe", "bathroom_faucet", "bed", "bedding", "blender", "board_game", "bongo_drum",
-                "bookshelf", "brass_music", "cabinet", "calculator", "candle", "candlestick", "cassette", "cello", "chair", "chair_other", "chaise", "chandelier",
-                "chess", "clarinet", "clothesline", "clothespin", "computer", "computer_keyboard", "computer_monitor", "computer_mouse", "computer_tower", "consumer_electronics", "container", "cookware",
-                "crib", "cubicle", "cup", "curtain", "cutting_board", "desk", "dining_room", "dishwasher", "diskette", "drinking_glass", "easel", "electric_fan",
-                "flipper", "flute", "folding_chair", "foosball", "football", "furniture", "gamepad", "games", "grill", "guitar", "harp", "high_chair",
-                "jacuzzi", "jar", "karaoke", "kitchen_countertop", "kitchen_faucet", "kitchen_oven", "kitchen_sink", "lamp", "laptop", "laundry_machine", "light", "light_bulb",
-                "mailbox", "microphone", "microscope", "microwave", "office_supplies", "organ_instrument", "oven", "pan", "piano", "plate", "refrigerator", "saxophone",
-                "shower", "sofa", "speakers_music", "stereo", "stove", "table", "television", "toaster", "toaster_oven", "toilet_seat", "toolbox", "trumpet",
-                "tuba", "vacuum", "vase", "washbasin", "living_room"
+                "accordion", "appliance", "armchair", "backgammon", "bath", "bathroom", "bathroom_faucet", "bathroom_room", "bed", "bedding", "bedroom", "billiards",
+                "blender", "board_game", "bongo_drum", "bookshelf", "bowl", "brass_music", "cabinet", "calculator", "candle", "candlestick", "cassette", "cello",
+                "chair", "chair_other", "chaise", "chandelier", "chess", "clarinet", "classroom", "closet", "computer", "computer_keyboard", "computer_monitor", "computer_mouse",
+                "computer_tower", "consumer_electronics", "cookware", "crib", "cubicle", "cup", "curtain", "cutting_board", "dartboard", "decanter", "desk", "dice",
+                "dining_room", "dishwasher", "diskette", "domino", "drinking_glass", "drum", "easel", "electric_fan", "fireplace", "flute", "folding_chair", "foosball",
+                "furniture", "gamepad", "games", "grill", "guitar", "harp", "high_chair", "housewares", "interior_room", "interior_shop", "jacuzzi", "jar",
+                "joystick", "juicer", "karaoke", "kettle", "kitchen", "kitchen_countertop", "kitchen_faucet", "kitchen_oven", "kitchen_room", "kitchen_sink", "lamp", "laptop",
+                "laundry_machine", "light", "light_bulb", "living_room", "microphone", "microscope", "microwave", "mug", "musical_instrument", "office_supplies", "organ_instrument", "oven",
+                "pan", "piano", "pillow", "plate", "play_card", "poker", "pot_cooking", "printer", "refrigerator", "roulette", "saxophone", "shower",
+                "sofa", "speakers_music", "steamer_cookware", "stereo", "stool", "stove", "string_instrument", "swivel_chair", "table", "tableware", "tambourine", "teapot",
+                "television", "toaster", "toaster_oven", "toilet_seat", "trombone", "trumpet", "tuba", "turntable", "ukulele", "vacuum", "vase", "videogame",
+                "violin", "washbasin", "woodwind", "xylophone"
             ]),
             (.text, [
-                "abacus", "accordion", "art", "axe", "backpack", "bag", "ball", "ballgames", "banner", "barbell", "barrel", "baseball_bat",
-                "baseball_hat", "basket_container", "beanie", "billboards", "book", "calendar", "cd", "chalkboard", "chart", "checkbook", "clock", "coupon",
-                "credit_card", "currency", "dashboard", "decoration", "diagram", "dial", "diorama", "disco_ball", "document", "envelope", "flag", "flipchart",
-                "gift", "gift_card", "graffiti", "handwriting", "hourglass", "illustrations", "jigsaw", "joystick", "keypad", "license_plate", "magazine", "map",
-                "medal", "media", "megaphone", "money", "musical_instrument", "newspaper", "origami", "painting", "paper_bag", "passport", "pen", "phone",
-                "play_card", "podium", "polka_dots", "printed_page", "printer", "puppet", "puzzles", "rangoli", "receipt", "record", "red_envelope", "roulette", "frame",
-                "scoreboard", "screenshot", "sewing", "sign", "skeleton", "solar_panel", "sticky_note", "street_sign", "tachometer", "tattoo", "telescope",
-                "textile", "thermometer", "thermos", "thermostat", "ticket", "timepiece", "trophy", "typewriter", "ukulele", "violin", "wallet", "watch",
-                "whiteboard", "woodwind", "xylophone", "yarn"
+                "banner", "billboards", "book", "calendar", "chalkboard", "chart", "checkbook", "coupon", "credit_card", "currency", "diagram", "document",
+                "envelope", "flipchart", "gift_card", "graffiti", "handwriting", "illustrations", "license_plate", "magazine", "map", "media", "money", "newspaper",
+                "passport", "printed_page", "receipt", "red_envelope", "scoreboard", "screenshot", "sign", "sticky_note", "street_sign", "ticket", "whiteboard"
             ]),
             (.object, [
-                "footwear", "fork", "frisbee", "gas_mask", "gears", "gingerbread", "glove", "glove_other", "goggles", "golf_ball", "golf_club",
-                "gown", "grand_prix", "grater", "hammer", "hammock", "headphones", "health_club", "henna", "high_heel", "hookah", "horseshoe", "housewares",
-                "hurdle", "ice_skates", "iron_clothing", "jack_o_lantern", "jewelry", "jug", "keg", "kite", "knife", "ladle", "lamppost", "lantern",
-                "leash", "lettuce", "lifejacket", "lifesaver", "lighter", "liquid", "lollipop", "luggage", "machine", "mackerel", "mallet", "mask",
-                "matches", "material", "measuring_tape", "medicine", "mop", "motorsport", "mousetrap", "mower", "muffin", "mug", "mussel", "nest",
-                "optical_equipment", "pacifier", "paintbrush", "payphone", "piggybank", "pillow", "pipe", "playground", "pliers", "poker", "pot_cooking",
-                "power_saw", "puck", "pulley", "purse", "pylon", "pyrotechnics", "racquet", "rake", "ratchet", "rim", "rink", "road_safety_equipment",
-                "rollerskating", "rolling_pin", "rope", "rotisserie", "sack", "saddle", "sangria", "sardine", "scarab", "scarecrow", "scissors", "scone",
-                "screwdriver", "seashell", "seasonings", "seat", "seesaw", "sesame", "shellfish_prepared", "shoes", "ski_boot", "ski_equipment", "skull", "skydiving",
-                "slide_toy", "smoking_item", "snapper", "sneaker", "snowboard", "sock", "soda", "sombrero", "souffle", "souvlaki", "spareribs", "sparkler",
-                "sparkling_wine", "spatula", "spice", "spiderweb", "spoon", "sports_equipment", "spotlight", "sprinkler", "squash_sport", "starfruit", "steamer_cookware", "stethoscope",
-                "stool", "stopwatch", "straw_drinking", "straw_hay", "stretcher", "string_instrument", "stuffed_animals", "suit", "suitcase", "sunfish", "sunhat", "swimming",
-                "swing_playground", "swivel_chair", "sword", "swordfish", "syringe", "tabbouleh", "tambourine", "tapas", "teapot", "tent", "terrarium", "terrier",
-                "thunderstorm", "tiara", "tool", "tornado", "toy", "trampoline", "trash_can", "treadmill", "tripod", "trombone", "turntable", "umbrella",
-                "urchin", "utensil", "videogame", "wedding_cake", "weight_scale", "wetsuit", "whisk", "winch", "wine_bottle", "wood_natural", "wood_processed", "wreath",
-                "wrench"
+                "abacus", "anvil", "art", "atm", "axe", "backpack", "bag", "ball", "balloon", "barbell", "barrel", "baseball_bat",
+                "basket_container", "bell", "bench", "binoculars", "birdhouse", "blocks", "bodyboard", "boot", "bottle", "briefcase", "broom", "bucket",
+                "cage", "cakestand", "caliper", "camera", "car_seat", "cardboard_box", "carton", "cd", "chainsaw", "chopsticks", "christmas_decoration", "cigar",
+                "cigarette", "circuit_board", "clock", "clothesline", "clothespin", "coin", "compass", "container", "cord", "corkscrew", "cosmetic_tool", "crate",
+                "crutch", "decoration", "dial", "diaper", "diorama", "disco_ball", "doll", "dumbbell", "easter_egg", "extinguisher", "figurine", "firecracker",
+                "fishbowl", "fishtank", "flag", "flagpole", "flashlight", "flipper", "footwear", "fork", "frame", "frisbee", "gas_mask", "gears",
+                "gift", "glove", "glove_other", "goggles", "golf_ball", "golf_club", "grater", "hammer", "hammock", "headphones", "high_heel", "hookah",
+                "horseshoe", "hourglass", "hurdle", "hydrant", "ice_skates", "iron_clothing", "jack_o_lantern", "jewelry", "jigsaw", "jug", "keg", "keypad",
+                "kite", "knife", "ladle", "lamppost", "lantern", "leash", "lifejacket", "lifesaver", "lighter", "liquid", "luggage", "machine",
+                "mailbox", "mallet", "manhole", "mask", "matches", "material", "measuring_tape", "medal", "medicine", "megaphone", "mop", "mousetrap",
+                "mower", "oar", "optical_equipment", "origami", "pacifier", "paintbrush", "painting", "paper_bag", "payphone", "pen", "phone", "piggybank",
+                "pipe", "pliers", "podium", "pole", "polka_dots", "porthole", "power_saw", "puck", "pulley", "puppet", "purse", "puzzles",
+                "pylon", "pyrotechnics", "racquet", "rake", "rangoli", "ratchet", "raw_glass", "record", "rim", "road_safety_equipment", "rollerskates", "rolling_pin",
+                "rope", "rotisserie", "sack", "saddle", "scarecrow", "scissors", "screwdriver", "seashell", "seat", "seesaw", "sewing", "shoes",
+                "shopping_cart", "skateboard", "skeleton", "ski_boot", "ski_equipment", "skull", "slide_toy", "smoking_item", "sneaker", "snowboard", "snowshoe", "sock",
+                "solar_panel", "sparkler", "spatula", "spoon", "sports_equipment", "spotlight", "sprinkler", "stethoscope", "stopwatch", "straw_drinking", "straw_hay", "stretcher",
+                "stuffed_animals", "suitcase", "sundial", "surfboard", "swing_playground", "sword", "syringe", "tachometer", "telescope", "tent", "terrarium", "textile",
+                "thermometer", "thermos", "thermostat", "tiara", "timepiece", "tool", "toolbox", "toy", "traffic_light", "train_toy", "trampoline", "trash_can",
+                "treadmill", "tripod", "trophy", "typewriter", "umbrella", "utensil", "vehicle_toy", "wallet", "watch", "watering_can", "weight_scale", "wheelbarrow",
+                "whisk", "winch", "wood_natural", "wood_processed", "wreath", "wrench", "yarn"
             ]),
         ]
 

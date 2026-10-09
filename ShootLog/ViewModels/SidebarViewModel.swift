@@ -86,6 +86,8 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     // 現像パネルの「書き出し」ボタン用
     func presentDevelopExport() {
+        // 書き出しは保存済みの DevelopSettings を読むため、デバウンス待ちの直前の編集を先に書き込む
+        developViewModel.flushPendingPersist()
         content.presentDevelopExport()
     }
 
@@ -163,6 +165,16 @@ final class SidebarViewModel: ContentViewModelProxy {
     var isSelectedPhotoFavorite: Bool { content.selectedPhoto?.isFavorite ?? false }
 
     func loadEditInfo(for photo: Photo) { content.loadEditInfo(for: photo) }
+    // 上下矢印キーでの写真送りは、実際にリストへ表示している displayedPhotos
+    // （お気に入り・検索・AIカテゴリの絞り込み後）を基準にする
+    func selectNext() { content.selectNext(in: { [weak self] in self?.displayedPhotos ?? [] }) }
+    func selectPrevious() { content.selectPrevious(in: displayedPhotos) }
+    // カウンタ・VoiceOver の位置読み上げも、キー送りと同じ displayedPhotos 基準にする
+    var displayedIndex: Int? {
+        guard let selectedPhoto = content.selectedPhoto else { return nil }
+        return displayedPhotos.firstIndex(where: { $0.id == selectedPhoto.id })
+    }
+    var displayedCounterText: String { counterText(in: displayedPhotos) }
     func loadEXIFIfNeeded(for photo: Photo) async { await content.loadEXIFIfNeeded(for: photo) }
     func setCropRect(_ rect: CGRect?) { content.setCropRect(rect) }
     func rotateSelectedPhoto() { content.rotateSelectedPhoto() }

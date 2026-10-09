@@ -23,7 +23,8 @@ struct PhotoViewerView: View {
     var interpolation: Image.Interpolation = .high
 
     // 現在表示している画像のピクセルサイズを呼び出し元へ通知する。
-    // フルスクリーンのズーム上限（実ロード済み解像度でのキャップ）とパンのクランプ計算に使う
+    // フルスクリーンでは fit 時の縦横比計算と、原本ピクセルサイズ（EXIF）未取得時の
+    // ズーム上限・Fit% のフォールバックに使う（100% の基準は原本サイズ）
     var onDisplayedImageSizeChange: ((CGSize) -> Void)? = nil
 
     @State private var vm = PhotoImageViewModel()
@@ -68,7 +69,7 @@ struct PhotoViewerView: View {
                     await loadFullSizeIfNeeded()
                 }
                 // サムネイル→高解像度→フルサイズの差し替えでいずれも実解像度が変わるため、
-                // すべての変化を通知する（フルスクリーンのズーム上限計算がこれに依存する）
+                // すべての変化を通知する（原本サイズ未取得時のフォールバックがこれに依存する）
                 .onChange(of: vm.thumbnail, initial: true) { _, _ in notifyDisplayedImageSize() }
                 .onChange(of: vm.highRes) { _, _ in notifyDisplayedImageSize() }
                 .onChange(of: fullSizeImage) { _, _ in notifyDisplayedImageSize() }

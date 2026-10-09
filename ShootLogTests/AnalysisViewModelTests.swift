@@ -51,4 +51,27 @@ struct AnalysisViewModelTests {
         viewModel.showFavoritesOverlay = true
         #expect(viewModel.currentData.count > isoData.count)
     }
+
+    // シート表示後にEXIFが一括取得されるケース。refresh() で件数・カメラ一覧・チャートが追随すること
+    @Test func refreshPicksUpEXIFLoadedAfterInit() {
+        let photos = (0..<3).map { Photo(fileURL: URL(fileURLWithPath: "/tmp/late-\($0).jpg")) }
+        let viewModel = AnalysisViewModel(photos: photos)
+        let initialSignature = viewModel.dataSignature
+        #expect(viewModel.exifCount == 0)
+        #expect(viewModel.availableCameras.isEmpty)
+        #expect(viewModel.currentData.isEmpty)
+
+        for photo in photos {
+            photo.cameraModel = "Camera Z"
+            photo.aperture = 4.0
+            photo.exifFetchedAt = Date()
+        }
+        #expect(viewModel.dataSignature != initialSignature)
+
+        viewModel.refresh()
+
+        #expect(viewModel.exifCount == 3)
+        #expect(viewModel.availableCameras == ["Camera Z"])
+        #expect(viewModel.currentData.reduce(0) { $0 + $1.count } == 3)
+    }
 }

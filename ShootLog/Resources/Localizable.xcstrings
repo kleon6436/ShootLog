@@ -61,7 +61,29 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Favorite ratio: %2$lld of %1$lld photos, %3$lld percent"
+            "value" : "Favorite ratio: %2$lld of %#@total@, %3$lld percent"
+          },
+          "substitutions" : {
+            "total" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg photo"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg photos"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "ja" : {
@@ -183,6 +205,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "トリミング範囲の右下ハンドル"
+          }
+        }
+      }
+    },
+    "a11y.crop.handle.moveDown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move down"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下へ移動"
+          }
+        }
+      }
+    },
+    "a11y.crop.handle.moveLeft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move left"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左へ移動"
+          }
+        }
+      }
+    },
+    "a11y.crop.handle.moveRight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move right"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右へ移動"
+          }
+        }
+      }
+    },
+    "a11y.crop.handle.moveUp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move up"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上へ移動"
           }
         }
       }
@@ -1370,7 +1456,29 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld total / %2$lld favorites"
+            "value" : "%1$lld total / %#@favorites@"
+          },
+          "substitutions" : {
+            "favorites" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg favorite"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg favorites"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "ja" : {
@@ -1746,7 +1854,29 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld of %2$lld (%3$lld%%)"
+            "value" : "%1$lld of %#@total@ (%3$lld%%)"
+          },
+          "substitutions" : {
+            "total" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg photo"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg photos"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "ja" : {

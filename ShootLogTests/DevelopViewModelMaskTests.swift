@@ -184,6 +184,74 @@ struct DevelopViewModelMaskTests: DevelopViewModelTesting {
         #expect(vm.addLinearGradientMask() != nil)
     }
 
+    /// マスク用のベースプレビューを用意した後は、表示サイズ・色空間の変更やリセットで
+    /// `previewImage` が消えたままにならない（`prepareMaskEditingPreviewIfNeeded` は写真切り替え時
+    /// にしか呼ばれないため、消すと `canEditMasks` が `false` に固着していた）。
+    @Test func preparedMaskPreviewSurvivesDisplaySizeColorSpaceAndReset() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/mask3.jpg")), displaySize: CGSize(width: 800, height: 600))
+        vm.prepareMaskEditingPreviewIfNeeded()
+        await settle()
+        #expect(vm.canEditMasks)
+
+        vm.updateDisplaySize(CGSize(width: 1_600, height: 1_200))
+        await settle()
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+        vm.setPreviewColorSpace(p3)
+        await settle()
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+
+        vm.parameters.exposure = 1
+        await settle()
+        vm.reset()
+        await settle()
+        #expect(vm.parameters.isNeutral)
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+        #expect(vm.isRendering == false)
+    }
+
+    @Test func preparedMaskPreviewSurvivesRotationRoundTrip() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/mask4.jpg"))
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        vm.prepareMaskEditingPreviewIfNeeded()
+        await settle()
+
+        vm.updateEditGeometry(rotation: 90, cropRect: nil, forPhotoID: photo.id)
+        await settle()
+        vm.updateEditGeometry(rotation: 0, cropRect: nil, forPhotoID: photo.id)
+        await settle()
+
+        #expect(vm.previewImage != nil)
+        #expect(vm.canEditMasks)
+        #expect(engine.lastRotation == 0)
+    }
+
+    /// 写真切り替え直後に届く次の写真の回転は、まだ編集中の前の写真へ適用しない。
+    @Test func editGeometryForAnotherPhotoIsIgnored() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/mask5.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        let callsBefore = engine.previewCallCount
+
+        vm.updateEditGeometry(rotation: 90, cropRect: nil, forPhotoID: UUID())
+        await settle()
+
+        #expect(engine.previewCallCount == callsBefore)
+        #expect(vm.previewImage == nil)
+    }
+
     @Test func updateMaskWritesThroughToParameters() async throws {
         let engine = SpyEngine()
         let vm = await makeViewModelWithPreview(engine: engine)

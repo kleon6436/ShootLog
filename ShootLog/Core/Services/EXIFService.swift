@@ -95,16 +95,22 @@ actor EXIFService {
         let exif  = props[kCGImagePropertyExifDictionary] as? [CFString: Any] ?? [:]
         let tiff  = props[kCGImagePropertyTIFFDictionary] as? [CFString: Any] ?? [:]
 
+        let cameraMake = tiff[kCGImagePropertyTIFFMake] as? String
+
         return EXIFInfo(
-            cameraMake:    tiff[kCGImagePropertyTIFFMake]              as? String,
+            cameraMake:    cameraMake,
             cameraModel:   tiff[kCGImagePropertyTIFFModel]             as? String,
             lensModel:     exif[kCGImagePropertyExifLensModel]         as? String,
             aperture:      exif[kCGImagePropertyExifFNumber]           as? Double,
             shutterSpeed:  exif[kCGImagePropertyExifExposureTime]      as? Double,
-            iso:           (exif[kCGImagePropertyExifISOSpeedRatings]  as? [Int])?.first,
+            iso:           resolveISO(
+                               speedRatings: (exif[kCGImagePropertyExifISOSpeedRatings] as? [Int])?.first,
+                               recommendedExposureIndex: intValue(exif[kCGImagePropertyExifRecommendedExposureIndex]),
+                               isoSpeed: intValue(exif[kCGImagePropertyExifISOSpeed])
+                           ),
             focalLength:   exif[kCGImagePropertyExifFocalLength]       as? Double,
             shootingDate:  parseDate(exif[kCGImagePropertyExifDateTimeOriginal] as? String),
-            colorMode:     extractColorMode(from: props),
+            colorMode:     extractColorMode(from: props, make: cameraMake),
             pixelWidth:    props[kCGImagePropertyPixelWidth]           as? Int,
             pixelHeight:   props[kCGImagePropertyPixelHeight]          as? Int,
             fileSizeBytes: fileSize(at: url, snapshot: snapshot)
@@ -121,10 +127,44 @@ actor EXIFService {
         return (attributes?[.size] as? NSNumber)?.int64Value
     }
 
+    // MARK: - ISO
+
+    // ISOSpeedRatings（SHORT型）は 65535 で飽和するため、高感度撮影では実値を表せない。
+    // 飽和値または欠損時は EXIF 2.3 の RecommendedExposureIndex → ISOSpeed の順で代替する
+    static let saturatedISOSpeedRating = 65535
+
+    nonisolated static func resolveISO(
+        speedRatings: Int?,
+        recommendedExposureIndex: Int?,
+        isoSpeed: Int?
+    ) -> Int? {
+        if let speedRatings, speedRatings > 0, speedRatings < saturatedISOSpeedRating {
+            return speedRatings
+        }
+        if let recommendedExposureIndex, recommendedExposureIndex > 0 { return recommendedExposureIndex }
+        if let isoSpeed, isoSpeed > 0 { return isoSpeed }
+        return speedRatings
+    }
+
+    // ImageIO は数値タグを NSNumber で返すため、整数として取り出す
+    nonisolated private static func intValue(_ value: Any?) -> Int? {
+        if let number = value as? NSNumber { return number.intValue }
+        return value as? Int
+    }
+
     // MARK: - Private
 
-    // Sigma fp L の MakerNote から PictureMode（カラーモード）を取得する
-    nonisolated private static func extractColorMode(from props: [CFString: Any]) -> String? {
+    // メーカー名が SIGMA か（前後の空白・NUL 終端・大文字小文字を無視）
+    nonisolated static func isSigma(make: String?) -> Bool {
+        guard let make else { return false }
+        let trimmed = make.trimmingCharacters(in: .whitespacesAndNewlines.union(.controlCharacters))
+        return trimmed.uppercased() == "SIGMA"
+    }
+
+    // Sigma fp L の MakerNote から PictureMode（カラーモード）を取得する。
+    // 他社の MakerNote にも "Standard" "Portrait" 等の汎用語が含まれ得るため、Sigma 以外は常に nil を返す
+    nonisolated private static func extractColorMode(from props: [CFString: Any], make: String?) -> String? {
+        guard isSigma(make: make) else { return nil }
         let makerNoteValue = props["{MakerNote}" as CFString]
 
         // Step 1: ImageIO が MakerNote を辞書として解釈できた場合はそのまま利用する

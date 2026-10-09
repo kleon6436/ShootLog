@@ -96,7 +96,7 @@ struct DevelopExportSheet: View {
                 VStack(alignment: .leading, spacing: Spacing.small) {
                     Text("develop.export.superResolution.tooLarge")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.statusCritical)
                     if viewModel.canReduceSuperResolutionScale {
                         Button("develop.export.superResolution.reduceScale") {
                             viewModel.reduceSuperResolutionScale()
@@ -171,7 +171,7 @@ struct DevelopExportSheet: View {
         VStack(spacing: Spacing.xLarge) {
             Label("develop.export.failed.title", systemImage: "exclamationmark.triangle")
                 .font(.headline)
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusCritical)
 
             Text(error.errorDescription ?? "")
                 .font(.caption)

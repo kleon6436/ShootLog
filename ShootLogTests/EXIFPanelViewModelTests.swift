@@ -152,4 +152,124 @@ struct EXIFPanelViewModelTests {
         #expect(diagnosis?.sharpnessScore == 0.4)
         #expect(diagnosis?.compositionOffsetScore == 0.7)
     }
+
+    // MARK: - シャッタースピード
+
+    @Test func shutterSpeedTextFormatsFractionAndSeconds() {
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: 1.0 / 250.0) == "1/250 s")
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: 2.0)?.hasSuffix(" s") == true)
+    }
+
+    @Test func shutterSpeedTextIsNilForInvalidValues() {
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: nil) == nil)
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: 0) == nil)
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: -0.01) == nil)
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: .nan) == nil)
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: .infinity) == nil)
+        #expect(EXIFPanelViewModel.shutterSpeedText(for: .leastNonzeroMagnitude) == nil)
+    }
+
+    @Test func shutterSpeedTextPropertyDoesNotTrapOnZero() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        photo.shutterSpeed = 0
+        let viewModel = EXIFPanelViewModel(photo: photo)
+
+        #expect(viewModel.shutterSpeedText == nil)
+    }
+
+    // MARK: - 撮影日時
+
+    @Test func shootingDateTextIsNilBeforeEXIFFetched() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        let viewModel = EXIFPanelViewModel(photo: photo)
+
+        #expect(viewModel.shootingDateText == nil)
+    }
+
+    @Test func shootingDateTextIsNilWhenEXIFHasModelButNoDate() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        photo.cameraModel = "Camera"
+        photo.exifFetchedAt = Date()
+        photo.shootingDateFromMetadata = false
+        let viewModel = EXIFPanelViewModel(photo: photo)
+
+        #expect(viewModel.shootingDateText == nil)
+    }
+
+    @Test func shootingDateTextIsShownWhenDateCameFromEXIFWithoutModel() {
+        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        photo.shootingDate = Date(timeIntervalSince1970: 1_600_000_000)
+        photo.exifFetchedAt = Date()
+        photo.shootingDateFromMetadata = true
+        let viewModel = EXIFPanelViewModel(photo: photo)
+
+        #expect(viewModel.shootingDateText != nil)
+    }
+
+    // フラグ導入前の既存レコード（nil）は従来どおりカメラ機種の有無で判断する
+    @Test func shootingDateTextFallsBackToCameraModelForLegacyRecords() {
+        let withModel = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        withModel.exifFetchedAt = Date()
+        withModel.cameraModel = "Camera"
+        #expect(EXIFPanelViewModel(photo: withModel).shootingDateText != nil)
+
+        // EXIF 取得済みでも機種が無い（スクリーンショット等）レコードはインポート時刻を出さない
+        let withoutModel = Photo(fileURL: URL(fileURLWithPath: "/tmp/screenshot.png"))
+        withoutModel.exifFetchedAt = Date()
+        #expect(EXIFPanelViewModel(photo: withoutModel).shootingDateText == nil)
+    }
+}
+
+// EXIFService の純粋関数部分（ISO解決・Sigma判定）のテスト。
+// pbxproj への新規ファイル追加を避けるため、EXIF表示系テストと同じファイルに置く
+struct EXIFServiceParsingTests {
+
+    @Test func resolveISOUsesSpeedRatingsWhenNotSaturated() {
+        #expect(EXIFService.resolveISO(speedRatings: 3200, recommendedExposureIndex: 6400, isoSpeed: 6400) == 3200)
+    }
+
+    @Test func resolveISOPrefersRecommendedExposureIndexWhenSaturated() {
+        #expect(EXIFService.resolveISO(speedRatings: 65535, recommendedExposureIndex: 102_400, isoSpeed: 204_800) == 102_400)
+    }
+
+    @Test func resolveISOFallsBackToISOSpeed() {
+        #expect(EXIFService.resolveISO(speedRatings: 65535, recommendedExposureIndex: nil, isoSpeed: 204_800) == 204_800)
+        #expect(EXIFService.resolveISO(speedRatings: nil, recommendedExposureIndex: nil, isoSpeed: 800) == 800)
+    }
+
+    @Test func resolveISOKeepsSaturatedValueWhenNoAlternative() {
+        #expect(EXIFService.resolveISO(speedRatings: 65535, recommendedExposureIndex: nil, isoSpeed: nil) == 65535)
+        #expect(EXIFService.resolveISO(speedRatings: nil, recommendedExposureIndex: nil, isoSpeed: nil) == nil)
+    }
+
+    @Test func isSigmaMatchesTrimmedCaseInsensitiveMake() {
+        #expect(EXIFService.isSigma(make: "SIGMA"))
+        #expect(EXIFService.isSigma(make: " Sigma \u{0}"))
+        #expect(EXIFService.isSigma(make: "sigma "))
+        #expect(!EXIFService.isSigma(make: "NIKON CORPORATION"))
+        #expect(!EXIFService.isSigma(make: nil))
+    }
+}
+
+// PhotoRepository のフォルダスキャン。pbxproj への新規ファイル追加を避けるためここに置く
+struct PhotoRepositoryScanTests {
+
+    @Test func scanSkipsDirectoriesWithImageExtension() throws {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PhotoRepositoryScanTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let photoURL = folder.appendingPathComponent("a.JPG")
+        try Data([0xFF, 0xD8, 0xFF]).write(to: photoURL)
+        try FileManager.default.createDirectory(
+            at: folder.appendingPathComponent("x.jpg", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+        try Data().write(to: folder.appendingPathComponent("notes.txt"))
+
+        let result = try PhotoRepository.scanImageURLs(in: folder)
+
+        #expect(result.urls.map(\.lastPathComponent) == ["a.JPG"])
+    }
 }

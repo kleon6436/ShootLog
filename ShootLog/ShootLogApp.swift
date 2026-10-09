@@ -29,6 +29,8 @@ struct ShootLogApp: App {
                     }
                     Task.detached(priority: .utility) {
                         _ = ImageLoader.shared
+                        // キー形式変更で参照されなくなった旧世代サムネイルディレクトリを起動時に一度だけ掃除する
+                        ThumbnailDiskCache.removeLegacyDirectories()
                         await PreviewCacheStore.shared.warmUp()
                         await ImageDevelopmentEngine.shared.warmUpCaches()
                         await PhotosLibraryAssetExporter.shared.warmUp()

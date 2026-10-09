@@ -205,8 +205,11 @@ enum MaskImageGenerator {
         // 「まず楕円化、次に回転」の順に固定する（回転ハンドルで楕円全体を回す直感的な挙動）。
         // 逆順だと回転軸と楕円の軸がずれ、同じ値でも見た目が変わる。
         // `aspectRatio` は 幅 / 高さ。1 より大きいと横長になる。
+        // `rotationDegrees` はベース空間（y 下向き）で正＝見た目時計回り
+        // （`RadialMaskHandleGeometry.outlinePoint` と同じ規約）。Core Image は y 上向きなので
+        // 同じ見た目にするには角度の符号を反転する。反転しないと 90° 以外でオーバーレイと鏡像になる。
         let transform = CGAffineTransform(translationX: center.x, y: center.y)
-            .rotated(by: CGFloat(gradient.rotationDegrees * .pi / 180))
+            .rotated(by: CGFloat(-gradient.rotationDegrees * .pi / 180))
             .scaledBy(x: 1, y: CGFloat(1 / gradient.aspectRatio))
             .translatedBy(x: -center.x, y: -center.y)
 

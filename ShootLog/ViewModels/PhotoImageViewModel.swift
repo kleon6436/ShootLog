@@ -51,7 +51,7 @@ final class PhotoImageViewModel {
                 return
             }
         } else {
-            let loadedThumbnail = await ImageLoader.shared.thumbnail(for: fileURL)
+            let loadedThumbnail = await ImageLoader.shared.thumbnail(for: fileURL, snapshot: snapshot)
             // サムネイル取得中に写真が切り替わっていたら代入も高解像度ロードもスキップする
             // （旧タスクが後から再開して前の写真のサムネイルを上書きするのを防ぐ）
             guard !Task.isCancelled else { return }

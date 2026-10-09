@@ -86,4 +86,40 @@ struct ImageDecodeThrottleTests {
         #expect(await waitUntil { await secondFlag.isAcquired })
         try await second.value
     }
+
+    /// スロットを取得した順番を記録する。
+    private actor AcquireOrder {
+        private(set) var values: [Int] = []
+        func append(_ value: Int) { values.append(value) }
+    }
+
+    @Test func releaseHandsSlotsToWaitersInArrivalOrder() async throws {
+        let throttle = ImageDecodeThrottle(maxConcurrent: 1)
+        try await throttle.acquire()
+
+        let order = AcquireOrder()
+        var waiters: [Task<Void, Error>] = []
+        // 待機列への到着順を確定させるため、1件ずつ待機に入ったのを待ってから次を起動する。
+        for index in 0..<5 {
+            waiters.append(Task {
+                try await throttle.acquire()
+                await order.append(index)
+            })
+            await settle()
+        }
+
+        // 途中の待機者をキャンセルしても、残りの順序は崩れない。
+        let cancelledWaiter = waiters[2]
+        cancelledWaiter.cancel()
+        await #expect(throws: CancellationError.self) { try await cancelledWaiter.value }
+
+        for expectedCount in 1...4 {
+            await throttle.release()
+            #expect(await waitUntil { await order.values.count == expectedCount })
+        }
+        #expect(await order.values == [0, 1, 3, 4])
+        for index in [0, 1, 3, 4] {
+            try await waiters[index].value
+        }
+    }
 }

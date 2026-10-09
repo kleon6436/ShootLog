@@ -55,7 +55,7 @@ struct FavoritesOnlyToggleButton: View {
             // ONのときだけ黄色にする。写真.app・Finderのタグと同じ「お気に入り＝黄色」の意味付けで、
             // 絞り込みが効いていることを記号の形（star/star.fill）と色の二重で伝える
             Image(systemName: showFavoritesOnly ? "star.fill" : "star")
-                .foregroundStyle(showFavoritesOnly ? Color.yellow : Color.primary)
+                .foregroundStyle(showFavoritesOnly ? Color.favoriteStar : Color.primary)
         }
         .help("toolbar.favoritesOnly")
         .accessibilityLabel("toolbar.favoritesOnly")

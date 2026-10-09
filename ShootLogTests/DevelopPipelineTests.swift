@@ -510,6 +510,28 @@ struct DevelopPipelineTests {
         #expect(downShift / upShift > 0.5 && downShift / upShift < 2.0)
     }
 
+    // MARK: - 周辺光量
+
+    /// `CIVignetteEffect` の既定 center (150, 150) のままだと 32px 画像全体が円の外になり一様に暗くなる。
+    /// 画像中心を基準にしていれば、中心はほぼ不変で四隅だけが暗くなる。
+    @Test func vignetteIsCenteredOnImage() throws {
+        let context = try makeContext()
+        let input = try makeSplitImage(low: 128, high: 128)
+
+        var parameters = DevelopParameters.neutral
+        parameters.vignette = 100
+
+        let pixels = try renderRGBA(
+            DevelopPipeline.apply(parameters, to: input, isRAW: false),
+            context: context
+        )
+        let mid = Self.side / 2
+        let centerValue = Int(pixels[(mid * Self.side + mid) * 4])
+        let cornerValue = Int(pixels[0])
+        #expect(abs(centerValue - 128) < 4)
+        #expect(cornerValue < centerValue - 5)
+    }
+
     // MARK: - 基本調整
 
     @Test func positiveExposureBrightensImage() throws {

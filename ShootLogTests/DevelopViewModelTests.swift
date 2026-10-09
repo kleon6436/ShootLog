@@ -126,15 +126,26 @@ struct DevelopViewModelTests: DevelopViewModelTesting {
         settings.schemaVersion = 4
         var parameters = DevelopParameters.neutral
         parameters.colorBalance.master.saturation = 10
-        settings.parameters = parameters
+        // setter 経由だと保存時の世代引き上げが走るため、blob を直接書いて version 4 のまま置く。
+        settings.parametersData = try DevelopSettings.encode(parameters)
         context.insert(settings)
         try context.save()
         content.currentDevelopSettings = settings
 
         let vm = makeViewModel(engine: engine, content: content)
         vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+
+        // 旧方式のグレーディングが残る間は、無関係な編集で世代を上げず見た目を凍結する。
         var updated = vm.parameters
         updated.exposure = 1
+        vm.parameters = updated
+        await settle(120)
+
+        #expect(settings.schemaVersion == 4)
+        #expect(!engine.lastUsesToneMaskedColorGrading)
+
+        // グレーディングを中立へ戻すと現行世代へ引き上がり、フラグも再同期される。
+        updated.colorBalance = .neutral
         vm.parameters = updated
         await settle(120)
 
@@ -171,7 +182,10 @@ struct DevelopViewModelTests: DevelopViewModelTesting {
 
         let automatic = try #require(WhiteBalanceResolver.automaticSettings(from: source))
         #expect(vm.parameters.whiteBalance.mode == .auto)
-        #expect(vm.parameters.whiteBalance.temperatureKelvin == 5_200 + (automatic.temperatureKelvin - 6_500))
+        // 暖色に偏った推定（K > 6500）は撮影時基準から K を下げる方向（中立化）に効く。
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 5_200 - (automatic.temperatureKelvin - 6_500))
+        // テスト画像は青寄り（B > R）なので、Auto は撮影時基準より暖色側（K を上げる）へ補正する。
+        #expect(vm.parameters.whiteBalance.temperatureKelvin > 5_200)
         #expect(vm.parameters.whiteBalance.tint == 4 + automatic.tint)
     }
 
@@ -373,6 +387,87 @@ struct DevelopViewModelTests: DevelopViewModelTesting {
         let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
         let rowA = rows.first { $0.photoID == photoA.id }
         #expect(rowA?.parameters.exposure == 1.75)
+    }
+
+    /// 選択が次の写真へ移ったあと、現像 VM の load より先にデバウンス保存が満了しても、
+    /// 調整値は編集していた写真へ保存される（selectedPhoto 宛てにしない）
+    @Test func debouncedPersistTargetsEditedPhotoAfterSelectionChange() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photoA) = try makeContentViewModel()
+        let photoB = Photo(fileURL: URL(fileURLWithPath: "/tmp/b.jpg"))
+        context.insert(photoB)
+        try context.save()
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photoA, displaySize: CGSize(width: 800, height: 600))
+
+        var params = DevelopParameters.neutral
+        params.exposure = 1.25
+        vm.parameters = params
+
+        // 選択だけ先に切り替わり、vm.load はまだ呼ばれていない状態で保存デバウンスが満了する
+        content.selectedPhoto = photoB
+        content.loadDevelopSettings(for: photoB)
+        await settle(120)
+
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.photoID == photoA.id)
+        #expect(rows.first?.parameters.exposure == 1.25)
+        #expect(content.currentDevelopSettings == nil)
+    }
+
+    /// 選択が次の写真へ移ったあとでも、reset は編集中の写真のレコードだけを消す
+    @Test func resetTargetsEditedPhotoAfterSelectionChange() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photoA) = try makeContentViewModel()
+        let photoB = Photo(fileURL: URL(fileURLWithPath: "/tmp/b.jpg"))
+        context.insert(photoB)
+        let settingsB = DevelopSettings(photoID: photoB.id)
+        var paramsB = DevelopParameters.neutral
+        paramsB.contrast = 30
+        settingsB.parameters = paramsB
+        context.insert(settingsB)
+        try context.save()
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photoA, displaySize: CGSize(width: 800, height: 600))
+        var params = DevelopParameters.neutral
+        params.exposure = 0.5
+        vm.parameters = params
+        await settle(120)
+
+        content.selectedPhoto = photoB
+        content.loadDevelopSettings(for: photoB)
+        vm.reset()
+
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        #expect(rows.map(\.photoID) == [photoB.id])
+        #expect(content.currentDevelopSettings?.photoID == photoB.id)
+    }
+
+    /// load は選択中写真のキャッシュではなく、ロード対象の写真に属するレコードを読む
+    @Test func loadIgnoresCachedSettingsOfAnotherPhoto() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photoA) = try makeContentViewModel()
+        let photoB = Photo(fileURL: URL(fileURLWithPath: "/tmp/b.jpg"))
+        context.insert(photoB)
+        let settingsB = DevelopSettings(photoID: photoB.id)
+        var paramsB = DevelopParameters.neutral
+        paramsB.vibrance = 40
+        settingsB.parameters = paramsB
+        context.insert(settingsB)
+        try context.save()
+        content.selectedPhoto = photoB
+        content.loadDevelopSettings(for: photoB)
+
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photoA, displaySize: CGSize(width: 800, height: 600))
+
+        #expect(vm.parameters == .neutral)
     }
 
     @Test func failedRenderClearsStalePreview() async throws {

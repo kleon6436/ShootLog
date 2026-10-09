@@ -21,7 +21,16 @@ actor PhotosLibraryAssetExporter {
 
     nonisolated static let defaultMaxDiskBytes = 2 * 1024 * 1024 * 1024
 
-    private var inFlightTasks: [String: (fileURL: URL, task: Task<Bool, Never>)] = [:]
+    /// 同一アセットへ進行中のエクスポート。`waiterIDs` は結果を待っている呼び出し元で、
+    /// 全員がキャンセルしたらエクスポート自体（PHImageManager のダウンロードを含む）を中止する。
+    private struct InFlightExport {
+        let token: UUID
+        let fileURL: URL
+        let task: Task<Bool, Never>
+        var waiterIDs: Set<UUID>
+    }
+
+    private var inFlightTasks: [String: InFlightExport] = [:]
     private var exportsSinceEviction = 0
 
     private let directory: URL
@@ -40,24 +49,56 @@ actor PhotosLibraryAssetExporter {
     }
 
     // 同じアセットへの要求をまとめ、PhotoImageViewModelとEXIF取得の二重取得を防ぐ。
+    // 待機中の呼び出し元が全員キャンセルした場合は、共有のエクスポートタスクもキャンセルする
+    // （写真を素早く切り替えた際に、不要になったiCloudダウンロードを走らせ続けない）。
+    // 一部の呼び出し元だけがキャンセルした場合は、残りの呼び出し元のためにエクスポートを継続する。
     @discardableResult
     func ensureExported(localIdentifier: String, fileURL: URL) async -> Bool {
-        guard !FileManager.default.fileExists(atPath: fileURL.path) else { return true }
-
-        if let inFlightTask = inFlightTasks[localIdentifier], inFlightTask.fileURL == fileURL {
-            _ = await inFlightTask.task.value
-            return FileManager.default.fileExists(atPath: fileURL.path)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            // キャッシュヒット時も更新日時を進め、mtime昇順のevictionで
+            // よく閲覧される写真から先に消えないようにする（LRU化）。
+            ImageFileCache.touch(fileURL)
+            return true
         }
 
-        let task = Task { [localIdentifier, fileURL] in
-            await self.exportAsset(localIdentifier: localIdentifier, to: fileURL)
+        let waiterID = UUID()
+        let export: InFlightExport
+        if var existing = inFlightTasks[localIdentifier], existing.fileURL == fileURL {
+            existing.waiterIDs.insert(waiterID)
+            inFlightTasks[localIdentifier] = existing
+            export = existing
+        } else {
+            let task = Task { [localIdentifier, fileURL] in
+                await self.exportAsset(localIdentifier: localIdentifier, to: fileURL)
+            }
+            export = InFlightExport(token: UUID(), fileURL: fileURL, task: task, waiterIDs: [waiterID])
+            inFlightTasks[localIdentifier] = export
         }
-        inFlightTasks[localIdentifier] = (fileURL: fileURL, task: task)
-        let result = await task.value
-        if inFlightTasks[localIdentifier]?.fileURL == fileURL {
+
+        let token = export.token
+        let result = await withTaskCancellationHandler {
+            await export.task.value
+        } onCancel: {
+            Task { await self.removeWaiter(waiterID, localIdentifier: localIdentifier, token: token) }
+        }
+
+        if inFlightTasks[localIdentifier]?.token == token {
             inFlightTasks[localIdentifier] = nil
         }
-        return result
+        return result && FileManager.default.fileExists(atPath: fileURL.path)
+    }
+
+    // キャンセルした呼び出し元を待機者から外し、誰も待っていなければエクスポートを中止する。
+    // 中止したエントリは即座に外し、後から来た要求がキャンセル済みタスクへ合流しないようにする
+    private func removeWaiter(_ waiterID: UUID, localIdentifier: String, token: UUID) {
+        guard var export = inFlightTasks[localIdentifier], export.token == token else { return }
+        export.waiterIDs.remove(waiterID)
+        if export.waiterIDs.isEmpty {
+            inFlightTasks[localIdentifier] = nil
+            export.task.cancel()
+        } else {
+            inFlightTasks[localIdentifier] = export
+        }
     }
 
     /// 起動時にエクスポートキャッシュを準備し、古いファイルを上限内へ整理する。
@@ -160,9 +201,14 @@ actor PhotosLibraryAssetExporter {
     private static func resizedJPEGData(from data: Data, maxPixelSize: Int) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         // kCGImageSourceCreateThumbnailWithTransformでピクセルを正立化するため、
-        // 元のorientationタグを引き継ぐと二重回転扱いになる。書き出す側は除去する。
+        // 元のorientationタグを引き継ぐと二重回転扱いになる。書き出す側は正立（1）へ揃える。
+        // トップレベルだけでなく {TIFF} 辞書の Orientation も書き出されるため、両方を正規化する。
         var properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        properties?[kCGImagePropertyOrientation] = nil
+        properties?[kCGImagePropertyOrientation] = CGImagePropertyOrientation.up.rawValue
+        if var tiffProperties = properties?[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
+            tiffProperties[kCGImagePropertyTIFFOrientation] = CGImagePropertyOrientation.up.rawValue
+            properties?[kCGImagePropertyTIFFDictionary] = tiffProperties
+        }
         let thumbnailOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixelSize),

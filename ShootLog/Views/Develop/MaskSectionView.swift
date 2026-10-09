@@ -27,7 +27,7 @@ struct MaskSectionView: View {
             if let message = developViewModel.aiMaskGenerationFailureMessage {
                 Text(message)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.statusCritical)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -47,9 +47,20 @@ struct MaskSectionView: View {
         // セクション（`DevelopSectionCard`）は展開時にしか `content` を評価しないため、
         // マスクセクションを開いたタイミングで無調整写真のベースプレビューを用意する
         // （`canEditMasks` が `previewImage` 依存のため、これが無いとボタンが永遠に無効のまま）。
-        .task(id: developViewModel.currentPhotoID) {
+        // キーに `canEditMasks` も含め、同じ写真のままプレビューが消えた場合（用意中に表示サイズ・
+        // 色空間の変更で破棄された、調整を外して中立に戻った等）にも用意し直す。
+        .task(id: MaskPreviewTaskKey(
+            photoID: developViewModel.currentPhotoID,
+            canEditMasks: developViewModel.canEditMasks
+        )) {
             developViewModel.prepareMaskEditingPreviewIfNeeded()
         }
+    }
+
+    /// マスク編集用ベースプレビューを用意し直す契機。写真切り替えとプレビュー消失の両方で変わる。
+    private struct MaskPreviewTaskKey: Hashable {
+        let photoID: UUID?
+        let canEditMasks: Bool
     }
 
     /// 選択中レイヤーの ID。削除直後など実体が無い ID は無効として扱う。
@@ -76,7 +87,7 @@ struct MaskSectionView: View {
                 }
             }
             // AI マスク生成中は他種別の追加もブロックする。生成中に増えたレイヤーを
-            // `regenerateAIMask`/`refineAIMask` が「AI 生成の成功」と誤判定する競合を防ぐ
+            // `regenerateAIMask`（再生成・タップでの調整）が「AI 生成の成功」と誤判定する競合を防ぐ
             // （レビュー指摘）。
             .disabled(developViewModel.isGeneratingAIMask)
 
@@ -320,7 +331,7 @@ struct MaskSectionView: View {
         if let message = developViewModel.brushStrokeLimitReachedMessage {
             Text(message)
                 .font(.caption)
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusCritical)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

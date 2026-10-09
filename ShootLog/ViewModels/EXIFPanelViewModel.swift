@@ -22,11 +22,15 @@ final class EXIFPanelViewModel {
     var isoText: String? { photo?.iso.map { "\($0)" } }
     var focalLengthText: String? { photo?.focalLength.map { Self.decimalText($0, fractionLength: 0) + " mm" } }
 
-    // cameraModel がある = EXIF 読み込み済みのため撮影日時を表示する
+    // 撮影日時はメタデータ（EXIF DateTimeOriginal 等）由来と確認できた場合のみ表示する。
+    // Photo.shootingDate は未取得時にレコード作成日時が入るため、それを撮影日時として見せない。
+    // 判定フラグ導入前の既存レコード（nil）は従来どおりカメラ機種の有無で判断する
+    // （フォルダ写真は次回選択時の EXIF 再取得でフラグが確定する。loadEXIFIfNeeded 参照）
     var shootingDateText: String? {
-        photo?.cameraModel != nil
-            ? photo?.shootingDate.formatted(date: .abbreviated, time: .shortened)
-            : nil
+        guard let photo else { return nil }
+        let isKnown = photo.shootingDateFromMetadata ?? (photo.cameraModel != nil)
+        guard isKnown else { return nil }
+        return photo.shootingDate.formatted(date: .abbreviated, time: .shortened)
     }
 
     // カラーモード（Sigma fp L 等）。"Off" / nil のときは表示しないためnilを返す
@@ -97,10 +101,14 @@ final class EXIFPanelViewModel {
     }
 
     // シャッタースピードを "1/xxx s" もしくは "x.x s" 表記に変換する
-    private static func shutterSpeedText(for value: Double?) -> String? {
-        guard let ss = value else { return nil }
+    // 0・負数・NaN・無限大は不正値として表示しない（1/ss の Int 変換でのトラップも防ぐ）
+    static func shutterSpeedText(for value: Double?) -> String? {
+        guard let ss = value, ss.isFinite, ss > 0 else { return nil }
         if ss >= 1 { return decimalText(ss, fractionLength: 1) + " s" }
-        let denom = Int((1.0 / ss).rounded())
+        let reciprocal = (1.0 / ss).rounded()
+        // 極端に小さい値で Int の範囲を超える場合も不正値として扱う
+        guard reciprocal.isFinite, reciprocal < Double(Int.max) else { return nil }
+        let denom = Int(reciprocal)
         return "1/\(denom) s"
     }
 }

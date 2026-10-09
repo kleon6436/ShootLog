@@ -13,12 +13,23 @@ extension ContentViewModel {
     func presentDevelopExport() {
         guard let photo = selectedPhoto else { return }
         guard PhotoActionAvailability(photo: photo).hasLocalOriginalFile else { return }
-        let inputSize = Self.readDevelopInputPixelSize(of: photo.fileURL)
-        developExportViewModel = DevelopExportViewModel(
-            inputPixelSize: inputSize,
-            croppedInputPixelSize: Self.croppedPixelSize(inputSize, cropRect: currentEditInfo?.cropRect)
-        )
-        isDevelopExportPresented = true
+        // ヘッダ読み取りはファイルI/Oのため MainActor 外で行い、読み終えてからシートを出す
+        let url = photo.fileURL
+        let photoID = photo.id
+        developExportPresentTask?.cancel()
+        developExportPresentTask = Task { [weak self] in
+            let inputSize = await Task.detached(priority: .userInitiated) {
+                ContentViewModel.readDevelopInputPixelSize(of: url)
+            }.value
+            // 読み取り中に写真が切り替わった・再要求された場合は古い結果でシートを出さない
+            guard let self, !Task.isCancelled, self.selectedPhoto?.id == photoID else { return }
+            self.developExportPresentTask = nil
+            self.developExportViewModel = DevelopExportViewModel(
+                inputPixelSize: inputSize,
+                croppedInputPixelSize: Self.croppedPixelSize(inputSize, cropRect: self.currentEditInfo?.cropRect)
+            )
+            self.isDevelopExportPresented = true
+        }
     }
 
     func dismissDevelopExport() {
@@ -37,13 +48,18 @@ extension ContentViewModel {
         panel.nameFieldStringValue = Self.suggestedDevelopFileName(for: photo, format: viewModel.outputFormat)
         guard panel.runModal() == .OK, let destination = panel.url else { return }
 
+        // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体のスコープとは独立して確保し
+        // （ContentViewModelUpscale.swift と同じく SecurityScopedBookmark を使う）、
+        // 解放はこのジョブ自身が行う。共有プロパティで持つと、前のジョブのキャンセル後の
+        // 後始末が新しいジョブのスコープを止めてしまうため
+        let inputAccessURL: URL
         do {
             try UpscaleOutputDestination.validate(
                 destination: destination,
                 currentFolder: currentFolderURL,
                 photoURLs: photos.map(\.fileURL)
             )
-            try beginDevelopExportInputAccess(for: photo.fileURL)
+            inputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: photo.fileURL)
         } catch let shootLogError as ShootLogError {
             viewModel.state = .failed(shootLogError)
             return
@@ -54,6 +70,7 @@ extension ContentViewModel {
 
         viewModel.state = .running
         let task = Task { [weak self] in
+            defer { inputAccessURL.stopAccessingSecurityScopedResource() }
             guard let self else { return }
             await self.runDevelopExport(photo: photo, destination: destination, viewModel: viewModel)
         }
@@ -70,11 +87,13 @@ extension ContentViewModel {
     // MARK: - ジョブの中断（フォルダを閉じる・アプリ終了時のみ）
 
     func cancelDevelopExportIfNeeded() {
+        developExportPresentTask?.cancel()
+        developExportPresentTask = nil
         developExportTask?.cancel()
         developExportTask = nil
         developExportViewModel = nil
         isDevelopExportPresented = false
-        endDevelopExportInputAccess()
+        // 入力ファイルのスコープはキャンセルされたジョブ自身が終了時に解放する
     }
 
     // MARK: - Private
@@ -84,8 +103,6 @@ extension ContentViewModel {
         destination: URL,
         viewModel: DevelopExportViewModel
     ) async {
-        defer { endDevelopExportInputAccess() }
-
         let exporter = DevelopExporter()
         let parameters = currentDevelopSettings?.parameters ?? .neutral
         let rotation = currentEditInfo?.rotation ?? 0
@@ -154,7 +171,8 @@ extension ContentViewModel {
 
     // MARK: - 入力サイズの取得
 
-    private static func readDevelopInputPixelSize(of url: URL) -> CGSize? {
+    // バックグラウンドから呼ぶため nonisolated
+    nonisolated private static func readDevelopInputPixelSize(of url: URL) -> CGSize? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
@@ -180,17 +198,5 @@ extension ContentViewModel {
     ) -> String {
         let base = photo.fileURL.deletingPathExtension().lastPathComponent
         return "\(base)_edited.\(format.fileExtension)"
-    }
-
-    // 入力写真1枚ぶんの読み取りアクセス。フォルダ全体のスコープとは独立して確保する
-    // （ContentViewModelUpscale.swift の beginUpscaleInputAccess と同じく SecurityScopedBookmark を使う）
-    private func beginDevelopExportInputAccess(for url: URL) throws {
-        endDevelopExportInputAccess()
-        developExportInputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: url)
-    }
-
-    private func endDevelopExportInputAccess() {
-        developExportInputAccessURL?.stopAccessingSecurityScopedResource()
-        developExportInputAccessURL = nil
     }
 }

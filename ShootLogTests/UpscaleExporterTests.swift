@@ -221,6 +221,63 @@ struct UpscaleExporterTests {
         #expect(try meanChannels(of: rot270Bottom).r > 240)
     }
 
+    // MARK: - EXIF Orientation
+
+    /// 200x100（左赤・右青）を Orientation 6（時計回り 90°）で正立させると 100x200 になり、
+    /// 原本の左半分（赤）が上半分へ来る。Orientation 8（反時計回り）では下半分へ来る。
+    @Test func applyingOrientationRotatesPixelsUpright() throws {
+        let image = try makeSplitColorImage(width: 200, height: 100, left: (255, 0, 0), right: (0, 0, 255))
+
+        let right = try #require(UpscaleExporter.applyingOrientation(image, .right))
+        #expect(right.width == 100 && right.height == 200)
+        let rightTop = UpscaleExporter.cropped(right, toDisplayRect: CGRect(x: 0, y: 0, width: 1, height: 0.5), rotation: 0)
+        #expect(try meanChannels(of: rightTop).r > 240)
+
+        let left = try #require(UpscaleExporter.applyingOrientation(image, .left))
+        #expect(left.width == 100 && left.height == 200)
+        let leftBottom = UpscaleExporter.cropped(left, toDisplayRect: CGRect(x: 0, y: 0.5, width: 1, height: 0.5), rotation: 0)
+        #expect(try meanChannels(of: leftBottom).r > 240)
+
+        let down = try #require(UpscaleExporter.applyingOrientation(image, .down))
+        #expect(down.width == 200 && down.height == 100)
+        let downRight = UpscaleExporter.cropped(down, toDisplayRect: CGRect(x: 0.5, y: 0, width: 0.5, height: 1), rotation: 0)
+        #expect(try meanChannels(of: downRight).r > 240)
+    }
+
+    /// Orientation 6 の TIFF を原本デコードすると、表示と同じ正立画像（100x200、上半分が赤）になる。
+    @Test func decodeFullResolutionAppliesEXIFOrientation() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let url = sandbox.appendingPathComponent("oriented.tiff")
+        let image = try makeSplitColorImage(width: 200, height: 100, left: (255, 0, 0), right: (0, 0, 255))
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, [kCGImagePropertyOrientation: 6] as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+
+        let decoded = try await UpscaleExporter.decodeFullResolution(from: url)
+        #expect(decoded.width == 100 && decoded.height == 200)
+        let top = UpscaleExporter.cropped(decoded, toDisplayRect: CGRect(x: 0, y: 0, width: 1, height: 0.5), rotation: 0)
+        #expect(try meanChannels(of: top).r > 240)
+    }
+
+    /// Orientation 3（180°）/ 2（左右反転）は縦横比が変わらないため、正立済みか否かを寸法で判定できない。
+    /// 非RAW は格納画素に属性の Orientation をちょうど1回適用し、表示と同じく左右が入れ替わる（赤が右半分）。
+    @Test(arguments: [UInt32(3), UInt32(2)])
+    func decodeFullResolutionAppliesNonSwappingOrientationOnce(orientation: UInt32) async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let url = sandbox.appendingPathComponent("oriented-\(orientation).tiff")
+        let image = try makeSplitColorImage(width: 200, height: 100, left: (255, 0, 0), right: (0, 0, 255))
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, [kCGImagePropertyOrientation: orientation] as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+
+        let decoded = try await UpscaleExporter.decodeFullResolution(from: url)
+        #expect(decoded.width == 200 && decoded.height == 100)
+        let right = UpscaleExporter.cropped(decoded, toDisplayRect: CGRect(x: 0.5, y: 0, width: 0.5, height: 1), rotation: 0)
+        #expect(try meanChannels(of: right).r > 240)
+    }
+
     /// end-to-end: トリミング + 回転 + 2x 拡大の書き出し。現像チェーン経由と同じ構図・寸法になる。
     @Test func exportAppliesCropBeforeUpscale() async throws {
         let sandbox = try makeSandbox()

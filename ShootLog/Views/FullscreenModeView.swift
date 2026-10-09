@@ -24,7 +24,8 @@ struct FullscreenModeView: View {
     @State private var zoomPanState = ZoomPanTransientState()
     @State private var isGestureActive = false
 
-    // ズーム上限・パンのクランプ計算に使う実測値
+    // ズーム上限・パンのクランプ計算に使う実測値。displayedImagePixelSize は fit 時の縦横比・
+    // EXIF寸法の向き判定と、原本サイズ（Photo.pixelWidth/Height）未取得時のフォールバックに使う
     @State private var viewportSize: CGSize = .zero
     @State private var displayedImagePixelSize: CGSize = .zero
 
@@ -173,7 +174,7 @@ struct FullscreenModeView: View {
         HStack(spacing: 2) {
             HUDClusterButton(
                 systemImage: vm.selectedPhoto?.isFavorite == true ? "star.fill" : "star",
-                tint: vm.selectedPhoto?.isFavorite == true ? Color.yellow : Color.onViewerCanvasSecondary,
+                tint: vm.selectedPhoto?.isFavorite == true ? Color.favoriteStar : Color.onViewerCanvasSecondary,
                 accessibilityLabel: vm.selectedPhoto?.isFavorite == true ? "viewer.favorite.remove" : "viewer.favorite.add"
             ) {
                 vm.noteUserActivity()
@@ -346,17 +347,38 @@ struct FullscreenModeView: View {
         )
     }
 
-    // fit表示時の画像サイズ。90度/270度回転時は縦横を入れ替えて計算する
+    // fit表示時の画像サイズ。90度/270度回転時は縦横を入れ替えて計算する。
+    // 画面上の実際の縦横比は表示中画像で決まる（RAWのEXIF寸法と埋め込みプレビューは
+    // 縦横比がわずかに異なることがある）ため、判明していれば表示中画像で計算する
     private var fittedImageSize: CGSize {
-        ZoomPanGeometry.fittedImageSize(
-            sourcePixelSize: rotationAdjustedPixelSize,
+        let aspectSource = displayedImagePixelSize.width > 0 && displayedImagePixelSize.height > 0
+            ? displayedImagePixelSize
+            : referencePixelSize
+        return ZoomPanGeometry.fittedImageSize(
+            sourcePixelSize: ZoomPanGeometry.rotationAdjustedPixelSize(
+                aspectSource,
+                rotation: vm.currentEditInfo?.rotation ?? 0
+            ),
             viewportSize: viewportSize
+        )
+    }
+
+    // 100%判定の基準となる原本ピクセルサイズ（EXIF由来、orientation補正済み）。
+    // 未取得のときだけ表示中画像のサイズへフォールバックする
+    private var referencePixelSize: CGSize {
+        let original: CGSize? = vm.selectedPhoto.flatMap { photo in
+            guard let width = photo.pixelWidth, let height = photo.pixelHeight else { return nil }
+            return CGSize(width: CGFloat(width), height: CGFloat(height))
+        }
+        return ZoomPanGeometry.referencePixelSize(
+            originalPixelSize: original,
+            displayedPixelSize: displayedImagePixelSize
         )
     }
 
     private var rotationAdjustedPixelSize: CGSize {
         ZoomPanGeometry.rotationAdjustedPixelSize(
-            displayedImagePixelSize,
+            referencePixelSize,
             rotation: vm.currentEditInfo?.rotation ?? 0
         )
     }

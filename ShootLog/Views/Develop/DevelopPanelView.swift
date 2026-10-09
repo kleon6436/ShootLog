@@ -272,7 +272,7 @@ struct DevelopPanelView: View {
                 }
             }
             .buttonStyle(.bordered)
-            .tint(.red)
+            .tint(Color.statusCritical)
             .disabled(!developViewModel.canReset)
             .confirmationDialog(
                 "develop.reset.confirmTitle",

@@ -237,4 +237,146 @@ struct DevelopViewModelPresetTests: DevelopViewModelTesting {
 
         #expect(vm.maskOverlayImage == nil)
     }
+
+    // MARK: - Auto ホワイトバランスの持ち込み
+
+    /// コピー元（別写真）で推定した Auto WB の値を、別 ViewModel のクリップボード経由で用意する。
+    private func copyAutoWhiteBalanceFromAnotherPhoto() {
+        var source = DevelopParameters.neutral
+        source.exposure = 1
+        source.whiteBalance = WhiteBalanceSettings(mode: .auto, temperatureKelvin: 3_000, tint: 30)
+        let other = makeViewModel(engine: SpyEngine())
+        other.parameters = source
+        other.copyAdjustments()
+    }
+
+    @Test func pastingAutoWhiteBalanceReestimatesForTargetPhoto() async throws {
+        let engine = SpyEngine()
+        let image = try makeAutomaticWhiteBalanceImage()
+        engine.stub = image
+        engine.asShotStub = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: true)
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        copyAutoWhiteBalanceFromAnotherPhoto()
+
+        vm.pasteAdjustments()
+        await settle(140)
+
+        let automatic = try #require(WhiteBalanceResolver.automaticSettings(from: image))
+        #expect(vm.parameters.exposure == 1)
+        #expect(vm.parameters.whiteBalance.mode == .auto)
+        // コピー元の 3000K / +30 ではなく、貼り付け先の画像で推定し直した値になる。
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 5_200 - (automatic.temperatureKelvin - 6_500))
+        #expect(vm.parameters.whiteBalance.tint == 4 + automatic.tint)
+    }
+
+    @Test func relativePresetWithAutoWhiteBalanceReestimatesForTargetPhoto() async throws {
+        let engine = SpyEngine()
+        let image = try makeAutomaticWhiteBalanceImage()
+        engine.stub = image
+        engine.asShotStub = WhiteBalanceSample(temperatureKelvin: 5_200, tint: 4, isEstimated: true)
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        var presetParams = DevelopParameters.neutral
+        presetParams.whiteBalance = WhiteBalanceSettings(mode: .auto, temperatureKelvin: 3_000, tint: 30)
+        vm.applyPreset(DevelopPreset(name: "auto", parameters: presetParams, sortIndex: 0), relative: true)
+        await settle(140)
+
+        let automatic = try #require(WhiteBalanceResolver.automaticSettings(from: image))
+        #expect(vm.parameters.whiteBalance.mode == .auto)
+        #expect(vm.parameters.whiteBalance.temperatureKelvin == 5_200 - (automatic.temperatureKelvin - 6_500))
+    }
+
+    @Test func pastedAutoWhiteBalanceFallsBackToPreviousWhenEstimationFails() async throws {
+        let engine = SpyEngine()
+        // 4x4 の小画像は WhiteBalanceResolver.automaticSettings が nil を返す（推定不能）。
+        engine.stub = makeStubImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        copyAutoWhiteBalanceFromAnotherPhoto()
+
+        vm.pasteAdjustments()
+        await settle(140)
+
+        #expect(vm.parameters.exposure == 1)
+        #expect(vm.parameters.whiteBalance == .neutral)
+        #expect(vm.whiteBalanceStatusMessage != nil)
+    }
+
+    @Test func undoBeforeAutoWhiteBalanceEstimateCompletesIsNotOverwritten() async throws {
+        let engine = SpyEngine()
+        engine.stub = try makeAutomaticWhiteBalanceImage()
+        let vm = makeViewModel(engine: engine)
+        vm.load(photo: Photo(fileURL: URL(fileURLWithPath: "/tmp/a.jpg")), displaySize: CGSize(width: 800, height: 600))
+        await settle()
+        copyAutoWhiteBalanceFromAnotherPhoto()
+        engine.previewDelay = 40
+
+        vm.pasteAdjustments()
+        vm.undoLastApply()
+        await settle(160)
+
+        #expect(vm.parameters == .neutral)
+    }
+
+    // MARK: - Undo と schemaVersion
+
+    /// 中立になる適用でレコードを消すと、Undo 後に現行世代で作り直され v1 RAW の解釈が変わっていた。
+    @Test func undoAfterNeutralApplyKeepsLegacySchemaVersion() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        engine.rawFileNames = ["shot.nef"]
+        let (content, context, photo) = try makeRAWContentViewModel(schemaVersion: 1)
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+        #expect(vm.canDelegateToRAWFilter == false)
+
+        vm.applyPreset(DevelopPreset(name: "N", parameters: .neutral, sortIndex: 0))
+        await settle()
+        vm.undoLastApply()
+        await settle()
+
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.schemaVersion == 1)
+        #expect(rows.first?.parameters.exposure == 0.5)
+        #expect(vm.canDelegateToRAWFilter == false)
+    }
+
+    /// 適用で世代が引き上がっても、Undo で適用前の世代へ戻す（旧方式カラーグレーディングの凍結を保つ）。
+    @Test func undoRestoresSchemaVersionBumpedByApply() async throws {
+        let engine = SpyEngine()
+        engine.stub = makeStubImage()
+        let (content, context, photo) = try makeContentViewModel()
+        let settings = DevelopSettings(photoID: photo.id)
+        settings.schemaVersion = 4
+        var legacy = DevelopParameters.neutral
+        legacy.exposure = 0.3
+        // 旧方式のカラーグレーディングが入った v4 レコード（編集しても 4 で凍結される）。
+        legacy.colorBalance.shadows = ColorBalanceComponent(hue: 20, saturation: 30, lightness: 0)
+        settings.parametersData = try DevelopSettings.encode(legacy)
+        context.insert(settings)
+        try context.save()
+        content.loadDevelopSettings(for: photo)
+        let vm = makeViewModel(engine: engine, content: content)
+        vm.load(photo: photo, displaySize: CGSize(width: 800, height: 600))
+
+        // カラーグレーディングが中立のプリセットで置き換えると現行世代へ引き上がる。
+        var presetParams = DevelopParameters.neutral
+        presetParams.contrast = 40
+        vm.applyPreset(DevelopPreset(name: "P", parameters: presetParams, sortIndex: 0))
+        await settle()
+        #expect(settings.schemaVersion == DevelopSettings.currentSchemaVersion)
+
+        vm.undoLastApply()
+        await settle()
+
+        #expect(settings.schemaVersion == 4)
+        #expect(settings.parameters.exposure == 0.3)
+        #expect(settings.parameters.colorBalance == legacy.colorBalance)
+    }
 }

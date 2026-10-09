@@ -106,6 +106,9 @@ private struct CropHandleView: View {
         }
     }
 
+    // VoiceOver の移動アクション1回あたりの移動量（画像フレームに対する比率）
+    private static let accessibilityNudgeFraction: CGFloat = 0.02
+
     var body: some View {
         ZStack {
             Color.clear.frame(width: 36, height: 36)  // 大きいタップ領域
@@ -114,14 +117,34 @@ private struct CropHandleView: View {
                 .frame(width: 12, height: 12)
                 .elevation(.card)
         }
-        .position(handlePosition)
+        // Color.clear は既定でヒットテストされないため、36pt 四方全体をドラッグ対象にする
+        .contentShape(Rectangle())
+        // アクセシビリティ要素は .position より前に確定させる（後ろに付けると position が
+        // 親いっぱいに広がったフレームが要素の枠になり、4つのハンドルがすべて画像全体を指してしまう）
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(cropHandleAccessibilityLabel)
+        // ドラッグできない VoiceOver 利用者向けに、上下左右へ少しずつ動かすアクションを用意する
+        .accessibilityAction(named: Text("a11y.crop.handle.moveLeft")) { nudge(dx: -1, dy: 0) }
+        .accessibilityAction(named: Text("a11y.crop.handle.moveRight")) { nudge(dx: 1, dy: 0) }
+        .accessibilityAction(named: Text("a11y.crop.handle.moveUp")) { nudge(dx: 0, dy: -1) }
+        .accessibilityAction(named: Text("a11y.crop.handle.moveDown")) { nudge(dx: 0, dy: 1) }
+        .position(handlePosition)
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
                     vm.applyDrag(corner: corner, location: value.location, imageFrame: imageFrame)
                 }
         )
+    }
+
+    // ハンドルを現在位置から画像フレーム比で一定量ずらす。最小サイズ・画像範囲のクランプはドラッグと共通
+    private func nudge(dx: CGFloat, dy: CGFloat) {
+        let step = Self.accessibilityNudgeFraction
+        let location = CGPoint(
+            x: handlePosition.x + dx * imageFrame.width * step,
+            y: handlePosition.y + dy * imageFrame.height * step
+        )
+        vm.applyDrag(corner: corner, location: location, imageFrame: imageFrame)
     }
 
     // 語順が言語で変わるため、隅ごとに完結したラベルをローカライズする
