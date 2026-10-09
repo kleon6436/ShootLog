@@ -63,6 +63,9 @@ final class Photo {
     var asShotTint: Double? = nil
     var asShotWhiteBalanceIsEstimated: Bool? = nil
     var asShotWhiteBalanceFetchedAt: Date? = nil
+    /// 推定値（`asShotWhiteBalanceIsEstimated == true`）を算出したロジックの版。
+    /// 現行版（`ContentViewModel.asShotWhiteBalanceEstimateVersion`）と異なる推定値は再取得する
+    var asShotWhiteBalanceEstimateVersion: Int? = nil
     var phAssetLocalIdentifier: String? = nil
     var originalFileName: String? = nil
 

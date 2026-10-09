@@ -184,6 +184,37 @@ struct ImageDevelopmentEngineTests {
         #expect((1_000...50_000).contains(sample.temperatureKelvin))
     }
 
+    // 撮影時 WB は「その見た目を生んだ設定値」なので、緑かぶりの画像は負（グリーン側）の色かぶりになる
+    // （自動 WB の補正量とは逆符号。色温度の「暖色の見た目 → 高 K」と向きを揃える）
+    @Test func asShotNeutralEstimatesNegativeTintForGreenCast() async throws {
+        let sandbox = try makeSandbox()
+        let size = 32
+        var pixels = [UInt8]()
+        for _ in 0..<(size * size) { pixels += [110, 135, 110, 255] }
+        let colorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
+        let image = try #require(CGImage(
+            width: size,
+            height: size,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: size * 4,
+            space: colorSpace,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
+        let url = sandbox.appendingPathComponent("\(UUID().uuidString).png")
+        try writePNG(image, to: url)
+        let engine = makeEngine(in: sandbox)
+
+        let sample = try #require(await engine.asShotNeutral(for: url))
+        #expect(sample.isEstimated)
+        #expect(sample.tint < 0)
+    }
+
     @Test func asShotNeutralForJPEGReturnsEstimatedSample() async throws {
         let sandbox = try makeSandbox()
         let url = try writeJPEG(width: 128, height: 96, in: sandbox)

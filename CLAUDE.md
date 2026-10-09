@@ -209,7 +209,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 
 主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
 
-- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` / `asShotTint` / `asShotWhiteBalanceIsEstimated` / `asShotWhiteBalanceFetchedAt`、いずれも optional・軽量マイグレーション。`loadEXIFIfNeeded` が EXIF と独立に取得・保存し、取得不能も `asShotWhiteBalanceFetchedAt` を立てて再試行を抑止する）
+- `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、撮影時ホワイトバランス（`asShotTemperatureKelvin` / `asShotTint` / `asShotWhiteBalanceIsEstimated` / `asShotWhiteBalanceFetchedAt`、いずれも optional・軽量マイグレーション。`loadEXIFIfNeeded` が EXIF と独立に取得・保存し、取得不能も `asShotWhiteBalanceFetchedAt` を立てて再試行を抑止する。推定値は `asShotWhiteBalanceEstimateVersion` が現行版（`ContentViewModel.asShotWhiteBalanceEstimateVersion`、2=グレーワールド推定の色かぶり符号修正）と異なれば取り直す）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
 - `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5）、更新日時。`EditInfo` とは独立。`schemaVersion` 世代: 1=全て標準チェーン / 2=RAW露出・WBを`CIRAWFilter`委譲 / 3=手動レンズ補正 / 4=絶対Kelvin/Tintのホワイトバランス / 5=トーン域マスク カラーグレーディング。version 2〜4 は編集時に現行世代へ自動バンプ（`setParameters`、追加値は中立既定で見た目不変。ただし旧方式のカラーグレーディングが中立でない間は 4 で止めて見た目を凍結、`DevelopSettings.bumpedSchemaVersion`）、version 1 は据え置き
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット

@@ -153,9 +153,16 @@ extension ContentViewModel {
         _ = await asShotWhiteBalance(for: photo)
     }
 
+    /// 撮影時ホワイトバランス推定ロジックの版（2=グレーワールド推定の色かぶり符号を修正）
+    nonisolated static let asShotWhiteBalanceEstimateVersion = 2
+
     /// 永続値を優先して撮影時ホワイトバランスを返し、未取得時は画像から取得して保存する。
     func asShotWhiteBalance(for photo: Photo) async -> WhiteBalanceSample? {
-        if photo.asShotWhiteBalanceFetchedAt != nil {
+        // 旧版の推定ロジック（グレーワールド推定の色かぶり符号が逆）で保存した推定値は取り直す。
+        // RAW の実測値と取得不能の記録はロジック変更の影響を受けないので据え置く
+        let isStaleEstimate = photo.asShotWhiteBalanceIsEstimated == true
+            && photo.asShotWhiteBalanceEstimateVersion != Self.asShotWhiteBalanceEstimateVersion
+        if photo.asShotWhiteBalanceFetchedAt != nil, !isStaleEstimate {
             guard let temperature = photo.asShotTemperatureKelvin,
                   let tint = photo.asShotTint,
                   let isEstimated = photo.asShotWhiteBalanceIsEstimated else {
@@ -173,7 +180,13 @@ extension ContentViewModel {
             photo.asShotTemperatureKelvin = sample.temperatureKelvin
             photo.asShotTint = sample.tint
             photo.asShotWhiteBalanceIsEstimated = sample.isEstimated
+        } else {
+            // 取り直しに失敗した旧推定値は符号が逆のまま残さず、取得不能として扱う
+            photo.asShotTemperatureKelvin = nil
+            photo.asShotTint = nil
+            photo.asShotWhiteBalanceIsEstimated = nil
         }
+        photo.asShotWhiteBalanceEstimateVersion = Self.asShotWhiteBalanceEstimateVersion
         // 取得不能も記録し、ファイルが壊れている場合に選択のたび再試行しない。
         photo.asShotWhiteBalanceFetchedAt = Date()
         try? modelContext?.save()

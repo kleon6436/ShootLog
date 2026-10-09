@@ -223,9 +223,12 @@ actor ImageDevelopmentEngine: ImageDeveloping {
             ), let settings = WhiteBalanceResolver.automaticSettings(from: image) else {
                 return nil
             }
+            // `automaticSettings` の tint は「中立化に必要な補正量」（緑かぶり → 正 = マゼンタ）。
+            // 撮影時ホワイトバランスとしては「この見た目を生んだ設定値」（緑かぶり → 負 = グリーン）が
+            // 必要なので符号を反転する（色温度は暖色の見た目 → 高 K で、元から撮影時設定の向き）。
             return WhiteBalanceSample(
                 temperatureKelvin: settings.temperatureKelvin,
-                tint: settings.tint,
+                tint: -settings.tint,
                 isEstimated: true
             )
         }
