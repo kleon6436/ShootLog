@@ -119,7 +119,8 @@ private struct CropHandleView: View {
         }
         // Color.clear は既定でヒットテストされないため、36pt 四方全体をドラッグ対象にする
         .contentShape(Rectangle())
-        .position(handlePosition)
+        // アクセシビリティ要素は .position より前に確定させる（後ろに付けると position が
+        // 親いっぱいに広がったフレームが要素の枠になり、4つのハンドルがすべて画像全体を指してしまう）
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(cropHandleAccessibilityLabel)
         // ドラッグできない VoiceOver 利用者向けに、上下左右へ少しずつ動かすアクションを用意する
@@ -127,6 +128,7 @@ private struct CropHandleView: View {
         .accessibilityAction(named: Text("a11y.crop.handle.moveRight")) { nudge(dx: 1, dy: 0) }
         .accessibilityAction(named: Text("a11y.crop.handle.moveUp")) { nudge(dx: 0, dy: -1) }
         .accessibilityAction(named: Text("a11y.crop.handle.moveDown")) { nudge(dx: 0, dy: 1) }
+        .position(handlePosition)
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in

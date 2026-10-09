@@ -65,7 +65,9 @@ extension ContentViewModel {
                     guard let self else { return }
                     guard token == self.aiQualityDiagnosisToken else { return }
                     self.aiQualityDiagnosisReanalysisURLs.remove(url)
-                    if let index = photoIndex[url], self.photos.indices.contains(index) {
+                    // 写真ソースの切り替え途中に届いた結果を別の写真へ書き込まないよう、URL も照合する
+                    if let index = photoIndex[url], self.photos.indices.contains(index),
+                       self.photos[index].fileURL == url {
                         self.apply(diagnosis, to: self.photos[index])
                     }
                     self.aiQualityDiagnosisCompletedCount += 1

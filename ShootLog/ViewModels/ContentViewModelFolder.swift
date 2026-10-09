@@ -328,6 +328,9 @@ extension ContentViewModel {
 
     // 進行中の段階挿入を打ち切る。フォルダ切替の直前に呼び、古いTaskが photos を汚さないようにする
     func cancelPhotoStaging() async {
+        // 待機中は手動の再解析を受け付けない（reanalyzeAI 参照）。重なって呼ばれても数で管理する
+        photoStagingCancelCount += 1
+        defer { photoStagingCancelCount -= 1 }
         photoStagingTask?.cancel()
         photoStagingTask = nil
         pendingSelectNextTask?.cancel()

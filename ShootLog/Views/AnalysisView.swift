@@ -24,8 +24,11 @@ struct AnalysisView: View {
             contentArea
         }
         .frame(width: 680, height: 560)
-        // シート表示後にEXIFの一括取得・AI分類が完了するため、取得状況の変化で集計を作り直す
-        .onChange(of: vm.dataSignature) {
+        // シート表示後にEXIFの一括取得・AI分類が完了するため、取得状況の変化で集計を作り直す。
+        // AI分類は1枚ずつ結果が届くので、短く待ってまとめて再集計する（連続した変化では前の待機がキャンセルされる）
+        .task(id: vm.dataSignature) {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
             vm.refresh()
         }
         // チャートの判読性を保つため不透明な背景を維持。AppKitブリッジではなくSwiftUIネイティブのセマンティックスタイルを使用

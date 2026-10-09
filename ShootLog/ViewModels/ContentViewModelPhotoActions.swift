@@ -136,7 +136,9 @@ extension ContentViewModel {
                 fileURL: fileURL
             )
         }
-        if canReadFile, photo.exifFetchedAt == nil {
+        // フォルダ写真で撮影日時の由来フラグが未確定（フラグ導入前に EXIF 取得済み）の場合も取り直して確定させる
+        let needsShootingDateSource = photo.phAssetLocalIdentifier == nil && photo.shootingDateFromMetadata == nil
+        if canReadFile, photo.exifFetchedAt == nil || needsShootingDateSource {
             let url = photo.fileURL
             do {
                 let exif = try await EXIFService.shared.readEXIF(

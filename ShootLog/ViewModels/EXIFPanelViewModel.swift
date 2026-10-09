@@ -24,10 +24,11 @@ final class EXIFPanelViewModel {
 
     // 撮影日時はメタデータ（EXIF DateTimeOriginal 等）由来と確認できた場合のみ表示する。
     // Photo.shootingDate は未取得時にレコード作成日時が入るため、それを撮影日時として見せない。
-    // 判定フラグ導入前の既存レコード（nil）は EXIF 取得済みかどうかで判断する
+    // 判定フラグ導入前の既存レコード（nil）は従来どおりカメラ機種の有無で判断する
+    // （フォルダ写真は次回選択時の EXIF 再取得でフラグが確定する。loadEXIFIfNeeded 参照）
     var shootingDateText: String? {
         guard let photo else { return nil }
-        let isKnown = photo.shootingDateFromMetadata ?? (photo.exifFetchedAt != nil)
+        let isKnown = photo.shootingDateFromMetadata ?? (photo.cameraModel != nil)
         guard isKnown else { return nil }
         return photo.shootingDate.formatted(date: .abbreviated, time: .shortened)
     }

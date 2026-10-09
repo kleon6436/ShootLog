@@ -206,12 +206,17 @@ struct EXIFPanelViewModelTests {
         #expect(viewModel.shootingDateText != nil)
     }
 
-    @Test func shootingDateTextFallsBackToFetchedFlagForLegacyRecords() {
-        let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
-        photo.exifFetchedAt = Date()
-        let viewModel = EXIFPanelViewModel(photo: photo)
+    // フラグ導入前の既存レコード（nil）は従来どおりカメラ機種の有無で判断する
+    @Test func shootingDateTextFallsBackToCameraModelForLegacyRecords() {
+        let withModel = Photo(fileURL: URL(fileURLWithPath: "/tmp/photo.jpg"))
+        withModel.exifFetchedAt = Date()
+        withModel.cameraModel = "Camera"
+        #expect(EXIFPanelViewModel(photo: withModel).shootingDateText != nil)
 
-        #expect(viewModel.shootingDateText != nil)
+        // EXIF 取得済みでも機種が無い（スクリーンショット等）レコードはインポート時刻を出さない
+        let withoutModel = Photo(fileURL: URL(fileURLWithPath: "/tmp/screenshot.png"))
+        withoutModel.exifFetchedAt = Date()
+        #expect(EXIFPanelViewModel(photo: withoutModel).shootingDateText == nil)
     }
 }
 

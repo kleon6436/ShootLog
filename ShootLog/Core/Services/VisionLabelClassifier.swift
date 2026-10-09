@@ -12,7 +12,8 @@ enum VisionLabelClassifier {
     static let maximumRawIdentifierCount = 10
 
     /// 画像を分類する。Visionの実行失敗・結果欠落時は `nil` を返す。
-    /// 呼び出し側は `nil` を「分類済み・カテゴリなし」として永続化せず、次回読み込み時に再試行させる。
+    /// 呼び出し側は `nil` を「分類済み・カテゴリなし」として永続化せず、失敗として記録する
+    /// （`Photo.aiLabelingFailedAt`。再試行の条件は `ContentViewModel.shouldRetryAIFailure`）。
     static func classify(
         _ image: CGImage,
         maxResults: Int = Self.maximumRawIdentifierCount

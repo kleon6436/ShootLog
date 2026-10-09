@@ -176,6 +176,9 @@ final class ContentViewModel {
     // 「写真ライブラリを開く」の権限確認〜読み込みTask。二重起動（ダブルクリック等）を防ぐため1本だけ保持する
     var photosLibraryOpenTask: Task<Void, Never>?
 
+    // cancelPhotoStaging の実行中（各生成器の停止待ち）の数。手動の再解析を止めるために使う
+    var photoStagingCancelCount = 0
+
     // 分析シートのEXIF一括取得Task。シートを開き直した際に前回分をキャンセルする
     var analysisTask: Task<Void, Never>?
 
