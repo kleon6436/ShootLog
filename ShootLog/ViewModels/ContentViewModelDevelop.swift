@@ -38,11 +38,35 @@ extension ContentViewModel {
     // currentDevelopSettings キャッシュは、対象が選択中写真のときだけ追従させる
     // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadDevelopSettings と
     // 同じ「全件 fetch して first(where:)」パターンを踏襲する
-    func persistDevelopParameters(_ parameters: DevelopParameters, forPhotoID photoID: UUID) {
+    //
+    // 中立なら原則として行を削除するが、次のどちらかなら行を残して中立値を書き込む:
+    // - keepingRecord（呼び出し側が 1 段 Undo を保持している）。プリセット/ペーストで中立になった直後に
+    //   行を消すと、cascade で MaskRaster が消えて Undo で戻した AI マスクがラスタを失い（プレビューは
+    //   デコードキャッシュで見えても書き出しでは効かない）、schemaVersion も失われて v1 の RAW レコードが
+    //   Undo 後に現行世代として作り直される（見た目が変わる）ため。
+    // - 行がまだ MaskRaster を所有している。ラスタの回収は到達可能性ベースの GC
+    //   （MaskRasterGarbageCollector、写真を離れる時点）に一本化しており、ここで cascade 削除すると
+    //   その前提（Undo で戻せる間はラスタが生きている）を崩すため。
+    // 残した中立行は、写真を離れる時点で GC 後にラスタが無ければ DevelopViewModel が削除する
+    func persistDevelopParameters(
+        _ parameters: DevelopParameters,
+        forPhotoID photoID: UUID,
+        keepingRecord: Bool = false
+    ) {
         guard let context = modelContext else { return }
 
         if parameters.isNeutral {
             if let existing = storedDevelopSettings(forPhotoID: photoID, context: context) {
+                if keepingRecord || !existing.maskRasters.isEmpty {
+                    do {
+                        try existing.setParameters(parameters)
+                    } catch {
+                        self.error = ShootLogError.photoDataSaveFailed
+                        return
+                    }
+                    saveOrReportError(context)
+                    return
+                }
                 context.delete(existing)
             }
             if currentDevelopSettings?.photoID == photoID { currentDevelopSettings = nil }

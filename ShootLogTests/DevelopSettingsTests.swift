@@ -250,6 +250,26 @@ struct ContentViewModelDevelopTests {
         #expect(rows.isEmpty)
     }
 
+    /// 1 段 Undo を保持している間（keepingRecord）は、中立でも行を消さず中立値を書き込む。
+    /// 行を消すと cascade で MaskRaster が消え、schemaVersion も失われるため。
+    @Test func persistNeutralKeepsRowWhenKeepingRecord() throws {
+        let (viewModel, context, photo) = try makeViewModel()
+
+        var params = DevelopParameters.neutral
+        params.contrast = 20
+        viewModel.persistDevelopParameters(params, forPhotoID: photo.id)
+        let row = try #require(viewModel.currentDevelopSettings)
+        row.schemaVersion = 1
+
+        viewModel.persistDevelopParameters(.neutral, forPhotoID: photo.id, keepingRecord: true)
+
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.parameters == .neutral)
+        #expect(rows.first?.schemaVersion == 1)
+        #expect(viewModel.currentDevelopSettings?.photoID == photo.id)
+    }
+
     @Test func repeatedUpdateReusesSameRow() throws {
         let (viewModel, context, _) = try makeViewModel()
 

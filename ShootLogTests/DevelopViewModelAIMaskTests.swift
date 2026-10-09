@@ -207,7 +207,7 @@ struct DevelopViewModelAIMaskTests: DevelopViewModelTesting {
         #expect(vm.maskNeedsRegeneration(makeMaskLayer()) == false)
     }
 
-    @Test func regenerateAIMaskReplacesLayer() async throws {
+    @Test func regenerateAIMaskReplacesRasterInPlace() async throws {
         let engine = SpyEngine()
         let generator = SpyMaskGenerator()
         generator.stub = SubjectMaskResult(
@@ -215,13 +215,65 @@ struct DevelopViewModelAIMaskTests: DevelopViewModelTesting {
         )
         let (vm, _, _) = try await makeMaskViewModelWithContent(engine: engine, maskGenerator: generator)
         await vm.addAIMask(kind: .person)
-        let original = try #require(vm.maskLayers.first).id
+        let original = try #require(vm.maskLayers.first)
+        let originalRasterID = try aiRasterID(of: original)
+        let above = try #require(vm.addLinearGradientMask())
 
-        await vm.regenerateAIMask(id: original)
+        await vm.regenerateAIMask(id: original.id)
 
-        #expect(vm.maskLayers.count == 1)
-        #expect(vm.maskLayers.first?.id != original)
+        // レイヤーの ID・重なり順は変わらず、ラスタ参照だけが新しくなる。
+        #expect(vm.maskLayers.map(\.id) == [original.id, above])
+        let regenerated = try #require(vm.maskLayers.first)
+        #expect(try aiRasterID(of: regenerated) != originalRasterID)
+        #expect(vm.selectedMaskLayerID == original.id)
         #expect(generator.lastKind == .person)
+        #expect(generator.lastClickPoint == nil)
+    }
+
+    /// 再生成・クリックでの絞り込みは、ローカル調整・反転・濃度・ぼかし・名前・ブラシ編集を保つ。
+    /// 旧実装は新規レイヤーの追加＋旧レイヤー削除で、これらが全部初期化され最前面へ移っていた。
+    @Test func refiningAIMaskPreservesLayerSettings() async throws {
+        let engine = SpyEngine()
+        let generator = SpyMaskGenerator()
+        generator.stub = SubjectMaskResult(
+            pngData: try makeMaskPNGData(), longEdge: 8, instanceIndices: [0, 1]
+        )
+        let (vm, _, _) = try await makeMaskViewModelWithContent(engine: engine, maskGenerator: generator)
+        let below = try #require(vm.addLinearGradientMask())
+        let addedID = await vm.addAIMask(kind: .foregroundSubject)
+        let id = try #require(addedID)
+        let above = try #require(vm.addRadialGradientMask())
+        vm.updateMask(id: id) { layer in
+            layer.name = "Sky"
+            layer.isInverted = true
+            layer.density = 40
+            layer.feather = 25
+            layer.adjustments.exposure = 0.7
+        }
+        let before = try #require(vm.maskLayers.first(where: { $0.id == id }))
+
+        generator.stub = SubjectMaskResult(
+            pngData: try makeMaskPNGData(), longEdge: 8, instanceIndices: [1]
+        )
+        await vm.regenerateAIMask(id: id, clickPoint: NormalizedPoint(x: 0.25, y: 0.75))
+
+        #expect(vm.maskLayers.map(\.id) == [below, id, above])
+        let after = try #require(vm.maskLayers.first(where: { $0.id == id }))
+        #expect(after.name == "Sky")
+        #expect(after.isInverted)
+        #expect(after.density == 40)
+        #expect(after.feather == 25)
+        #expect(after.adjustments == before.adjustments)
+        #expect(after.brushEdits == before.brushEdits)
+        guard case .ai(let reference) = after.source else {
+            Issue.record("AI ソースではない: \(after.source)")
+            return
+        }
+        #expect(reference.instanceIndices == [1])
+        #expect(reference.kind == .foregroundSubject)
+        #expect(try aiRasterID(of: after) != aiRasterID(of: before))
+        // クリック位置は Vision 座標（y 反転）で渡る。
+        #expect(generator.lastClickPoint?.y == 0.25)
     }
 
     @Test func regenerateAIMaskKeepsLayerWhenGenerationFails() async throws {
@@ -301,14 +353,118 @@ struct DevelopViewModelAIMaskTests: DevelopViewModelTesting {
             )),
             adjustments: LocalAdjustments()
         )]
-        vm.parameters = source
-        vm.copyAdjustments()
+        // コピー元は別の ViewModel（別写真）として用意する。貼り付け先は AI マスクを持たない。
+        let other = makeViewModel(engine: SpyEngine())
+        other.parameters = source
+        other.copyAdjustments()
         vm.parameters.exposure = 0.25
 
         vm.pasteAdjustments()
 
         #expect(vm.parameters.exposure == 2)
         #expect(vm.maskLayers.isEmpty)
+    }
+
+    /// ペーストは貼り付け先自身の AI マスクを残し、移せるレイヤーだけをクリップボード側で置き換える
+    /// （マスクを含めないプリセット置き換えが現在のマスクを保持するのと揃える）。
+    @Test func pasteKeepsTargetsOwnAIMasks() async throws {
+        let engine = SpyEngine()
+        let generator = SpyMaskGenerator()
+        generator.stub = SubjectMaskResult(
+            pngData: try makeMaskPNGData(), longEdge: 8, instanceIndices: [0]
+        )
+        let (vm, content, _) = try await makeMaskViewModelWithContent(engine: engine, maskGenerator: generator)
+        let addedID = await vm.addAIMask(kind: .foregroundSubject)
+        let ownAI = try #require(addedID)
+        let ownRasterID = try aiRasterID(of: try #require(vm.maskLayers.first))
+        let ownLinear = try #require(vm.addLinearGradientMask())
+
+        var source = DevelopParameters.neutral
+        source.exposure = 2
+        let pastedLayer = makeMaskLayer()
+        source.masks = [
+            MaskLayer(
+                id: UUID(),
+                name: "foreign-ai",
+                source: .ai(AIMaskReference(
+                    rasterID: UUID(), kind: .person, instanceIndices: [0],
+                    visionRevision: DevelopViewModel.currentVisionRevision, bakedLongEdge: 8, bakedAt: .now
+                )),
+                adjustments: LocalAdjustments()
+            ),
+            pastedLayer,
+        ]
+        let other = makeViewModel(engine: SpyEngine())
+        other.parameters = source
+        other.copyAdjustments()
+
+        vm.pasteAdjustments()
+
+        #expect(vm.parameters.exposure == 2)
+        #expect(vm.maskLayers.map(\.id) == [ownAI, pastedLayer.id])
+        #expect(vm.maskLayers.contains { $0.id == ownLinear } == false)
+        #expect(try aiRasterID(of: try #require(vm.maskLayers.first)) == ownRasterID)
+        // 自前の AI ラスタを複製していない。
+        let settings = try #require(content.currentDevelopSettings)
+        #expect(settings.maskRasters.map(\.id) == [ownRasterID])
+    }
+
+    /// AI マスクを外して中立になるプリセット適用でもレコード（＝MaskRaster）を消さず、
+    /// 1 段 Undo で戻した AI マスクがラスタを参照し続けられる。
+    @Test func neutralApplyKeepsRecordSoUndoRestoresAIMaskRaster() async throws {
+        let engine = SpyEngine()
+        let generator = SpyMaskGenerator()
+        generator.stub = SubjectMaskResult(
+            pngData: try makeMaskPNGData(), longEdge: 8, instanceIndices: [0]
+        )
+        let (vm, content, photo) = try await makeMaskViewModelWithContent(engine: engine, maskGenerator: generator)
+        await vm.addAIMask(kind: .foregroundSubject)
+        let rasterID = try aiRasterID(of: try #require(vm.maskLayers.first))
+        await settle()
+        let context = try #require(content.modelContext)
+
+        vm.applyPreset(DevelopPreset(name: "N", parameters: .neutral, sortIndex: 0), includeMasks: true)
+        #expect(vm.parameters.isNeutral)
+        await settle()
+
+        #expect(try context.fetch(FetchDescriptor<DevelopSettings>()).count == 1)
+        #expect(try context.fetch(FetchDescriptor<MaskRaster>()).map(\.id) == [rasterID])
+
+        vm.undoLastApply()
+        await settle()
+
+        #expect(try aiRasterID(of: try #require(vm.maskLayers.first)) == rasterID)
+        let settings = try #require(content.developSettings(forPhotoID: photo.id))
+        #expect(settings.maskRasters.map(\.id) == [rasterID])
+        #expect(settings.parameters.exposure == 1)
+    }
+
+    /// Undo のために残した中立レコードは、写真を離れた時点で通常どおり削除される。
+    @Test func neutralRecordKeptForUndoIsRemovedWhenLeavingPhoto() async throws {
+        let engine = SpyEngine()
+        let generator = SpyMaskGenerator()
+        generator.stub = SubjectMaskResult(
+            pngData: try makeMaskPNGData(), longEdge: 8, instanceIndices: [0]
+        )
+        let (vm, content, photo) = try await makeMaskViewModelWithContent(engine: engine, maskGenerator: generator)
+        await vm.addAIMask(kind: .foregroundSubject)
+        await settle()
+        let context = try #require(content.modelContext)
+
+        vm.applyPreset(DevelopPreset(name: "N", parameters: .neutral, sortIndex: 0), includeMasks: true)
+        await settle()
+        #expect(try context.fetch(FetchDescriptor<DevelopSettings>()).count == 1)
+
+        let next = Photo(fileURL: URL(fileURLWithPath: "/tmp/develop-vm-test-next3.jpg"))
+        context.insert(next)
+        content.selectedPhoto = next
+        content.loadDevelopSettings(for: next)
+        vm.load(photo: next, displaySize: CGSize(width: 800, height: 600))
+        await settle()
+
+        let rows = try context.fetch(FetchDescriptor<DevelopSettings>())
+        #expect(rows.contains { $0.photoID == photo.id } == false)
+        #expect(try context.fetch(FetchDescriptor<MaskRaster>()).isEmpty)
     }
 
     @Test func photoSwitchCollectsOrphanedRastersOfLeavingPhotoOnly() async throws {

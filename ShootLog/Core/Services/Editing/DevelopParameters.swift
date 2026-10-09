@@ -277,6 +277,14 @@ extension DevelopParameters {
         }
     }
 
+    /// ホワイトバランスの相対適用。
+    /// - `delta` が As Shot: 変更なし（`base` のまま）。
+    /// - `delta` がプリセット（昼光・曇天 等）: `delta` で置き換える。
+    /// - `delta` が Custom: `base` も Custom なら 6500K 基準の差分を加算、そうでなければ置き換える。
+    /// - `delta` が Auto: 結果は Auto になるが、色温度・色かぶりは差分の作成元写真で推定した値で、
+    ///   適用先には意味を持たない。ここでは画像を持たず推定できないため値はそのまま返し、
+    ///   呼び出し側（`DevelopViewModel.applyReplacingParameters`）が適用先の写真で推定し直す。
+    ///   「Auto を足す」は「適用先で Auto を掛け直す」と定義する（Auto 同士の加算は意味を持たない）。
     private static func applyingWhiteBalance(
         base: WhiteBalanceSettings, delta: WhiteBalanceSettings
     ) -> WhiteBalanceSettings {

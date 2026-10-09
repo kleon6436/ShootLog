@@ -28,6 +28,21 @@ struct EditablePhotoView: View {
                     DisplayColorSpaceReader { developViewModel.setPreviewColorSpace($0) }
                 )
                 .task(id: photo?.id) {
+                    // 現像 VM は写真が変わった時点で即座に新しい写真へ切り替える。ベース画像のロード
+                    // （サムネイル → プロキシ → 高解像度）を待ってから切り替えると、その間ずっと前の写真の
+                    // previewImage が新しい写真の上に描かれ、スライダー・プリセット・ペースト・ブラシが
+                    // 前の写真を編集してしまう。現像 VM の load は vm.load の結果に依存しない
+                    // （写真・表示サイズ・EditInfo だけで決まり、レンダーは原本ファイルから行う）。
+                    //
+                    // 例外は iCloud 写真ライブラリの写真で、原本はエクスポートキャッシュ（vm.load 内の
+                    // ensureExported が書き出す）にしか無い。書き出し前に読むと撮影時 WB を「取得不能」と
+                    // 記録してしまうため、まず前の写真から切り離し（photo: nil）、書き出し後に load する。
+                    let waitsForExport = photo?.phAssetLocalIdentifier != nil
+                    if waitsForExport {
+                        developViewModel.load(photo: nil, displaySize: geometry.size)
+                    } else {
+                        loadDevelop(displaySize: geometry.size)
+                    }
                     await vm.load(
                         photo: photo,
                         displaySize: geometry.size,
@@ -35,24 +50,24 @@ struct EditablePhotoView: View {
                     )
                     // 選択が既に次の写真へ移っていれば、古い写真で現像 VM を上書きしない
                     // （新しいタスク側が改めて load する）
-                    guard !Task.isCancelled else { return }
-                    // 現像 VM も同じ選択経路で追従させる（キーボード送り・絞り込み切替を含む）。
-                    // 回転・トリミングもプレビューへ焼き込むため EditInfo を渡す
-                    developViewModel.load(
-                        photo: photo,
-                        displaySize: geometry.size,
-                        rotation: editInfo?.rotation ?? 0,
-                        cropRect: editInfo?.cropRect
-                    )
+                    guard waitsForExport, !Task.isCancelled else { return }
+                    loadDevelop(displaySize: geometry.size)
                 }
                 .onChange(of: geometry.size) { _, newSize in
                     developViewModel.updateDisplaySize(newSize)
                 }
+                // 写真 ID を添え、切り替え直後に届く次の写真の EditInfo で前の写真を描き直さないようにする
                 .onChange(of: editInfo?.rotation ?? 0) { _, newRotation in
-                    developViewModel.updateEditGeometry(rotation: newRotation, cropRect: editInfo?.cropRect)
+                    guard let photoID = photo?.id else { return }
+                    developViewModel.updateEditGeometry(
+                        rotation: newRotation, cropRect: editInfo?.cropRect, forPhotoID: photoID
+                    )
                 }
                 .onChange(of: editInfo?.cropRect) { _, newCrop in
-                    developViewModel.updateEditGeometry(rotation: editInfo?.rotation ?? 0, cropRect: newCrop)
+                    guard let photoID = photo?.id else { return }
+                    developViewModel.updateEditGeometry(
+                        rotation: editInfo?.rotation ?? 0, cropRect: newCrop, forPhotoID: photoID
+                    )
                 }
                 // トリミング中はベース画像を出す別経路に落ちてマスクの座標基準が変わるため相互排他にする
                 .onChange(of: isCropMode) { _, newValue in
@@ -70,6 +85,17 @@ struct EditablePhotoView: View {
                     )
                 }
         }
+    }
+
+    /// 現像 VM を表示中の写真へ追従させる（キーボード送り・絞り込み切替を含む）。
+    /// 回転・トリミングもプレビューへ焼き込むため EditInfo を渡す。
+    private func loadDevelop(displaySize: CGSize) {
+        developViewModel.load(
+            photo: photo,
+            displaySize: displaySize,
+            rotation: editInfo?.rotation ?? 0,
+            cropRect: editInfo?.cropRect
+        )
     }
 
     @ViewBuilder
