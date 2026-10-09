@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreImage
 import Foundation
 import ImageIO
 import OSLog
@@ -173,12 +174,25 @@ struct UpscaleExporter: Sendable {
     /// `rotation` / `cropRect` は表示（Orientation 適用後）の画像を基準にしているため、ここで
     /// 正立させておかないと Orientation 6/8 などの写真でトリミング位置と出力の向きがずれる
     /// （`ImageDevelopmentEngine` も `applyOrientationProperty: true` でデコードしている）。
+    ///
+    /// Orientation を「ちょうど1回」適用するため、経路を形式で分ける。
+    /// - RAW: デコーダによっては既に正立済みの画像を返し、Orientation 属性との関係が形式・OS版で
+    ///   揺れる（90° なら縦横比で見分けられるが 180° / 鏡像は見分けられない）。そのため
+    ///   `ImageDevelopmentEngine` と同じく `CIRAWFilter` に任せる。`CIRAWFilter` は Orientation を
+    ///   自身で1回だけ適用した正立画像を返す。階調を落とさないよう 16bit で実体化する。
+    /// - 非RAW（JPEG/HEIC/TIFF/PNG）: `CGImageSourceCreateImageAtIndex` は格納画素をそのまま返す
+    ///   契約なので、属性の Orientation を `applyingOrientation` で常に1回適用する（ビット深度は保持）。
+    ///
     /// `Task.detached` はキャンセルを継承しないので、`withTaskCancellationHandler` で明示的に伝播させる
     static func decodeFullResolution(from url: URL) async throws -> CGImage {
         let handle = Task.detached(priority: .userInitiated) { () throws -> CGImage in
             // ブックマーク復元 URL に対してセキュリティスコープを要求する（通常 URL では no-op）
             _ = url.startAccessingSecurityScopedResource()
             defer { url.stopAccessingSecurityScopedResource() }
+
+            if ImageDevelopmentEngine.rawExtensions.contains(url.pathExtension.lowercased()) {
+                return try UpscaleExporter.decodeRAWUpright(from: url)
+            }
 
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
@@ -188,14 +202,6 @@ struct UpscaleExporter: Sendable {
             guard let rawOrientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value,
                   let orientation = CGImagePropertyOrientation(rawValue: rawOrientation),
                   orientation != .up else {
-                return image
-            }
-            // デコーダが既に正立させている場合（縦横が属性値と入れ替わっている）は二重回転しない。
-            if orientation.swapsDimensions,
-               let storedWidth = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
-               let storedHeight = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
-               storedWidth != storedHeight,
-               image.width == storedHeight, image.height == storedWidth {
                 return image
             }
             guard let oriented = UpscaleExporter.applyingOrientation(image, orientation) else {
@@ -208,6 +214,36 @@ struct UpscaleExporter: Sendable {
         } onCancel: {
             handle.cancel()
         }
+    }
+
+    /// RAW の正立フル解像度デコード用。作業空間はリニア sRGB、出力は sRGB（超解像エンジンの作業空間と同じ）。
+    private static let rawDecodeContext: CIContext = {
+        var options: [CIContextOption: Any] = [:]
+        if let working = CGColorSpace(name: CGColorSpace.linearSRGB) {
+            options[.workingColorSpace] = working
+        }
+        if let output = SuperResolutionColorSpace.sRGB {
+            options[.outputColorSpace] = output
+        }
+        return CIContext(options: options)
+    }()
+
+    /// `CIRAWFilter`（as-shot 既定・等倍）で RAW をデコードし、Orientation 適用済みの 16bit 画像を返す。
+    /// `CIImage` は遅延評価なので、呼び出し側のセキュリティスコープ内で実体化まで済ませること。
+    private static func decodeRAWUpright(from url: URL) throws -> CGImage {
+        guard let filter = CIRAWFilter(imageURL: url),
+              let output = filter.outputImage else {
+            throw ShootLogError.superResolutionFailed(reason: "source decode failed")
+        }
+        let rect = output.extent.integral
+        guard !rect.isEmpty, !rect.isInfinite,
+              let colorSpace = SuperResolutionColorSpace.sRGB ?? CGColorSpace(name: CGColorSpace.sRGB),
+              let image = rawDecodeContext.createCGImage(
+                output, from: rect, format: .RGBA16, colorSpace: colorSpace
+              ) else {
+            throw ShootLogError.superResolutionFailed(reason: "source decode failed")
+        }
+        return image
     }
 
     /// EXIF Orientation に従って画素を並べ替えた正立画像を返す（Orientation 1 ならそのまま）。

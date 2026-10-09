@@ -174,7 +174,7 @@ struct FullscreenModeView: View {
         HStack(spacing: 2) {
             HUDClusterButton(
                 systemImage: vm.selectedPhoto?.isFavorite == true ? "star.fill" : "star",
-                tint: vm.selectedPhoto?.isFavorite == true ? Color.yellow : Color.onViewerCanvasSecondary,
+                tint: vm.selectedPhoto?.isFavorite == true ? Color.favoriteStar : Color.onViewerCanvasSecondary,
                 accessibilityLabel: vm.selectedPhoto?.isFavorite == true ? "viewer.favorite.remove" : "viewer.favorite.add"
             ) {
                 vm.noteUserActivity()

@@ -56,7 +56,8 @@ struct SidebarModeView: View {
         PhotoListView(
             photos: vm.displayedPhotos,
             selection: $vm.selectedPhoto,
-            contextMenuActions: photoContextMenuActions
+            contextMenuActions: photoContextMenuActions,
+            fileAttributesSnapshots: vm.content.fileAttributesSnapshots
         )
             .navigationSplitViewColumnWidth(min: 120, ideal: sidebarWidth, max: 400)
             // OS標準のサイドバートグルは表示中だけ現れて独自ボタンと二重に並ぶため明示的に外し、

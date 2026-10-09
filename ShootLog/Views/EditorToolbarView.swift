@@ -54,7 +54,7 @@ struct EditorToolbarView: View {
                 help: isFavorite ? "viewer.favorite.remove" : "viewer.favorite.add",
                 isActive: isFavorite,
                 // お気に入りだけは塗り潰さず記号の色で示す（写真.app・Finderのタグと同じ黄色の意味付け）
-                accent: .symbol(.yellow),
+                accent: .symbol(Color.favoriteStar),
                 action: onToggleFavorite
             )
             EditorButton(symbolName: "wand.and.sparkles", help: "editor.upscale", action: onUpscale)
