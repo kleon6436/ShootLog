@@ -52,6 +52,9 @@ final class Photo {
     var aiRawIdentifiers: [String] = []
     var aiLabelingFetchedAt: Date? = nil
     var aiLabelingSchemaVersion: Int? = nil
+    // 画像を取得・分類できなかった日時。記録しないとフォルダを開くたびに同じ写真を処理し直す。
+    // 成功時は nil に戻す。再試行の条件は ContentViewModel.shouldRetryAIFailure を参照
+    var aiLabelingFailedAt: Date? = nil
     var aiCaptionText: String? = nil
     var aiCaptionFetchedAt: Date? = nil
     // 画質診断。被写体認識（aiLabeling*）とは処理タイミング・失敗時の扱いが異なるため独立管理する
@@ -63,6 +66,8 @@ final class Photo {
     var aiCompositionOffsetScore: Double? = nil
     var aiDiagnosisFetchedAt: Date? = nil
     var aiDiagnosisSchemaVersion: Int? = nil
+    // 画質診断に失敗した日時（扱いは aiLabelingFailedAt と同じ）
+    var aiDiagnosisFailedAt: Date? = nil
     var asShotTemperatureKelvin: Double? = nil
     var asShotTint: Double? = nil
     var asShotWhiteBalanceIsEstimated: Bool? = nil

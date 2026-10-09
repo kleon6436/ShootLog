@@ -98,6 +98,9 @@ actor AILabelingGenerator {
     static let shared = AILabelingGenerator()
     static let currentSchemaVersion = 3
     private static let decodeThrottle = ImageDecodeThrottle(maxConcurrent: 2)
+    // 画像取得2件・推論2件が重なれば十分。コア数に比例させると、推論待ちのワーカーが
+    // 3200pxプロキシを抱えたまま並び、メモリを圧迫するだけになる
+    private static let maxWorkers = 4
 
     private let imageProvider: any AILabelingImageProviding
     private let classifier: any AILabelingClassifying
@@ -168,7 +171,7 @@ actor AILabelingGenerator {
     ) async -> Bool {
         await PrioritizedBatchRunner.run(
             items: targets,
-            maxWorkers: max(2, ProcessInfo.processInfo.activeProcessorCount - 2),
+            maxWorkers: Self.maxWorkers,
             progress: progress,
             process: { target in
                 let result = await Self.classify(
@@ -198,6 +201,14 @@ actor AILabelingGenerator {
         await decodeThrottle.release()
 
         guard let image else { return nil }
-        return classifier.classify(image)
+        // Vision は同期処理で協調スレッドを塞ぐため、被写体認識・画質診断の合計同時数を絞る
+        do {
+            try await ImageDecodeThrottle.visionInference.acquire()
+        } catch {
+            return nil
+        }
+        let result = classifier.classify(image)
+        await ImageDecodeThrottle.visionInference.release()
+        return result
     }
 }

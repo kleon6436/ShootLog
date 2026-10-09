@@ -67,6 +67,9 @@ struct FavoritesOnlyToggleButton: View {
 struct AICategoryFilterMenu: View {
     @Binding var selectedCategories: Set<AISubjectCategory>
     let availableCategories: [AISubjectCategory]
+    // 被写体認識・画質診断に失敗した写真の枚数。1枚以上あれば一括再解析の項目を出す
+    let failedCount: Int
+    let reanalyzeFailed: () -> Void
     let isDisabled: Bool
 
     var body: some View {
@@ -80,6 +83,12 @@ struct AICategoryFilterMenu: View {
                 Divider()
                 Button("sidebar.aiCategoryFilter.clear") {
                     selectedCategories.removeAll()
+                }
+            }
+            if failedCount > 0 {
+                Divider()
+                Button("toolbar.aiCategoryFilter.reanalyzeFailed \(failedCount)") {
+                    reanalyzeFailed()
                 }
             }
         } label: {
@@ -96,7 +105,7 @@ struct AICategoryFilterMenu: View {
         }
         .help("toolbar.aiCategoryFilter.help")
         .accessibilityLabel(accessibilityLabelText)
-        .disabled(isDisabled || (availableCategories.isEmpty && selectedCategories.isEmpty))
+        .disabled(isDisabled || (availableCategories.isEmpty && selectedCategories.isEmpty && failedCount == 0))
     }
 
     // 選択中カテゴリを availableCategories の安定した宣言順に並べ直す。

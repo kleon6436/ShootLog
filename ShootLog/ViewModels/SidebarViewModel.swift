@@ -185,6 +185,10 @@ final class SidebarViewModel: ContentViewModelProxy {
     // 非選択の写真を操作しても、アプリ全体の選択を動かさないために使う
     func toggleFavorite(_ photo: Photo) { content.toggleFavorite(photo) }
     func toggleSuccessTag(_ tag: SuccessTagCategory, for photo: Photo) { content.toggleSuccessTag(tag, for: photo) }
+    func reanalyzeAI(_ photo: Photo) { content.reanalyzeAI([photo]) }
+    // 被写体認識・画質診断で失敗を記録した写真の枚数。ツールバーの一括再解析に使う
+    var aiAnalysisFailedCount: Int { content.aiAnalysisFailedPhotos.count }
+    func reanalyzeFailedAI() { content.reanalyzeAI(content.aiAnalysisFailedPhotos) }
     func copyFileName() { content.copyFileNameToPasteboard() }
     func copyFilePath() { content.copyFilePathToPasteboard() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }

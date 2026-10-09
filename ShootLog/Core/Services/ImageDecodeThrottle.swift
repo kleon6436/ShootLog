@@ -9,6 +9,10 @@ import Foundation
 //   IOSurfaceプールを枯渇させるため、ローカルボリュームでは共有インスタンスを使う。
 // - ImageLoader のネットワークボリューム用、AILabelingGenerator / PhotoQualityDiagnosisGenerator の
 //   AIバックグラウンド処理用はそれぞれ独立したインスタンスを持つ
+// - visionInference: AILabelingGenerator / PhotoQualityDiagnosisGenerator の Vision 推論が共有する枠。
+//   VNImageRequestHandler.perform は呼び出しスレッドを同期的に塞ぐため、両生成器の全ワーカーが
+//   同時に推論すると Swift Concurrency の協調スレッドプール（コア数ぶん）を使い切り、
+//   プロキシのデコードやアクター間の受け渡しが進まずAI処理が止まったように見える。
 //
 // キャンセル対応が必須の理由：素の withCheckedContinuation はタスクキャンセルを無視するため、
 // 高速スクロールでセルが画面外に流れて .task がキャンセルされても、
@@ -18,6 +22,8 @@ actor ImageDecodeThrottle {
     static let shared = ImageDecodeThrottle(
         maxConcurrent: max(2, min(4, ProcessInfo.processInfo.activeProcessorCount))
     )
+
+    static let visionInference = ImageDecodeThrottle(maxConcurrent: 2)
 
     private let maxConcurrent: Int
     private var active = 0

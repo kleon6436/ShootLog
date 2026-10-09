@@ -68,6 +68,13 @@ final class ContentViewModel {
     // 処理本体は ContentViewModelQualityDiagnosis.swift 側にある
     @ObservationIgnored
     var qualityDiagnosisGenerator: PhotoQualityDiagnosisGenerator = .shared
+    // 被写体認識の実行主体。差し替えの扱いは qualityDiagnosisGenerator と同じ
+    @ObservationIgnored
+    var aiLabelingGenerator: AILabelingGenerator = .shared
+    // 手動の再解析で、分類済み・診断済みでも対象に含める写真。結果が届いた写真から外す。
+    // 処理本体は ContentViewModelAILabeling.swift 側にある
+    var aiLabelingReanalysisURLs: Set<URL> = []
+    var aiQualityDiagnosisReanalysisURLs: Set<URL> = []
     // キャンセル済みバッチから遅れて届くEXIF先読み結果・進捗を無視するための世代番号。
     var exifPrefetchToken = 0
     // キャンセル済みバッチから遅れて届くキャプション結果・進捗を無視するための世代番号。

@@ -109,6 +109,26 @@ struct AILabelingGeneratorTests {
         #expect(results.count() == resultCountAtCancellation)
     }
 
+    @Test func visionInferenceRunsAtMostTwoAtATime() async {
+        let targets = makeTargets(count: 12, prefix: "inference")
+        let classifier = ConcurrencyRecordingClassifier()
+        let generator = AILabelingGenerator(
+            imageProvider: RecordingAILabelingImageProvider(),
+            classifier: classifier
+        )
+        let progress = AILabelingProgressRecorder()
+
+        await generator.start(
+            targets: targets,
+            around: nil,
+            progress: { done, total in progress.record(done: done, total: total) },
+            onResult: { _, _ in }
+        )
+
+        #expect(await wait { progress.didFinish(total: targets.count) })
+        #expect(classifier.maxObservedConcurrency() <= 2)
+    }
+
     private func makeTargets(count: Int, prefix: String) -> [AILabelingTarget] {
         (0..<count).map { index in
             AILabelingTarget(
@@ -132,6 +152,27 @@ struct AILabelingGeneratorTests {
 private struct StubAILabelingClassifier: AILabelingClassifying {
     func classify(_: NSImage) -> VisionLabelClassification? {
         VisionLabelClassification(categories: [.person], rawIdentifiers: ["test"])
+    }
+}
+
+// Vision の同期推論を模して呼び出しスレッドを塞ぎ、同時実行数の最大値を記録する
+private final class ConcurrencyRecordingClassifier: AILabelingClassifying, @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = 0
+    private var maximum = 0
+
+    func classify(_: NSImage) -> VisionLabelClassification? {
+        lock.withLock {
+            current += 1
+            maximum = max(maximum, current)
+        }
+        Thread.sleep(forTimeInterval: 0.02)
+        lock.withLock { current -= 1 }
+        return VisionLabelClassification(categories: [.person], rawIdentifiers: ["test"])
+    }
+
+    func maxObservedConcurrency() -> Int {
+        lock.withLock { maximum }
     }
 }
 

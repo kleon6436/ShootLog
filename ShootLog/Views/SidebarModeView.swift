@@ -292,6 +292,8 @@ struct SidebarModeView: View {
             AICategoryFilterMenu(
                 selectedCategories: $vm.selectedAICategories,
                 availableCategories: vm.availableAICategories,
+                failedCount: vm.aiAnalysisFailedCount,
+                reanalyzeFailed: { vm.reanalyzeFailedAI() },
                 isDisabled: vm.photos.isEmpty
             )
         }

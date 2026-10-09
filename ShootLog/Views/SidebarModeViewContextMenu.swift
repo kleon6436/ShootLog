@@ -5,7 +5,7 @@ import SwiftUI
 extension SidebarModeView {
     // 選択依存のAPIしか無い操作（外部アプリ起動・現像タブ・回転・コピー）は
     // performOnPhoto で対象写真を選択してから実行する。
-    // 一方でお気に入り・成功タグは写真を明示的に受け取る選択非依存のAPIがあるため、
+    // 一方でお気に入り・成功タグ・AI再解析は写真を明示的に受け取る選択非依存のAPIがあるため、
     // 非選択の写真を操作してもビューア・インスペクタの表示対象が飛ばないよう直接呼ぶ。
     // externalApps は Launch Services への照会を伴うため、セルごとではなくここで1度だけ評価する
     var photoContextMenuActions: PhotoContextMenuActions {
@@ -31,6 +31,9 @@ extension SidebarModeView {
             },
             copyFilePath: { photo in
                 vm.performOnPhoto(photo) { vm.copyFilePath() }
+            },
+            reanalyzeAI: { photo in
+                vm.reanalyzeAI(photo)
             }
         )
     }

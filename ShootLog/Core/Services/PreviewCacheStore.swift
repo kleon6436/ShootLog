@@ -42,6 +42,7 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     private let directory: URL
     private let maxDiskBytes: Int
     private let decodeThrottle = ImageDecodeThrottle.shared
+    private let inFlight = ProxyGenerationCoalescer()
 
     init(
         directory: URL = PreviewCacheStore.defaultDirectory,
@@ -66,13 +67,14 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
             return cached
         }
 
-        guard !Task.isCancelled,
-              let image = await decodeProxy(for: url) else {
-            return nil
-        }
         guard !Task.isCancelled else { return nil }
+        let (result, startedHere) = await generateCoalesced(for: url, key: key)
+        guard !Task.isCancelled, let image = result.image else { return nil }
 
-        _ = await store(image, forKey: key, evictAfter: true)
+        // 後から合流した呼び出しは、生成を始めた側がevictionするので重ねて走査しない
+        if startedHere, result.stored {
+            await evictToLimit()
+        }
         return image
     }
 
@@ -80,13 +82,10 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
     func generate(for url: URL, snapshot: FileAttributesSnapshot? = nil) async -> Bool {
         let key = await cacheKey(for: url, snapshot: snapshot)
         if await cachedProxy(forKey: key) != nil { return true }
-        guard !Task.isCancelled,
-              let image = await decodeProxy(for: url),
-              !Task.isCancelled else {
-            return false
-        }
+        guard !Task.isCancelled else { return false }
 
-        return await store(image, forKey: key, evictAfter: false) && !Task.isCancelled
+        let (result, _) = await generateCoalesced(for: url, key: key)
+        return result.stored && !Task.isCancelled
     }
 
     /// 後続のバックグラウンド生成処理からも使えるよう、生成済み画像を保存する。
@@ -163,6 +162,33 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
             let source = "\(url.absoluteString)|\(modificationDate)|\(fileSize)|\(proxyLongEdge)"
             return SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
         }.value
+    }
+
+    /// 同じキーのデコード・保存を1本にまとめる。フォルダを開くとプレビュー生成・被写体認識・画質診断が
+    /// 同じ並び順で同じ写真を要求するため、まとめないと1枚を3回デコード・HEICエンコードしてしまう。
+    /// 呼び出し側がキャンセルされても、他に待っている呼び出しがあれば生成は続ける。
+    private func generateCoalesced(
+        for url: URL,
+        key: String
+    ) async -> (result: ProxyGenerationResult, startedHere: Bool) {
+        let waiterID = UUID()
+        let (task, startedHere) = await inFlight.join(key: key, waiterID: waiterID) {
+            Task.detached(priority: .utility) { [self] in
+                guard let image = await decodeProxy(for: url), !Task.isCancelled else {
+                    return ProxyGenerationResult(image: nil, stored: false)
+                }
+                let stored = await store(image, forKey: key, evictAfter: false)
+                return ProxyGenerationResult(image: image, stored: stored)
+            }
+        }
+        let inFlight = inFlight
+        let result = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            Task { await inFlight.leave(key: key, waiterID: waiterID) }
+        }
+        await inFlight.leave(key: key, waiterID: waiterID)
+        return (result, startedHere)
     }
 
     private func decodeProxy(for url: URL) async -> CGImage? {
@@ -285,6 +311,50 @@ final class PreviewCacheStore: PreviewProxyProviding, Sendable {
 
     private func estimatedCost(of image: CGImage) -> Int {
         max(1, image.width * image.height * 4)
+    }
+}
+
+private struct ProxyGenerationResult: Sendable {
+    let image: CGImage?
+    let stored: Bool
+}
+
+/// キャッシュキーごとに実行中のプロキシ生成を共有する。
+/// 待っている呼び出しが全員キャンセルされたら生成もキャンセルする。
+private actor ProxyGenerationCoalescer {
+    private struct Entry {
+        let task: Task<ProxyGenerationResult, Never>
+        var waiterIDs: Set<UUID>
+    }
+
+    private var entries: [String: Entry] = [:]
+
+    func join(
+        key: String,
+        waiterID: UUID,
+        makeTask: @Sendable () -> Task<ProxyGenerationResult, Never>
+    ) -> (task: Task<ProxyGenerationResult, Never>, startedHere: Bool) {
+        if var entry = entries[key] {
+            entry.waiterIDs.insert(waiterID)
+            entries[key] = entry
+            return (entry.task, false)
+        }
+        let task = makeTask()
+        entries[key] = Entry(task: task, waiterIDs: [waiterID])
+        return (task, true)
+    }
+
+    /// 待機の終了（完了・キャンセルの両方）で呼ぶ。同じ waiterID で2回呼んでも1回分として扱う。
+    func leave(key: String, waiterID: UUID) {
+        guard var entry = entries[key] else { return }
+        guard entry.waiterIDs.remove(waiterID) != nil else { return }
+        if entry.waiterIDs.isEmpty {
+            // 完了済みなら cancel は何もしない。未完了なら誰も待っていないので打ち切る
+            entry.task.cancel()
+            entries[key] = nil
+        } else {
+            entries[key] = entry
+        }
     }
 }
 
