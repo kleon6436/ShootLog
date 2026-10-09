@@ -73,25 +73,35 @@ actor PhotoCaptionGenerator {
             maxWorkers: max(1, ProcessInfo.processInfo.activeProcessorCount / 4),
             progress: progress,
             process: { url in
-                let result = await Self.caption(url, imageLoader: imageLoader)
+                let outcome = await Self.caption(url, imageLoader: imageLoader)
                 guard !Task.isCancelled else { return false }
-                onResult(url, result)
+                // 一時的な失敗は onResult を呼ばず、aiCaptionFetchedAt を立てさせない。
+                // 次回のフォルダ読み込みで再生成の対象に残す。
+                guard case .finished(let caption) = outcome else { return true }
+                onResult(url, caption)
                 return true
             }
         )
     }
 
+    /// 説明文生成の結果。`finished` は結果（生成不能の `nil` を含む）を確定してよい場合、
+    /// `retryLater` は混雑・タイムアウト等の一時的な失敗で、確定させずに次回へ回す場合。
+    private enum CaptionOutcome {
+        case finished(String?)
+        case retryLater
+    }
+
     private static func caption(
         _ url: URL,
         imageLoader: ImageLoader
-    ) async -> String? {
+    ) async -> CaptionOutcome {
         guard let image = await imageLoader.thumbnail(for: url),
               let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return nil
+            return .finished(nil)
         }
 
         let model = SystemLanguageModel.default
-        guard model.isAvailable else { return nil }
+        guard model.isAvailable else { return .retryLater }
 
         do {
             let session = LanguageModelSession(
@@ -102,9 +112,24 @@ actor PhotoCaptionGenerator {
             let prompt = Prompt(attachment)
             let response = try await session.respond(to: prompt)
             let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? nil : text
+            return .finished(text.isEmpty ? nil : text)
+        } catch let error as LanguageModelError {
+            // ガードレール・拒否・非対応言語などは同じ写真で再試行しても結果が変わらないため確定させる。
+            // フレームワークがコンソールへ出す "Safety guardrails were triggered" はこの経路で、
+            // 写真ごとに1回だけ出て以降は再生成しない。
+            switch error {
+            case .rateLimited, .timeout:
+                return .retryLater
+            default:
+                return .finished(nil)
+            }
+        } catch is LanguageModelSession.Error {
+            // concurrentRequests 等。セッションは写真ごとに作るため一時的な競合として扱う。
+            return .retryLater
+        } catch is CancellationError {
+            return .retryLater
         } catch {
-            return nil
+            return .finished(nil)
         }
     }
 }
