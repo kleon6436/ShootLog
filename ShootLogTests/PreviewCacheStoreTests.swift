@@ -62,6 +62,30 @@ struct PreviewCacheStoreTests {
         try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
     }
 
+    // 縦位置の写真（Orientation 6 = 格納は横長、表示は縦長）のプロキシは正立させて返す。
+    // 向きを適用しないと、サムネイル（正立）からプロキシへ差し替わった時点で横倒しになる
+    @Test func proxyAppliesEXIFOrientation() async throws {
+        let sandbox = try makeSandbox()
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let source = sandbox.appendingPathComponent("portrait.jpg")
+        let destination = try #require(CGImageDestinationCreateWithURL(
+            source as CFURL, UTType.jpeg.identifier as CFString, 1, nil
+        ))
+        let properties: [CFString: Any] = [kCGImagePropertyOrientation: CGImagePropertyOrientation.right.rawValue]
+        CGImageDestinationAddImage(destination, try makeColorImage(width: 120, height: 80), properties as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+        let cacheDirectory = sandbox.appendingPathComponent("cache", isDirectory: true)
+        let store = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
+
+        let proxy = try #require(await store.proxy(for: source))
+        #expect(proxy.height > proxy.width)
+
+        // ディスクから読み直した場合も正立のまま
+        let reloaded = PreviewCacheStore(directory: cacheDirectory, proxyLongEdge: 256, maxDiskBytes: .max)
+        let cached = try #require(await reloaded.proxy(for: source))
+        #expect(cached.height > cached.width)
+    }
+
     @Test func folderScanCapturesFileAttributesSnapshot() throws {
         let sandbox = try makeSandbox()
         defer { try? FileManager.default.removeItem(at: sandbox) }

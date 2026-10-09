@@ -202,7 +202,7 @@ final class ImageLoader: Sendable {
 
             let cgImage: CGImage? = bucket > 0
                 ? Self.decodeDownsampled(source: source, bucket: bucket)
-                : CGImageSourceCreateImageAtIndex(source, 0, nil)
+                : Self.decodeFullResolution(source: source)
             guard let cgImage else { return nil as NSImage? }
 
             // size: .zero で NSImage が CGImage のピクセル寸法を 1pt=1px として採用する
@@ -220,14 +220,15 @@ final class ImageLoader: Sendable {
     // RAW は埋め込みプレビューがあれば優先し、センサー解像度からのフルデコードを避ける。
     // 埋め込みプレビューが目標サイズの90%未満（引き伸ばしで劣化が出る）の場合のみ
     // 元画像からのダウンサンプルへフォールバックする。
-    // kCGImageSourceCreateThumbnailWithTransform は両経路とも指定しない（従来のフルサイズ経路と
-    // 向きの扱いを揃え、サムネイル→高解像度の差し替えで挙動を変えないため）
+    // 両経路とも kCGImageSourceCreateThumbnailWithTransform で EXIF Orientation を適用して正立させる。
+    // サムネイル（thumbnail(for:)）も正立させているため、差し替えで縦位置の写真が横倒しにならない
     private static let embeddedPreviewMinRatio: CGFloat = 0.9
 
     private static func decodeDownsampled(source: CGImageSource, bucket: Int) -> CGImage? {
         let embeddedOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
             kCGImageSourceThumbnailMaxPixelSize: bucket,
+            kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: false
         ]
         if let embedded = CGImageSourceCreateThumbnailAtIndex(source, 0, embeddedOptions as CFDictionary),
@@ -239,9 +240,30 @@ final class ImageLoader: Sendable {
         let downsampleOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: bucket,
+            kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: false
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary)
+    }
+
+    // 等倍表示用のフルデコード。Orientation が正立以外なら、長辺を原寸に指定したサムネイル生成で
+    // 縮小せずに向きだけを適用する（CGImageSourceCreateImageAtIndex は Orientation を無視するため）
+    private static func decodeFullResolution(source: CGImageSource) -> CGImage? {
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value ?? 1
+        guard orientation != 1,
+              let width = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+              let height = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue else {
+            return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(width, height),
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: false
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+            ?? CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 
     // メモリキャッシュとディスクキャッシュを削除する。

@@ -152,7 +152,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 
 ### プレビュープロキシ層（RAW読み込み高速化）
 
-- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC/JPEG で `previews-v1/` へ、CGImage を `NSCache` へ永続キャッシュ。ファイル名 `sha256(url + mtime + size + proxyLongEdge)` で自動失効。上限 `previewCacheMaxBytes`（既定4GiB）で mtime 昇順 eviction。`ImageDecodeThrottle.shared`（`max(2, min(4, コア数))`、`ImageLoader` のローカルボリューム用スロットと共用）でビューア対話要求とバックグラウンド生成がデコード枠を共有。
+- `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC/JPEG で `previews-v2/` へ、CGImage を `NSCache` へ永続キャッシュ。ファイル名 `sha256(url + mtime + size + proxyLongEdge)` で自動失効。上限 `previewCacheMaxBytes`（既定4GiB）で mtime 昇順 eviction。`ImageDecodeThrottle.shared`（`max(2, min(4, コア数))`、`ImageLoader` のローカルボリューム用スロットと共用）でビューア対話要求とバックグラウンド生成がデコード枠を共有。
 - `ImageLoader.proxyImage(for:)` がラッパ。`PhotoImageViewModel.load` は サムネ → プロキシ → 表示領域超過時のみ `highResImage` の段階表示。
 - `PreviewGenerator`（actor）: フォルダ読み込み時に全プロキシを `.utility` でバックグラウンド生成（近傍優先、フォルダ切替でキャンセル）。
 - `HighResPrefetcher`: 前後の先読み枚数をボリューム別に（ローカル ±3 / ネットワーク ±1）、呼び先は `proxyImage`。
@@ -182,7 +182,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo。プリセット適用は「置き換え」に加え「現在の調整に加算」（相対適用、`DevelopParameters.applying(delta:)`）を選べる。加算系は加算＋クランプ、トーンカーブは関数合成、`lensCorrectionEnabled` は OR
 - 現像編集の Before/After スプリット比較（`BeforeAfterSplitView`、現像パネル内トグル `⌘⇧Y`）。1枚を縦境界で左右分割（左=編集前・右=編集後）、ドラッグ・←→キー・VoiceOver で境界移動。編集前は `DevelopViewModel.beforeImage` を比較モード時のみ遅延生成（`renderPreview(parameters: .neutral, useRAWParameterMapping: rawMappingActive, rotation:, cropRect:)` で After と同一ジオメトリ・同一 RAW デコード経路にしてピクセル一致）。`parameters` 変更では再生成しない。全画面 Before（`isShowingBefore` / `⌘⌥B`）と相互排他
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）。出力カラースペースはsRGB / Display P3を選択可。書き出し時に超解像を続けて適用する現像→超解像チェーンにも対応（回転は現像段で焼き込み済みのため超解像へは `rotation:0` を渡す）
-- プレビュープロキシの永続キャッシュ（`PreviewCacheStore`、`previews-v1`）とフォルダ読み込み時のバックグラウンド生成（`PreviewGenerator`）、現像 Stage A 中立ベースの永続化（`develop-base-v1`）。設定画面でプレビュー解像度・キャッシュ上限を変更可。詳細は「画像ロード戦略 > プレビュープロキシ層」
+- プレビュープロキシの永続キャッシュ（`PreviewCacheStore`、`previews-v2`）とフォルダ読み込み時のバックグラウンド生成（`PreviewGenerator`）、現像 Stage A 中立ベースの永続化（`develop-base-v1`）。設定画面でプレビュー解像度・キャッシュ上限を変更可。詳細は「画像ロード戦略 > プレビュープロキシ層」
 
 ## SwiftDataモデル
 
