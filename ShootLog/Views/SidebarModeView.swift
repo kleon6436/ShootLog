@@ -11,6 +11,13 @@ struct SidebarModeView: View {
     // サイドバー幅（Capture One風に可変・次回起動時の初期幅として近似復元する）
     @AppStorage("sidebarWidth") private var sidebarWidth: Double = 140
     @AppStorage("sidebarColumnVisibility") private var storedColumnVisibility: String = SidebarViewModel.ColumnVisibilityState.visible.rawValue
+    // フォルダツリー領域の高さと折りたたみ状態（次回起動時に復元する）
+    @AppStorage("sidebarFolderTreeHeight") private var folderTreeHeight: Double = 160
+    @AppStorage("sidebarFolderTreeCollapsed") private var isFolderTreeCollapsed = false
+    // 境界ドラッグ中のツリーの高さ（確定前）
+    @State private var liveFolderTreeHeight: CGFloat?
+    // ツリーの最大高（列高の60%）を決めるための左カラムの高さ
+    @State private var sidebarColumnHeight: CGFloat = 0
     @Environment(\.openSettings) private var openSettings
     @FocusState private var isSidebarFocused: Bool
     // サイドバー（左カラム）の表示状態。標準トグルボタン・ドラッグ収縮・メニューコマンドで可変に制御する
@@ -50,27 +57,79 @@ struct SidebarModeView: View {
 
     // MARK: - Columns
 
-    // 左: 写真一覧（最小 120pt、理想 sidebarWidth pt、最大 400pt）。
+    // 左: 上=フォルダツリー / 下=写真一覧 の上下分割（最大 400pt）。
+    // 高さの永続化と折りたたみを安定させるため VSplitView は使わず、VStack ＋自前のハンドルで組む。
+    // 写真ライブラリ表示中はツリーとハンドルを出さず、従来の一覧だけ（最小 120pt、理想 sidebarWidth pt）。
     // 背景・区切り線は標準サイドバーの材質に任せる
     private var photoListColumn: some View {
+        VStack(spacing: 0) {
+            if vm.isFolderSource {
+                FolderTreeSection(vm: vm, isCollapsed: $isFolderTreeCollapsed, height: effectiveFolderTreeHeight)
+                if !isFolderTreeCollapsed {
+                    FolderTreeResizeHandle(
+                        liveHeight: $liveFolderTreeHeight,
+                        height: effectiveFolderTreeHeight,
+                        range: folderTreeHeightRange,
+                        onCommit: { folderTreeHeight = Double($0) }
+                    )
+                }
+            }
+            photoListPane
+        }
+            // ツリーを出すときは名前が読める幅を確保する
+            .navigationSplitViewColumnWidth(
+                min: vm.isFolderSource ? 200 : 120,
+                ideal: vm.isFolderSource ? max(sidebarWidth, 220) : sidebarWidth,
+                max: 400
+            )
+            // OS標準のサイドバートグルは表示中だけ現れて独自ボタンと二重に並ぶため明示的に外し、
+            // 常時表示の独自トグル1つに統一する（この modifier はサイドバー列の根に付ける必要がある）
+            .toolbar(removing: .sidebarToggle)
+            .background {
+                // NavigationSplitView はドラッグ後の実幅を読み取る公開APIを持たないため、
+                // GeometryReaderで描画幅を観測しデバウンスして近似的に永続化する。
+                // 高さはツリーの最大高（列高の60%）の算出に使う
+                GeometryReader { geo in
+                    Color.clear
+                        .onChange(of: geo.size.width) { _, newWidth in
+                            vm.scheduleWidthSave(newWidth, current: $sidebarWidth)
+                        }
+                        .onChange(of: geo.size.height, initial: true) { _, newHeight in
+                            sidebarColumnHeight = newHeight
+                        }
+                }
+            }
+    }
+
+    // ツリー領域の高さの範囲（80pt〜列高の60%）
+    private var folderTreeHeightRange: ClosedRange<CGFloat> {
+        let minimum: CGFloat = 80
+        return minimum...max(minimum, sidebarColumnHeight * 0.6)
+    }
+
+    // ドラッグ中はその値、それ以外は保存値を範囲内に収めて使う
+    private var effectiveFolderTreeHeight: CGFloat {
+        let range = folderTreeHeightRange
+        let height = liveFolderTreeHeight ?? CGFloat(folderTreeHeight)
+        return min(max(height, range.lowerBound), range.upperBound)
+    }
+
+    // 写真一覧。フォーカス・↑↓キー・進捗表示は一覧側だけに付け、ツリーは List 標準の操作に任せる
+    private var photoListPane: some View {
         PhotoListView(
             photos: vm.displayedPhotos,
             selection: $vm.selectedPhoto,
             contextMenuActions: photoContextMenuActions,
             fileAttributesSnapshots: vm.content.fileAttributesSnapshots
         )
-            .navigationSplitViewColumnWidth(min: 120, ideal: sidebarWidth, max: 400)
-            // OS標準のサイドバートグルは表示中だけ現れて独自ボタンと二重に並ぶため明示的に外し、
-            // 常時表示の独自トグル1つに統一する（この modifier はサイドバー列の根に付ける必要がある）
-            .toolbar(removing: .sidebarToggle)
-            .background {
-                // NavigationSplitView はドラッグ後の実幅を読み取る公開APIを持たないため、
-                // GeometryReaderで描画幅を観測しデバウンスして近似的に永続化する
-                GeometryReader { geo in
-                    Color.clear
-                        .onChange(of: geo.size.width) { _, newWidth in
-                            vm.scheduleWidthSave(newWidth, current: $sidebarWidth)
-                        }
+            .overlay {
+                // フィルタで0件になった場合と区別するため、絞り込み前の photos で判定する
+                if vm.isFolderSource && vm.photos.isEmpty && !vm.isLoading {
+                    Text("sidebar.folder.noPhotos")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(Spacing.xLarge)
                 }
             }
             .focusable()
@@ -167,6 +226,11 @@ struct SidebarModeView: View {
                     .padding(.trailing, 16)
             }
         }
+        // パスバーはオーバーレイの後・インスペクタの前に付ける。こうするとツールバーはバーの上に載り、
+        // バーはインスペクタの下まで伸びない
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            pathBar
+        }
         .inspector(isPresented: $vm.isEXIFPanelVisible) {
             InspectorTabContainer(
                 sidebarViewModel: vm,
@@ -217,9 +281,38 @@ struct SidebarModeView: View {
     }
 
     // トーストがビューア下端中央の編集ツールバーと重ならないよう、表示中はその上へ退避させる。
-    // 内訳: ボタン高さ32 + 上下余白8 + 下端余白20 + 間隔12
+    // 内訳: ボタン高さ32 + 上下余白8 + 下端余白20 + 間隔12。パスバーの表示中はその高さも足す
     private var toastBottomInset: CGFloat {
-        vm.selectedPhoto != nil ? 72 : 20
+        let base: CGFloat = vm.selectedPhoto != nil ? 72 : 20
+        return base + (pathBarTarget != nil ? FolderPathBar.height : 0)
+    }
+
+    // MARK: - パスバー
+
+    // パスバーに出すパスとルート。写真があれば写真のフルパス、無ければ表示フォルダのパス。
+    // iCloud写真（fileURL はキャッシュ上のプレースホルダー）と写真ライブラリ表示中は出さない
+    private var pathBarTarget: (url: URL, root: URL, isFile: Bool)? {
+        guard vm.isFolderSource, let root = vm.rootFolderURL else { return nil }
+        if let photo = vm.selectedPhoto {
+            guard photo.phAssetLocalIdentifier == nil else { return nil }
+            return (photo.fileURL, root, true)
+        }
+        guard let folder = vm.currentFolderURL else { return nil }
+        return (folder, root, false)
+    }
+
+    @ViewBuilder
+    private var pathBar: some View {
+        if let target = pathBarTarget {
+            FolderPathBar(
+                targetURL: target.url,
+                rootURL: target.root,
+                isFile: target.isFile,
+                onNavigate: { url in vm.navigateToFolder(url) },
+                onCopyPath: { vm.copyPathBarPath() },
+                onRevealInFinder: { vm.revealPathBarTargetInFinder() }
+            )
+        }
     }
 
     // 選択中写真に対する操作可否。外部アプリ一覧の照会（Launch Services）はここでは不要なので

@@ -827,6 +827,23 @@
         }
       }
     },
+    "a11y.viewer.pathBar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Path"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルパス"
+          }
+        }
+      }
+    },
     "a11y.viewer.position %@ %@" : {
       "localizations" : {
         "ja" : {
@@ -2246,6 +2263,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "外部アプリで開く"
+          }
+        }
+      }
+    },
+    "contextMenu.pathBar.copyPath" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Path"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスをコピー"
+          }
+        }
+      }
+    },
+    "contextMenu.pathBar.revealInFinder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finderで表示"
           }
         }
       }
@@ -6661,6 +6712,23 @@
         }
       }
     },
+    "menu.view.enclosingFolder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enclosing Folder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "親フォルダへ移動"
+          }
+        }
+      }
+    },
     "menu.view.hideInspector" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7652,6 +7720,108 @@
         }
       }
     },
+    "sidebar.folder.noPhotos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Photos in This Folder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフォルダには写真がありません"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.collapse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse Folder Tree"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーを折りたたむ"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.expand" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand Folder Tree"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーを展開"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load folder contents"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダの内容を読み込めませんでした"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.resize" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder Tree Height"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーの高さ"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folders"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダ"
+          }
+        }
+      }
+    },
     "sidebar.search.prompt.aiEnabled" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8051,6 +8221,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "お気に入りを解除しました"
+          }
+        }
+      }
+    },
+    "toast.folder.missingFallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder not found. Returned to the opened folder."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダが見つからないため、開いたフォルダへ戻りました"
           }
         }
       }
@@ -8985,6 +9172,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "次の写真"
+          }
+        }
+      }
+    },
+    "viewer.pathBar.collapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden Path Components"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "省略された階層"
+          }
+        }
+      }
+    },
+    "viewer.pathBar.navigate.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to %1$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ へ移動"
           }
         }
       }

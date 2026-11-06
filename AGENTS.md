@@ -131,6 +131,10 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - ファイル一覧は `PhotoRepository.scanImageURLs(in:)` で取得し、作成日時順に並べる。
 - フォルダはOpen PanelまたはFinderからのドラッグ＆ドロップで開く。
 - 同時に表示するフォルダは1つだけ。
+- 開いたフォルダ（ルート、`ContentViewModel.rootFolderURL`）配下のサブフォルダへは、サイドバー上部のフォルダツリー（`FolderTreeView` / `FolderTreeViewModel`）とビューア下端のパスバー（`FolderPathBar`）、表示メニューの「親フォルダへ移動」（`⌘↑`）で移動できる（`ContentViewModel.navigateToFolder`）。一覧は表示フォルダ（`currentFolderURL`）の直下だけで、再帰読み込みはしない。
+- 履歴・セキュリティスコープブックマークはルートだけが対象。サブフォルダへの移動は履歴に追加せず、ブックマークも作らず、ルートのスコープを解放しない。ルート配下の判定は `standardizedFileURL.pathComponents` 単位の前方一致（`FolderPathComponents`、シンボリックリンク非解決）で、ツリーは隠しフォルダ・パッケージ・シンボリックリンクを出さない（`FolderTreeRepository`）。
+- 超解像・現像書き出しはルートの変更（別フォルダを開く・写真ライブラリへ切替）でだけ中断し、サブフォルダへの移動では中断しない。書き出しの入力（表示フォルダ・写真一覧・回転・トリミング・現像パラメータ）はジョブ開始時に固定する（`UpscaleExportInput` / `DevelopExportInput`）。
+- 表示中のサブフォルダが消えていた場合は、アラートを出さずにルートへ戻してトーストで知らせる。ルート自体が消えた場合はアラート。
 
 ## 画像ロード戦略
 
@@ -171,6 +175,7 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 ## 現在実装されている機能
 
 - お気に入りの登録・解除、Favorites Only絞り込み
+- サイドバーモードのフォルダツリー（サイドバー上部、展開時の遅延列挙・高さ/折りたたみの保存）とビューア下端のパスバー（ルート以下の階層クリックで移動、右クリックでパスコピー/Finderで表示）。写真ライブラリ表示中はどちらも出さない
 - 写真メモの表示（EXIFパネルに保存済みの `Photo.note` を表示するのみ。編集UI・保存経路は未実装）
 - ImageIOによるカメラ、レンズ、絞り、シャッター速度、ISO、焦点距離、撮影日時のEXIF取得
 - サイドバー、フルスクリーン、スライドショーの3表示モード

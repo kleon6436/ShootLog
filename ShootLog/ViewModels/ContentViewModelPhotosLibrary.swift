@@ -33,6 +33,7 @@ extension ContentViewModel {
         guard let context = modelContext else { return }
         await cancelPhotoStaging()
         releaseBookmarkAccess()
+        rootFolderURL = nil
         currentFolderURL = nil
         currentPhotoSource = .photosLibrary
         // cancelPhotoStaging の await 中に別の読み込みが割り込んでも世代を共有しないよう、

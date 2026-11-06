@@ -29,7 +29,10 @@ extension ContentViewModel {
     func restoreFolder(_ history: FolderHistory) async {
         await cancelPhotoStaging()
         releaseBookmarkAccess()
-        guard let context = modelContext else { return }
+        guard let context = modelContext else {
+            clearFolderState()
+            return
+        }
         do {
             var stale = false
             let url = try URL(
@@ -39,6 +42,7 @@ extension ContentViewModel {
                 bookmarkDataIsStale: &stale
             )
             guard url.startAccessingSecurityScopedResource() else {
+                clearFolderState()
                 error = ShootLogError.folderAccessDenied
                 return
             }
@@ -54,13 +58,62 @@ extension ContentViewModel {
             updateHistoryLocation(history, to: url, context: context)
             history.lastAccessedAt = Date()
             saveOrReportError(context)
+            rootFolderURL = url
             currentFolderURL = url
             currentPhotoSource = .folder(url)
             loadHistories(checkAvailability: false)
             await loadFolderPhotos(url)
         } catch {
+            clearFolderState()
             self.error = ShootLogError.bookmarkRestorationFailed
         }
+    }
+
+    // 旧ルートのスコープを解放した後で開き直しに失敗した場合に使う。スコープの無い旧ルートを
+    // ツリーやパスバーで移動できる状態を残さないよう、フォルダ表示ごと閉じる
+    private func clearFolderState() {
+        rootFolderURL = nil
+        currentFolderURL = nil
+        currentPhotoSource = nil
+    }
+
+    // MARK: - ルート配下のフォルダ移動
+
+    // 表示フォルダの親へ移動できるか（表示フォルダがルート配下のサブフォルダのとき）
+    var canNavigateToEnclosingFolder: Bool {
+        guard let rootFolderURL, let currentFolderURL else { return false }
+        return FolderPathComponents.isFolder(currentFolderURL, inside: rootFolderURL)
+            && !FolderPathComponents.isSameFolder(currentFolderURL, rootFolderURL)
+    }
+
+    // ルート配下（ルート自身を含む）のフォルダへ写真一覧の表示を切り替える。
+    // 履歴への追加・ブックマーク作成・スコープの解放はしない（ルートのスコープが配下にも及ぶため、
+    // そのまま保持して使い続ける）。selectFolder / restoreFolder を通らない専用経路にしておく
+    func navigateToFolder(_ url: URL) async {
+        guard let rootFolderURL,
+              FolderPathComponents.isFolder(url, inside: rootFolderURL) else { return }
+        if let currentFolderURL, FolderPathComponents.isSameFolder(url, currentFolderURL) {
+            // 表示中のフォルダが Finder で削除・改名されていれば読み込み直し、ルートへのフォールバックに乗せる。
+            // 存在していれば何もしない
+            let path = currentFolderURL.path
+            let exists = await Task.detached(priority: .userInitiated) {
+                var isDirectory: ObjCBool = false
+                return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                    && isDirectory.boolValue
+            }.value
+            guard !exists, self.currentFolderURL == currentFolderURL else { return }
+            await loadFolderPhotos(currentFolderURL)
+            return
+        }
+        currentFolderURL = url
+        currentPhotoSource = .folder(url)
+        await loadFolderPhotos(url)
+    }
+
+    // ⌘↑（親フォルダへ移動）用。ルートより上へは出ない
+    func navigateToEnclosingFolder() async {
+        guard canNavigateToEnclosingFolder, let currentFolderURL else { return }
+        await navigateToFolder(currentFolderURL.deletingLastPathComponent())
     }
 
     func loadHistories(checkAvailability: Bool = true) {
@@ -88,7 +141,7 @@ extension ContentViewModel {
     // 各履歴の実体の有無を並列に確認し、存在しないものを表示対象から外す。
     // フォルダを開いている間は現在のセキュリティスコープと start/stop が競合しうるため実行しない
     func refreshHistoryAvailability() async {
-        guard currentFolderURL == nil else { return }
+        guard rootFolderURL == nil else { return }
         let targets = folderHistories.map { ($0.persistentModelID, $0.securityBookmark) }
         guard !targets.isEmpty else {
             unavailableHistoryIDs = []
@@ -114,7 +167,8 @@ extension ContentViewModel {
 
     // MARK: - Private
 
-    private func selectFolder(url: URL) async {
+    // テストから失敗経路を確かめるため internal とする
+    func selectFolder(url: URL) async {
         await cancelPhotoStaging()
         guard let context = modelContext else { return }
         releaseBookmarkAccess()
@@ -125,11 +179,14 @@ extension ContentViewModel {
                 relativeTo: nil
             )
             addToHistory(url: url, bookmark: bookmark, context: context)
+            rootFolderURL = url
             currentFolderURL = url
             currentPhotoSource = .folder(url)
             loadHistories(checkAvailability: false)
             await loadFolderPhotos(url)
         } catch {
+            // 旧ルートのスコープは解放済みのため、旧ルートの表示を残さない
+            clearFolderState()
             self.error = ShootLogError.folderAccessDenied
         }
     }
@@ -161,9 +218,31 @@ extension ContentViewModel {
             await startPreviewGeneration(urls: urls, snapshots: snapshots)
             startFolderBackgroundAnalysis(snapshots: snapshots)
         } catch {
+            // 待機中に別の読み込みへ切り替わっていたら、古い世代のエラーはアラートにしない
+            // （isLoading は新しい読み込み側が管理するため触らない）
+            guard generation == photoStagingGeneration else { return }
+            // 表示中のサブフォルダが削除・改名されていたら、アラートを出さずにルートへ戻す。
+            // ルート自体が消えた場合は従来どおりアラートを出す
+            if Self.isMissingFolderError(error),
+               let rootFolderURL,
+               !FolderPathComponents.isSameFolder(folderURL, rootFolderURL) {
+                currentFolderURL = rootFolderURL
+                currentPhotoSource = .folder(rootFolderURL)
+                showToast(String(localized: "toast.folder.missingFallback"))
+                await loadFolderPhotos(rootFolderURL)
+                return
+            }
             self.error = error
         }
         isLoading = false
+    }
+
+    // フォルダが存在しないことを示すスキャンエラーか
+    private static func isMissingFolderError(_ error: any Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == NSCocoaErrorDomain else { return false }
+        return nsError.code == CocoaError.fileNoSuchFile.rawValue
+            || nsError.code == CocoaError.fileReadNoSuchFile.rawValue
     }
 
     private func startPreviewGeneration(urls: [URL], snapshots: [URL: FileAttributesSnapshot]) async {
