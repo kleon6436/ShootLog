@@ -81,7 +81,7 @@ UIに表示する文字列は、日本語をコードに直接書かず、ASCII�
 
 キーは `<スコープ>.<要素>[.<用途>]` 形式とし、`common.` `error.` `toolbar.` `menu.` `exif.` `analysis.` `settings.`
 `empty.` `viewMode.` `photo.tag.` `a11y.` `viewer.` `inspector.` `openPanel.` `sidebar.` `editor.` `externalApp.`
-`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` `photosLibrary.` `ai.` `contextMenu.` のいずれかで始める。
+`integration.` `slideshow.` `toast.` `crop.` `upscale.` `superResolution.` `develop.` `photosLibrary.` `ai.` `contextMenu.` のいずれかで始める。
 `menu.` はメニューバー専用、`contextMenu.` は右クリックメニュー専用とし、互いに流用しない。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
 
 補間を含む文字列は位置指定プレースホルダ（`%1$@` 形式）を使い、語順が言語で変わってもよいようにする。
@@ -178,19 +178,20 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - 回転・トリミング情報のSwiftData保存（元ファイルは変更しない）
 - 絞り、シャッター速度、ISOなどの分析画面
 - Capture One、Lightroom、Photoshop、Affinity Photo、Preview、Finder向けアダプターによる写真起動
-- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 5）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時WBは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
+- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 6）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時WBは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
 - 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo。プリセット適用は「置き換え」に加え「現在の調整に加算」（相対適用、`DevelopParameters.applying(delta:)`）を選べる。加算系は加算＋クランプ、トーンカーブは関数合成、`lensCorrectionEnabled` は OR
 - 現像編集の Before/After スプリット比較（`BeforeAfterSplitView`、現像パネル内トグル `⌘⇧Y`）。1枚を縦境界で左右分割（左=編集前・右=編集後）、ドラッグ・←→キー・VoiceOver で境界移動。編集前は `DevelopViewModel.beforeImage` を比較モード時のみ遅延生成（`renderPreview(parameters: .neutral, useRAWParameterMapping: rawMappingActive, rotation:, cropRect:)` で After と同一ジオメトリ・同一 RAW デコード経路にしてピクセル一致）。`parameters` 変更では再生成しない。全画面 Before（`isShowingBefore` / `⌘⌥B`）と相互排他
+- ローカル調整（`DevelopParameters.masks` / `MaskLayer`）: 線形・放射グラデーション、輝度範囲、AI（前景被写体・人物、`SubjectMaskGenerator`）を生成元に、ブラシ編集（追加/消去）を合成する。描画順は index 0 が最下層で下から累積。AIマスクのラスタは blob に含めず子 `@Model` の `MaskRaster` へ分離する。UIは `MaskSectionView` / `MaskEditOverlayView`
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）。出力カラースペースはsRGB / Display P3を選択可。書き出し時に超解像を続けて適用する現像→超解像チェーンにも対応（回転は現像段で焼き込み済みのため超解像へは `rotation:0` を渡す）
 - プレビュープロキシの永続キャッシュ（`PreviewCacheStore`、`previews-v2`）とフォルダ読み込み時のバックグラウンド生成（`PreviewGenerator`）、現像 Stage A 中立ベースの永続化（`develop-base-v1`）。設定画面でプレビュー解像度・キャッシュ上限を変更可。詳細は「画像ロード戦略 > プレビュープロキシ層」
 
 ## SwiftDataモデル
 
-主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
+主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`MaskRaster`、`LensCorrectionProfile`、`FolderHistory`。
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、`shootingDateFromMetadata`（撮影日時がEXIF由来か。optional・軽量マイグレーション。false/未取得のフォルダ写真はEXIFパネルに撮影日時を出さない）、撮影時ホワイトバランス（`asShotTemperatureKelvin` ほか optional 4 プロパティ、`loadEXIFIfNeeded` が EXIF と独立に取得・保存）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
-- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5。2〜4 は編集時に現行世代へ自動バンプ（旧方式のカラーグレーディングが中立でない間は 4 で止める）、1 は据え置き。5=トーン域マスク カラーグレーディング）、更新日時。`EditInfo` とは独立
+- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 6。2〜4 は編集時に現行世代へ自動バンプ（旧方式のカラーグレーディングが中立でない間は 4 で止める）、1 は据え置き。5=トーン域マスク カラーグレーディング。6=`masks`（ローカル調整）を含む blob 世代の記録で読み取り分岐には使わない）、更新日時。`EditInfo` とは独立
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
 - `FolderHistory`: フォルダURL、セキュリティブックマーク、最終アクセス日時、表示名
 
@@ -238,7 +239,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ表示、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW向け手動レンズ補正、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、WYSIWYG 維持）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ表示、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向け手動レンズ補正、`schemaVersion` 6）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、WYSIWYG 維持）。
 
 ### 制限付き・検証継続中
 
@@ -252,8 +253,8 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 未着手・スコープ外
 
-- 写真メモの編集・保存UI（`ContentViewModel.saveNote` は呼び出し経路が無く削除済み）
-- ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
+- 写真メモの編集・保存UI
+- レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
 - 複数フォルダの同時表示
 - 外部アプリとの双方向同期
 - GPS地図表示、顔検出、比較ビュー
@@ -280,7 +281,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 ```swift
 protocol ViewModeProtocol: Identifiable {
     var id: String { get }
-    var displayName: String { get }
+    var displayName: LocalizedStringResource { get }
     var symbolName: String { get }
     var keyboardShortcut: KeyEquivalent? { get }
 }
