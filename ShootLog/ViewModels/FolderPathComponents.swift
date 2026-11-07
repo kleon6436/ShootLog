@@ -1,11 +1,11 @@
 import Foundation
 
-// パスバー（FolderPathBar）の1要素。ルートより上は移動不可、ルート以下のフォルダは移動先、末尾はファイル
+// パスバー（FolderPathBar）の1要素。移動範囲の上限より上は移動不可、上限以下のフォルダは移動先、末尾はファイル
 struct FolderPathComponent: Equatable, Identifiable {
     enum Kind: Equatable {
-        // ルートより上の階層。セキュリティスコープの外なので移動させない
+        // 移動範囲の上限より上の階層。セキュリティスコープの外なので移動させない
         case outsideRoot
-        // ルート自身からその配下のフォルダ。クリックでそのフォルダへ移動できる
+        // 移動範囲の上限自身からその配下のフォルダ。クリックでそのフォルダへ移動できる
         case folderInRoot
         // 末尾の写真ファイル
         case file
@@ -34,6 +34,24 @@ enum FolderPathComponents {
     // 末尾スラッシュの有無などの表記ゆれを除いて同じフォルダを指すか
     static func isSameFolder(_ lhs: URL, _ rhs: URL) -> Bool {
         lhs.standardizedFileURL.pathComponents == rhs.standardizedFileURL.pathComponents
+    }
+
+    // url が属するボリュームのルート。/Volumes/X 配下は /Volumes/X、それ以外は "/"。
+    // パスだけで判定し、ファイルシステムは参照しない
+    static func volumeRoot(of url: URL) -> URL {
+        let components = url.standardizedFileURL.pathComponents
+        guard components.count >= 3, components[1] == "Volumes" else {
+            return URL(fileURLWithPath: "/", isDirectory: true)
+        }
+        return URL(fileURLWithPath: NSString.path(withComponents: Array(components.prefix(3))), isDirectory: true)
+    }
+
+    // access がルートの上位表示の許可として有効か。ルートの祖先で、かつルートと同じボリューム内に限る
+    // （"/" の許可は他のボリュームにも及ぶため、これがないとツリーの根に全ボリュームが並ぶ）
+    static func isValidTreeAccess(_ access: URL, forRoot root: URL) -> Bool {
+        !isSameFolder(access, root)
+            && isFolder(root, inside: access)
+            && isFolder(access, inside: volumeRoot(of: root))
     }
 
     // targetURL を先頭から順に分解する。外部ボリューム（/Volumes/X）配下は Finder と同じく

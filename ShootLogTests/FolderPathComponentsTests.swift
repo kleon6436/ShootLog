@@ -57,6 +57,45 @@ struct FolderPathComponentsTests {
         #expect(FolderPathComponents.isFolder(URL(fileURLWithPath: "/a/b/"), inside: URL(fileURLWithPath: "/a/b")))
     }
 
+    // MARK: - ボリュームのルートと許可の検証
+
+    @Test func volumeRootIsDecidedByPath() {
+        let cases: [(path: String, expected: String)] = [
+            ("/", "/"),
+            ("/Users/a", "/"),
+            ("/Volumes", "/"),
+            ("/Volumes/X", "/Volumes/X"),
+            ("/Volumes/X/a/b", "/Volumes/X")
+        ]
+        for testCase in cases {
+            let root = FolderPathComponents.volumeRoot(of: URL(fileURLWithPath: testCase.path))
+            #expect(root.path == testCase.expected, "\(testCase.path)")
+        }
+    }
+
+    @Test func treeAccessMustBeAncestorOnSameVolume() {
+        func isValid(_ access: String, root: String) -> Bool {
+            FolderPathComponents.isValidTreeAccess(
+                URL(fileURLWithPath: access), forRoot: URL(fileURLWithPath: root)
+            )
+        }
+
+        #expect(isValid("/", root: "/Users/a/photos"))
+        #expect(isValid("/Users/a", root: "/Users/a/photos"))
+        #expect(isValid("/Volumes/X", root: "/Volumes/X/a/b"))
+        #expect(isValid("/Volumes/X/a", root: "/Volumes/X/a/b"))
+
+        // ルート自身・子孫・兄弟は祖先ではない
+        #expect(!isValid("/Users/a/photos", root: "/Users/a/photos"))
+        #expect(!isValid("/Users/a/photos/sub", root: "/Users/a/photos"))
+        #expect(!isValid("/Users/a/phot", root: "/Users/a/photos"))
+
+        // "/" の許可は別ボリュームのルートに使わない
+        #expect(!isValid("/", root: "/Volumes/X/a"))
+        #expect(!isValid("/Volumes", root: "/Volumes/X/a"))
+        #expect(!isValid("/Volumes/Y", root: "/Volumes/X/a"))
+    }
+
     // ".." を含むパスは標準化してから判定し、ルートの外へは出さない
     @Test func parentReferenceIsStandardizedBeforeCheck() {
         let root = URL(fileURLWithPath: "/a/b")

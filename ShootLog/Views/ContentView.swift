@@ -84,7 +84,7 @@ struct ContentView: View {
         return { vm.requestInspectorToggle() }
     }
 
-    // ツリーとパスバーで移動先を確認できるサイドバーモードで、表示フォルダがルート配下のときだけ有効にする
+    // ツリーとパスバーで移動先を確認できるサイドバーモードで、表示フォルダが移動範囲の上限より下にあるときだけ有効にする
     private var navigateToEnclosingFolderAction: (() -> Void)? {
         guard vm.isSidebarModeActive, vm.canNavigateToEnclosingFolder else { return nil }
         // ツリーの移動要求と同じ入口（FolderTreeViewModel）を通すため、サイドバーモードの VM 経由で呼ぶ

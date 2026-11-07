@@ -18,8 +18,8 @@ struct FolderTreeSection: View {
         }
         // View の生成時点の初回分と、fullscreen 中に別ルートを開いてから戻った場合の両方を拾う
         // （.onChange は初期値で発火しないため使わない。setRoot は冪等）
-        .task(id: vm.rootFolderURL) {
-            vm.folderTree.setRoot(vm.rootFolderURL)
+        .task(id: vm.navigationBoundaryURL) {
+            vm.syncFolderTreeRoot()
         }
         // パスバー・⌘↑ など、ツリー以外の経路で移動したときも該当行まで展開する
         .onChange(of: vm.currentFolderURL) { _, newValue in
@@ -50,13 +50,21 @@ struct FolderTreeSection: View {
         .buttonStyle(.plain)
         .help(isCollapsed ? "sidebar.folderTree.expand" : "sidebar.folderTree.collapse")
         .accessibilityLabel(isCollapsed ? "sidebar.folderTree.expand" : "sidebar.folderTree.collapse")
+        .contextMenu {
+            if vm.treeAccessURL != nil {
+                Button("contextMenu.folderTree.revokeAccess") { vm.revokeTreeAccess() }
+            }
+        }
     }
 
     private var treeList: some View {
         ScrollViewReader { proxy in
             List(selection: selection) {
+                if vm.canRequestTreeAccess {
+                    showAncestorsRow
+                }
                 if let root = vm.folderTree.root {
-                    FolderTreeRow(tree: vm.folderTree, url: root, isRoot: true)
+                    FolderTreeRow(tree: vm.folderTree, url: root, openedRootURL: openedRootURL, isTreeRoot: true)
                 }
             }
             .listStyle(.sidebar)
@@ -64,7 +72,28 @@ struct FolderTreeSection: View {
                 guard let newValue else { return }
                 withAnimation { proxy.scrollTo(newValue) }
             }
+            // 行は非同期の読み込みで揃うため、移動時の scrollTo だけでは届かないことがある
+            .onChange(of: vm.folderTree.scrollRequest) { _, newValue in
+                guard let newValue else { return }
+                withAnimation { proxy.scrollTo(newValue.url) }
+            }
         }
+    }
+
+    private var openedRootURL: URL? {
+        vm.rootFolderURL.map(FolderTreeViewModel.normalized)
+    }
+
+    private var showAncestorsRow: some View {
+        Button {
+            vm.requestTreeAccess()
+        } label: {
+            Label("sidebar.folderTree.showAncestors", systemImage: "arrow.up.circle")
+                .lineLimit(1)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("sidebar.folderTree.showAncestors")
     }
 
     // ツリーは独自の選択を持たず、表示フォルダ（またはデバウンス中の要求）をハイライトする。
@@ -84,7 +113,8 @@ struct FolderTreeSection: View {
 private struct FolderTreeRow: View {
     let tree: FolderTreeViewModel
     let url: URL
-    var isRoot = false
+    let openedRootURL: URL?
+    var isTreeRoot = false
 
     var body: some View {
         Group {
@@ -94,7 +124,7 @@ private struct FolderTreeRow: View {
             } else {
                 DisclosureGroup(isExpanded: isExpanded) {
                     ForEach(tree.children[url] ?? [], id: \.self) { child in
-                        FolderTreeRow(tree: tree, url: child)
+                        FolderTreeRow(tree: tree, url: child, openedRootURL: openedRootURL)
                     }
                 } label: {
                     label
@@ -113,7 +143,12 @@ private struct FolderTreeRow: View {
     }
 
     private var name: String {
-        url.lastPathComponent
+        tree.displayName(for: url)
+    }
+
+    // ツリーの根が上位フォルダのとき、開いているフォルダの行を見分けられるようにする
+    private var isOpenedRootBelowTreeRoot: Bool {
+        !isTreeRoot && url == openedRootURL
     }
 
     // ボリュームのルート（"/" や /Volumes/X）はドライブのアイコンにする。判定はパスだけで行い I/O しない
@@ -121,7 +156,8 @@ private struct FolderTreeRow: View {
         let components = url.pathComponents
         let isVolumeRoot = components == ["/"]
             || (components.count == 3 && components[1] == "Volumes")
-        return isRoot && isVolumeRoot ? "externaldrive" : "folder"
+        if isTreeRoot && isVolumeRoot { return "externaldrive" }
+        return isOpenedRootBelowTreeRoot ? "folder.fill" : "folder"
     }
 
     private var label: some View {
@@ -145,6 +181,7 @@ private struct FolderTreeRow: View {
                     .accessibilityLabel("sidebar.folderTree.loadFailed")
             }
         }
+        .accessibilityValue(isOpenedRootBelowTreeRoot ? Text("a11y.folderTree.openedRoot") : Text(verbatim: ""))
     }
 }
 

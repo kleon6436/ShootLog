@@ -4,10 +4,11 @@ import Foundation
 enum SecurityScopedBookmark {
     // ブックマークを新規作成・解決し、解決したURLでアクセスを開始する
     // （フォルダの権限スコープが既に有効な間のみ作成できる）。
+    // 読み取り専用スコープの配下では読み書きのブックマークを作れないため、読み取り専用で作る。
     // 返したURLは呼び出し側が stopAccessingSecurityScopedResource() で解放する
     static func startAccessingFreshBookmark(for url: URL) throws -> URL {
         let bookmark = try url.bookmarkData(
-            options: .withSecurityScope,
+            options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )

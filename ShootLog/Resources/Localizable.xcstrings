@@ -373,6 +373,23 @@
         }
       }
     },
+    "a11y.folderTree.openedRoot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opened folder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているフォルダ"
+          }
+        }
+      }
+    },
     "a11y.history.delete %@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2246,6 +2263,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "お気に入りを解除"
+          }
+        }
+      }
+    },
+    "contextMenu.folderTree.revokeAccess" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Showing Parent Folders"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上位フォルダの表示をやめる"
           }
         }
       }
@@ -5817,6 +5851,23 @@
         }
       }
     },
+    "error.folderTreeAccess.notAncestor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a parent of the opened folder on the same volume."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているフォルダと同じボリュームにある上位フォルダを選択してください"
+          }
+        }
+      }
+    },
     "error.photoDataSaveFailed" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6865,6 +6916,40 @@
         }
       }
     },
+    "openPanel.folderTree.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows this folder and everything inside it as read-only."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフォルダ以下を読み取り専用で表示します。"
+          }
+        }
+      }
+    },
+    "openPanel.folderTree.message.startupVolume" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows this folder and everything inside it as read-only. Choosing the startup disk root also allows reading other connected volumes and folders such as Desktop and Documents."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフォルダ以下を読み取り専用で表示します。起動ディスクのルートを選ぶと、接続中の他のボリュームやデスクトップ、書類なども読み取れるようになります。"
+          }
+        }
+      }
+    },
     "photo.tag.composition" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7805,6 +7890,23 @@
         }
       }
     },
+    "sidebar.folderTree.showAncestors" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Parent Folders…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上位フォルダを表示…"
+          }
+        }
+      }
+    },
     "sidebar.folderTree.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8225,6 +8327,23 @@
         }
       }
     },
+    "toast.folder.accessFailedFallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t read the folder. Returned to the opened folder."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダを読み込めないため、開いたフォルダへ戻りました"
+          }
+        }
+      }
+    },
     "toast.folder.missingFallback" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8238,6 +8357,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "フォルダが見つからないため、開いたフォルダへ戻りました"
+          }
+        }
+      }
+    },
+    "toast.folderTree.notAncestor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a parent of the opened folder on the same volume."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているフォルダと同じボリュームにある上位フォルダを選択してください"
           }
         }
       }

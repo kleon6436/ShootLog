@@ -62,6 +62,10 @@ extension ContentViewModel {
             currentFolderURL = url
             currentPhotoSource = .folder(url)
             loadHistories(checkAvailability: false)
+            resetPhotosForLoading()
+            let epoch = rootEpoch
+            await syncTreeAccess(for: url)
+            guard epoch == rootEpoch else { return }
             await loadFolderPhotos(url)
         } catch {
             clearFolderState()
@@ -75,23 +79,26 @@ extension ContentViewModel {
         rootFolderURL = nil
         currentFolderURL = nil
         currentPhotoSource = nil
+        // 許可の解決待ちで読み込み中にしたまま、開き直しに失敗して閉じることがある
+        isLoading = false
+        releaseTreeAccess()
     }
 
-    // MARK: - ルート配下のフォルダ移動
+    // MARK: - 移動範囲内のフォルダ移動
 
-    // 表示フォルダの親へ移動できるか（表示フォルダがルート配下のサブフォルダのとき）
+    // 表示フォルダの親へ移動できるか（表示フォルダが移動範囲の上限より下にあるとき）
     var canNavigateToEnclosingFolder: Bool {
-        guard let rootFolderURL, let currentFolderURL else { return false }
-        return FolderPathComponents.isFolder(currentFolderURL, inside: rootFolderURL)
-            && !FolderPathComponents.isSameFolder(currentFolderURL, rootFolderURL)
+        guard let navigationBoundaryURL, let currentFolderURL else { return false }
+        return FolderPathComponents.isFolder(currentFolderURL, inside: navigationBoundaryURL)
+            && !FolderPathComponents.isSameFolder(currentFolderURL, navigationBoundaryURL)
     }
 
-    // ルート配下（ルート自身を含む）のフォルダへ写真一覧の表示を切り替える。
-    // 履歴への追加・ブックマーク作成・スコープの解放はしない（ルートのスコープが配下にも及ぶため、
-    // そのまま保持して使い続ける）。selectFolder / restoreFolder を通らない専用経路にしておく
+    // 移動範囲内（上限自身を含む）のフォルダへ写真一覧の表示を切り替える。
+    // 履歴への追加・ブックマーク作成・スコープの解放はしない（ルートまたは上位の許可のスコープが
+    // 配下にも及ぶため、そのまま保持して使い続ける）。selectFolder / restoreFolder を通らない専用経路にしておく
     func navigateToFolder(_ url: URL) async {
-        guard let rootFolderURL,
-              FolderPathComponents.isFolder(url, inside: rootFolderURL) else { return }
+        guard let navigationBoundaryURL,
+              FolderPathComponents.isFolder(url, inside: navigationBoundaryURL) else { return }
         if let currentFolderURL, FolderPathComponents.isSameFolder(url, currentFolderURL) {
             // 表示中のフォルダが Finder で削除・改名されていれば読み込み直し、ルートへのフォールバックに乗せる。
             // 存在していれば何もしない
@@ -110,7 +117,7 @@ extension ContentViewModel {
         await loadFolderPhotos(url)
     }
 
-    // ⌘↑（親フォルダへ移動）用。ルートより上へは出ない
+    // ⌘↑（親フォルダへ移動）用。移動範囲の上限より上へは出ない
     func navigateToEnclosingFolder() async {
         guard canNavigateToEnclosingFolder, let currentFolderURL else { return }
         await navigateToFolder(currentFolderURL.deletingLastPathComponent())
@@ -183,6 +190,10 @@ extension ContentViewModel {
             currentFolderURL = url
             currentPhotoSource = .folder(url)
             loadHistories(checkAvailability: false)
+            resetPhotosForLoading()
+            let epoch = rootEpoch
+            await syncTreeAccess(for: url)
+            guard epoch == rootEpoch else { return }
             await loadFolderPhotos(url)
         } catch {
             // 旧ルートのスコープは解放済みのため、旧ルートの表示を残さない
@@ -191,15 +202,22 @@ extension ContentViewModel {
         }
     }
 
-    private func loadFolderPhotos(_ folderURL: URL) async {
-        guard let context = modelContext else { return }
-        await cancelPhotoStaging()
+    // 一覧を読み込み待ちの状態にする。新しいルートの下に、スコープを解放済みの旧ルートの写真を残さない
+    private func resetPhotosForLoading() {
         isLoading = true
         photos = []
         selectedPhoto = nil
         currentEditInfo = nil
         currentDevelopSettings = nil
         isCropMode = false
+    }
+
+    func loadFolderPhotos(_ folderURL: URL) async {
+        guard let context = modelContext else { return }
+        await cancelPhotoStaging()
+        // 待機中に別のフォルダへ切り替わっていたら、古い要求で新しい読み込みの世代を奪わない
+        guard let currentFolderURL, FolderPathComponents.isSameFolder(currentFolderURL, folderURL) else { return }
+        resetPhotosForLoading()
         // cancelPhotoStaging の await 中に別の読み込みが割り込んでも世代を共有しないよう、
         // この読み込み専用の世代を発行する（以降の await 明けで最新かどうかを判定する）
         photoStagingGeneration &+= 1
@@ -221,14 +239,14 @@ extension ContentViewModel {
             // 待機中に別の読み込みへ切り替わっていたら、古い世代のエラーはアラートにしない
             // （isLoading は新しい読み込み側が管理するため触らない）
             guard generation == photoStagingGeneration else { return }
-            // 表示中のサブフォルダが削除・改名されていたら、アラートを出さずにルートへ戻す。
-            // ルート自体が消えた場合は従来どおりアラートを出す
-            if Self.isMissingFolderError(error),
-               let rootFolderURL,
-               !FolderPathComponents.isSameFolder(folderURL, rootFolderURL) {
-                currentFolderURL = rootFolderURL
+            // ルート以外のフォルダが消えていたり権限で読めなかったりしたら、アラートを出さずにルートへ戻す。
+            // ルート自体を読めない場合と、それ以外のエラー（NAS の I/O エラーなど）は従来どおりアラートを出す
+            if let rootFolderURL,
+               !FolderPathComponents.isSameFolder(folderURL, rootFolderURL),
+               let toast = Self.rootFallbackToast(for: error) {
+                self.currentFolderURL = rootFolderURL
                 currentPhotoSource = .folder(rootFolderURL)
-                showToast(String(localized: "toast.folder.missingFallback"))
+                showToast(toast)
                 await loadFolderPhotos(rootFolderURL)
                 return
             }
@@ -237,12 +255,18 @@ extension ContentViewModel {
         isLoading = false
     }
 
-    // フォルダが存在しないことを示すスキャンエラーか
-    private static func isMissingFolderError(_ error: any Error) -> Bool {
+    // ルートへ戻すスキャンエラーならそのトースト文言を返す（フォルダが無い・権限が無い場合だけ）
+    private static func rootFallbackToast(for error: any Error) -> String? {
         let nsError = error as NSError
-        guard nsError.domain == NSCocoaErrorDomain else { return false }
-        return nsError.code == CocoaError.fileNoSuchFile.rawValue
-            || nsError.code == CocoaError.fileReadNoSuchFile.rawValue
+        guard nsError.domain == NSCocoaErrorDomain else { return nil }
+        switch nsError.code {
+        case CocoaError.fileNoSuchFile.rawValue, CocoaError.fileReadNoSuchFile.rawValue:
+            return String(localized: "toast.folder.missingFallback")
+        case CocoaError.fileReadNoPermission.rawValue:
+            return String(localized: "toast.folder.accessFailedFallback")
+        default:
+            return nil
+        }
     }
 
     private func startPreviewGeneration(urls: [URL], snapshots: [URL: FileAttributesSnapshot]) async {

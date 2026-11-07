@@ -121,10 +121,12 @@
 		6DF61E9BAA03C01B5159B3BC /* DevelopViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12A8922605B5CAB7C91C9D67 /* DevelopViewModel.swift */; };
 		6E460BEF4B818A36B1530126 /* RAWDevelopMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = A83597770B670C86560B7BC2 /* RAWDevelopMapping.swift */; };
 		7347EFDAEA7AA56C1915F972 /* DevelopPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E7C8A4E64B55ABE6DF40F10 /* DevelopPreset.swift */; };
+		7433FAD3CA3EF95CBBBF58A9 /* ContentViewModelFolderTreeAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 861304DE11BE5BAF14CAA5D3 /* ContentViewModelFolderTreeAccess.swift */; };
 		747616ECBE8895D79E316564 /* BrushMaskRasterizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B3C63A29FF9570293137C7C /* BrushMaskRasterizerTests.swift */; };
 		750856C9095EE69EC10AE5D7 /* DevelopViewModelAIMaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA8E70DD012C3C732FF481A /* DevelopViewModelAIMaskTests.swift */; };
 		7654EF65E95271DED5FBD4AC /* EXIFPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D9D05D9C2EC08B225F1B12 /* EXIFPanelView.swift */; };
 		76B8812B9EF4F9A3EC72C64E /* AnalysisViewModelInsights.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA72CB1CC32C7E4D319CB0C /* AnalysisViewModelInsights.swift */; };
+		77EC81CE740409618079E28B /* FolderTreeAccessStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 679854CEFC04BF1AC5ABE082 /* FolderTreeAccessStore.swift */; };
 		7A47FE7EEAF062B051A12585 /* FolderPathBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F039CD49651FA2308F3EE0 /* FolderPathBar.swift */; };
 		7A85AE66384269F5FC88AFA2 /* CropViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9015CE5351C41FF1BCF929F /* CropViewModelTests.swift */; };
 		7B406D0ED63C2DF3C29C1A44 /* ZoomPanGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D986939BCCA090F6DC9B8D13 /* ZoomPanGeometryTests.swift */; };
@@ -154,6 +156,7 @@
 		9C0FD3A05414302E017E4D6F /* ZoomPanGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECB385FB8E648722B9DD8D7 /* ZoomPanGeometry.swift */; };
 		9CFF149BFE77B41B0D9B0F38 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7093F9E9C1BDD3D78630ECD /* DesignSystem.swift */; };
 		9D848ECD98F67B1D02FC9F36 /* DevelopExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16DCAE334DDB1AB7251B5E7 /* DevelopExporterTests.swift */; };
+		9FD48DACB54FC3B8E18DC185 /* FolderTreeAccessStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A81FAF48E955A58BFDDEB07 /* FolderTreeAccessStoreTests.swift */; };
 		9FD705C468F0AA077125CBCB /* AnalysisViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071ECBEFD54AC3D6C5CA831F /* AnalysisViewModelTests.swift */; };
 		A031D24546A533ABA240A9BE /* TiledInferenceRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F7F6E392E8A396396F2056 /* TiledInferenceRunner.swift */; };
 		A38831FB309A43EC53C4634B /* CoreMLSuperResolutionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F728D910332DF193BEAD261 /* CoreMLSuperResolutionEngine.swift */; };
@@ -353,6 +356,7 @@
 		585C20D3702C08AF79A814DC /* ColorGrading.ci.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ColorGrading.ci.metal; sourceTree = "<group>"; };
 		58B6B8619E38F249A43D8526 /* IntegrationSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationSettingsTab.swift; sourceTree = "<group>"; };
 		5A10382FB124C493D924881A /* RadialMaskHandleGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialMaskHandleGeometry.swift; sourceTree = "<group>"; };
+		5A81FAF48E955A58BFDDEB07 /* FolderTreeAccessStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderTreeAccessStoreTests.swift; sourceTree = "<group>"; };
 		5AA8B9351D4D2F28C376679E /* UpscaleExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpscaleExportSheet.swift; sourceTree = "<group>"; };
 		5B9D0C5A0EBD8E53502FE1DC /* BeforeAfterSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeforeAfterSplitView.swift; sourceTree = "<group>"; };
 		5C9D1EBBB3403BB25B259476 /* DevelopExportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopExportViewModel.swift; sourceTree = "<group>"; };
@@ -369,6 +373,7 @@
 		65A53585DD4995C46BD544DC /* PhotoQualityInsightBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoQualityInsightBuilder.swift; sourceTree = "<group>"; };
 		664B749BA9ED33776540226A /* DevelopParameterTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopParameterTypes.swift; sourceTree = "<group>"; };
 		677C4716A101B80058CF35C7 /* URLVolume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLVolume.swift; sourceTree = "<group>"; };
+		679854CEFC04BF1AC5ABE082 /* FolderTreeAccessStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderTreeAccessStore.swift; sourceTree = "<group>"; };
 		69B8D04628A418D474B0AAB6 /* AdjustmentSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentSlider.swift; sourceTree = "<group>"; };
 		6A8DC334EB7AA433138E16E6 /* AILabelingGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AILabelingGenerator.swift; sourceTree = "<group>"; };
 		6B1E1D67D6950CC7482E2E54 /* ToneCurveEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToneCurveEditorView.swift; sourceTree = "<group>"; };
@@ -390,6 +395,7 @@
 		80F7296C3DC912CEADEACE48 /* Photo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Photo.swift; sourceTree = "<group>"; };
 		84404E85187227393FC4CA60 /* EditablePhotoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditablePhotoView.swift; sourceTree = "<group>"; };
 		85402615ED133B9E4F1FFC1C /* ContentViewModelQualityDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModelQualityDiagnosis.swift; sourceTree = "<group>"; };
+		861304DE11BE5BAF14CAA5D3 /* ContentViewModelFolderTreeAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModelFolderTreeAccess.swift; sourceTree = "<group>"; };
 		8675EDFC43E5125BC753BE9E /* SidebarViewModelDevelopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModelDevelopTests.swift; sourceTree = "<group>"; };
 		87D3A781AB6130B0649232AB /* HighResPrefetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighResPrefetcher.swift; sourceTree = "<group>"; };
 		8955D8207536E6BD56618C02 /* CropOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropOverlayView.swift; sourceTree = "<group>"; };
@@ -579,6 +585,7 @@
 				93D1B43A8989915EC4DE9765 /* ContentViewModelDevelopPreset.swift */,
 				3B32EF4E17A13081547C4378 /* ContentViewModelEdit.swift */,
 				9D406F7FB77E7F76DF34C471 /* ContentViewModelFolder.swift */,
+				861304DE11BE5BAF14CAA5D3 /* ContentViewModelFolderTreeAccess.swift */,
 				F72992C60406796DCB55FB2F /* ContentViewModelPhotoActions.swift */,
 				A2A264198563DAAE6ED97F24 /* ContentViewModelPhotosLibrary.swift */,
 				85402615ED133B9E4F1FFC1C /* ContentViewModelQualityDiagnosis.swift */,
@@ -739,6 +746,7 @@
 				40C45C35D791261F17559956 /* EXIFPanelViewModelTests.swift */,
 				7C675F4307490141B4153F75 /* EXIFPrefetcherTests.swift */,
 				F8709BB37DE38E8B0052F3E2 /* FolderPathComponentsTests.swift */,
+				5A81FAF48E955A58BFDDEB07 /* FolderTreeAccessStoreTests.swift */,
 				6EBCD28258BA291CFA92B784 /* FolderTreeRepositoryTests.swift */,
 				CEB52DBBEC1B924F2ED47CE0 /* FolderTreeViewModelTests.swift */,
 				054483E7B11E5E1051F6A23B /* HighResPrefetcherTests.swift */,
@@ -801,6 +809,7 @@
 				9747DD4268147F1FFBF70ABE /* EXIFPrefetcher.swift */,
 				B913D5C3C46A4CA316F7DB28 /* EXIFService.swift */,
 				F11C6C12F60B2B0D0F861DFE /* FolderAvailabilityChecker.swift */,
+				679854CEFC04BF1AC5ABE082 /* FolderTreeAccessStore.swift */,
 				715F42A146B1558EF1C47880 /* FolderTreeRepository.swift */,
 				87D3A781AB6130B0649232AB /* HighResPrefetcher.swift */,
 				E1F0B93670F78E3C739A55C7 /* ImageDecodeThrottle.swift */,
@@ -980,6 +989,7 @@
 				FA94B7F2A79A3BA8C41F6629 /* ContentViewModelDevelopPreset.swift in Sources */,
 				5BD437DF01F56DCF70F536F6 /* ContentViewModelEdit.swift in Sources */,
 				2ADF81F42B5A95EA640B0B39 /* ContentViewModelFolder.swift in Sources */,
+				7433FAD3CA3EF95CBBBF58A9 /* ContentViewModelFolderTreeAccess.swift in Sources */,
 				A93399807D613499D2E66207 /* ContentViewModelPhotoActions.swift in Sources */,
 				3CA712F67DBCB74448E3EE06 /* ContentViewModelPhotosLibrary.swift in Sources */,
 				187400332F825E95C227A98B /* ContentViewModelQualityDiagnosis.swift in Sources */,
@@ -1025,6 +1035,7 @@
 				F4CA1A0FB48EED919BEA6FB4 /* FolderHistory.swift in Sources */,
 				7A47FE7EEAF062B051A12585 /* FolderPathBar.swift in Sources */,
 				2337081ADADCED7EA1D7A0EA /* FolderPathComponents.swift in Sources */,
+				77EC81CE740409618079E28B /* FolderTreeAccessStore.swift in Sources */,
 				B3A3CDB55F8DE5C02606391A /* FolderTreeRepository.swift in Sources */,
 				8B6E61A291796CEE4559CB70 /* FolderTreeView.swift in Sources */,
 				4FD93219C33DA9E57EF1B396 /* FolderTreeViewModel.swift in Sources */,
@@ -1152,6 +1163,7 @@
 				EC9429A149799C331B048C6E /* EXIFPanelViewModelTests.swift in Sources */,
 				36D160436B77EB2AFB55BB64 /* EXIFPrefetcherTests.swift in Sources */,
 				B0B407E04562F0B75B110AFD /* FolderPathComponentsTests.swift in Sources */,
+				9FD48DACB54FC3B8E18DC185 /* FolderTreeAccessStoreTests.swift in Sources */,
 				042035EADAF6D41AE9CB09F9 /* FolderTreeRepositoryTests.swift in Sources */,
 				4D24BD0A3B6DCFFB855B7F50 /* FolderTreeViewModelTests.swift in Sources */,
 				86731DDD42F6EB1472364E38 /* HSLColorCubeTests.swift in Sources */,

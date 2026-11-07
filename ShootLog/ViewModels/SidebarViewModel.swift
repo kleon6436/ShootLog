@@ -105,9 +105,10 @@ final class SidebarViewModel: ContentViewModelProxy {
     init(content: ContentViewModel) {
         self.content = content
         self.developViewModel = DevelopViewModel(content: content)
-        self.folderTree = FolderTreeViewModel { [weak content] url in
-            await content?.navigateToFolder(url)
-        }
+        self.folderTree = FolderTreeViewModel(
+            rootEpoch: { [weak content] in content?.rootEpoch ?? 0 },
+            navigate: { [weak content] url in await content?.navigateToFolder(url) }
+        )
         let storedTab = UserDefaults.standard.string(forKey: AppSettingsKeys.inspectorTab)
         self.inspectorTab = storedTab.flatMap(InspectorTab.init(rawValue:)) ?? .exif
     }
@@ -203,6 +204,21 @@ final class SidebarViewModel: ContentViewModelProxy {
 
     var rootFolderURL: URL? { content.rootFolderURL }
     var currentFolderURL: URL? { content.currentFolderURL }
+    var navigationBoundaryURL: URL? { content.navigationBoundaryURL }
+    var treeAccessURL: URL? { content.treeAccessURL }
+    var canRequestTreeAccess: Bool { content.canRequestTreeAccess }
+    func requestTreeAccess() { content.requestTreeAccess() }
+    func revokeTreeAccess() {
+        Task { await content.revokeTreeAccess() }
+    }
+
+    // 根の設定直後は onChange の reveal が根より先に走って空振りするため、ここで必ず見せ直す
+    func syncFolderTreeRoot() {
+        folderTree.setRoot(content.navigationBoundaryURL)
+        if let currentFolderURL = content.currentFolderURL {
+            folderTree.reveal(currentFolderURL)
+        }
+    }
     // フォルダを開いているときだけツリー・パスバーを出す（写真ライブラリ表示中は出さない）
     var isFolderSource: Bool {
         if case .folder = content.currentPhotoSource { return true }

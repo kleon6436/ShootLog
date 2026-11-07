@@ -6,6 +6,7 @@ enum ShootLogError: LocalizedError {
     case unsupportedFormat(extension: String)
     case folderAccessDenied
     case bookmarkRestorationFailed
+    case folderTreeAccessNotAncestor
     case applicationInfoUnavailable(name: String)
     case duplicateIntegrationApp(name: String)
     case settingsSaveFailed
@@ -29,6 +30,8 @@ enum ShootLogError: LocalizedError {
             return String(localized: "error.folderAccessDenied")
         case .bookmarkRestorationFailed:
             return String(localized: "error.bookmarkRestorationFailed")
+        case .folderTreeAccessNotAncestor:
+            return String(localized: "error.folderTreeAccess.notAncestor")
         case .applicationInfoUnavailable(let name):
             return String(localized: "error.applicationInfoUnavailable \(name)")
         case .duplicateIntegrationApp(let name):

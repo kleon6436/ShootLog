@@ -289,10 +289,10 @@ struct SidebarModeView: View {
 
     // MARK: - パスバー
 
-    // パスバーに出すパスとルート。写真があれば写真のフルパス、無ければ表示フォルダのパス。
+    // パスバーに出すパスと移動範囲の上限。写真があれば写真のフルパス、無ければ表示フォルダのパス。
     // iCloud写真（fileURL はキャッシュ上のプレースホルダー）と写真ライブラリ表示中は出さない
     private var pathBarTarget: (url: URL, root: URL, isFile: Bool)? {
-        guard vm.isFolderSource, let root = vm.rootFolderURL else { return nil }
+        guard vm.isFolderSource, let root = vm.navigationBoundaryURL else { return nil }
         if let photo = vm.selectedPhoto {
             guard photo.phAssetLocalIdentifier == nil else { return nil }
             return (photo.fileURL, root, true)

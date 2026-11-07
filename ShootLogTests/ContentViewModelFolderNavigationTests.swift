@@ -21,6 +21,78 @@ struct ContentViewModelFolderNavigationTests {
         let root: URL
         let sub: URL
         let grandchild: URL
+        let sibling: URL
+        let defaultsSuiteName: String
+        let scope: StubTreeAccessScope
+        let store: FolderTreeAccessStore
+    }
+
+    // スコープ操作の呼び出しを記録するスタブ。ブックマークの中身はパスの文字列とする
+    @MainActor
+    private final class StubTreeAccessScope {
+        var started: [URL] = []
+        var stopped: [URL] = []
+        // スコープを止めた時点の表示フォルダと写真（解放の順序の確認用）
+        var stateAtStop: [(folder: URL?, photoNames: Set<String>)] = []
+        var onStop: (() -> (folder: URL?, photoNames: Set<String>))?
+        let bookmarkRequests = LockedCounter()
+        let resolveGate = ResolveGate()
+        nonisolated(unsafe) var resolvedOverride: URL?
+        nonisolated(unsafe) var isStale = false
+
+        var scope: FolderTreeAccessScope {
+            FolderTreeAccessScope(
+                makeBookmark: { [bookmarkRequests] url in
+                    bookmarkRequests.increment()
+                    return Data(url.path.utf8)
+                },
+                resolve: { [resolveGate, weak self] data in
+                    resolveGate.passThrough()
+                    let path = String(decoding: data, as: UTF8.self)
+                    return FolderTreeAccessScope.ResolvedBookmark(
+                        url: self?.resolvedOverride ?? URL(fileURLWithPath: path, isDirectory: true),
+                        isStale: self?.isStale ?? false
+                    )
+                },
+                start: { [weak self] url in
+                    self?.started.append(url)
+                    return true
+                },
+                stop: { [weak self] url in
+                    self?.stopped.append(url)
+                    if let state = self?.onStop?() { self?.stateAtStop.append(state) }
+                }
+            )
+        }
+    }
+
+    private final class LockedCounter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+        var value: Int { lock.withLock { count } }
+        func increment() { lock.withLock { count += 1 } }
+    }
+
+    // 解決処理を止めておくためのゲート。解決は MainActor の外で走るのでブロックしてよい
+    private final class ResolveGate: @unchecked Sendable {
+        private let lock = NSLock()
+        private let semaphore = DispatchSemaphore(value: 0)
+        private var isClosed = false
+        private var entered = false
+
+        var hasEntered: Bool { lock.withLock { entered } }
+        func close() { lock.withLock { isClosed = true } }
+        func open() { semaphore.signal() }
+        // 閉じている間に最初に来た1回だけを止める
+        func passThrough() {
+            let shouldWait = lock.withLock {
+                let wasClosed = isClosed
+                entered = true
+                isClosed = false
+                return wasClosed
+            }
+            if shouldWait { semaphore.wait() }
+        }
     }
 
     // root/{r1.png, sub/{s1.png, s2.png, grandchild/g1.png}} を作り、root を開いた状態にする
@@ -44,17 +116,34 @@ struct ContentViewModelFolderNavigationTests {
         try writePNG(to: sub.appendingPathComponent("s1.png"))
         try writePNG(to: sub.appendingPathComponent("s2.png"))
         try writePNG(to: grandchild.appendingPathComponent("g1.png"))
+        let sibling = sandbox.appendingPathComponent("sibling", isDirectory: true)
+        try FileManager.default.createDirectory(at: sibling, withIntermediateDirectories: true)
+        try writePNG(to: sibling.appendingPathComponent("b1.png"))
+
+        // 実際の設定に触れないよう、許可の保存先はテストごとに分ける
+        let suiteName = "FolderNavigationTests-\(UUID().uuidString)"
+        let store = FolderTreeAccessStore(defaults: try #require(UserDefaults(suiteName: suiteName)))
+        let scope = StubTreeAccessScope()
+        scope.onStop = { [weak content] in
+            (content?.currentFolderURL, Set(content?.photos.map(\.fileURL.lastPathComponent) ?? []))
+        }
+        content.treeAccessStore = store
+        content.treeAccessScope = scope.scope
 
         content.rootFolderURL = root
         content.currentFolderURL = root
         content.currentPhotoSource = .folder(root)
-        return Fixture(content: content, context: context, sandbox: sandbox, root: root, sub: sub, grandchild: grandchild)
+        return Fixture(
+            content: content, context: context, sandbox: sandbox, root: root, sub: sub, grandchild: grandchild,
+            sibling: sibling, defaultsSuiteName: suiteName, scope: scope, store: store
+        )
     }
 
     // 後片付け。バックグラウンドの生成処理を止めてから作業ディレクトリを消す
     private func tearDown(_ fixture: Fixture) async {
         await fixture.content.cancelPhotoStaging()
         try? FileManager.default.removeItem(at: fixture.sandbox)
+        UserDefaults(suiteName: fixture.defaultsSuiteName)?.removePersistentDomain(forName: fixture.defaultsSuiteName)
     }
 
     /// 0バイトでない小さな PNG を書き出す
@@ -289,6 +378,506 @@ struct ContentViewModelFolderNavigationTests {
         #expect(content.currentFolderURL == nil)
         #expect(content.currentPhotoSource == nil)
         #expect(content.error != nil)
+        await tearDown(fixture)
+    }
+
+    // MARK: - 上位フォルダの許可がある状態の移動
+
+    // 兄弟フォルダへ移動しても、ルート・履歴の件数と順序は変わらない
+    @Test func navigatesToSiblingWithinGrantWithoutTouchingHistory() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        let older = FolderHistory(url: fixture.sub, bookmark: Data())
+        older.lastAccessedAt = Date().addingTimeInterval(-60)
+        fixture.context.insert(FolderHistory(url: fixture.root, bookmark: Data()))
+        fixture.context.insert(older)
+        try fixture.context.save()
+        content.loadHistories(checkAvailability: false)
+        let historyOrder = content.folderHistories.map(\.persistentModelID)
+        content.treeAccessURL = fixture.sandbox
+
+        await content.navigateToFolder(fixture.sibling)
+
+        #expect(content.currentFolderURL == fixture.sibling)
+        #expect(content.currentPhotoSource == .folder(fixture.sibling))
+        #expect(content.rootFolderURL == fixture.root)
+        #expect(photoNames(content) == ["b1.png"])
+        #expect(content.folderHistories.map(\.persistentModelID) == historyOrder)
+        #expect(content.error == nil)
+        await tearDown(fixture)
+    }
+
+    @Test func rejectsFoldersOutsideGrant() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        content.treeAccessURL = fixture.sandbox
+
+        await content.navigateToFolder(fixture.sandbox.deletingLastPathComponent())
+
+        #expect(content.currentFolderURL == fixture.root)
+        await tearDown(fixture)
+    }
+
+    // ⌘↑ は許可の根まで上がり、そこで止まる
+    @Test func enclosingNavigationStopsAtGrant() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        content.treeAccessURL = fixture.sandbox
+        #expect(content.canNavigateToEnclosingFolder)
+
+        await content.navigateToEnclosingFolder()
+
+        #expect(FolderPathComponents.isSameFolder(try #require(content.currentFolderURL), fixture.sandbox))
+        #expect(!content.canNavigateToEnclosingFolder)
+        await content.navigateToEnclosingFolder()
+        #expect(FolderPathComponents.isSameFolder(try #require(content.currentFolderURL), fixture.sandbox))
+        await tearDown(fixture)
+    }
+
+    // 読めない兄弟フォルダへ移動すると、アラートを出さずにルートへ戻ってトーストで知らせる
+    @Test func unreadableSiblingFallsBackToRootWithoutAlert() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        content.treeAccessURL = fixture.sandbox
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: fixture.sibling.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fixture.sibling.path)
+        }
+
+        await content.navigateToFolder(fixture.sibling)
+
+        #expect(content.error == nil)
+        #expect(content.currentFolderURL == fixture.root)
+        #expect(content.currentPhotoSource == .folder(fixture.root))
+        #expect(content.toastMessage == String(localized: "toast.folder.accessFailedFallback"))
+        #expect(photoNames(content) == ["r1.png"])
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fixture.sibling.path)
+        await tearDown(fixture)
+    }
+
+    // フォルダが無い・権限が無い以外のスキャンエラーは、ルートへ戻さず従来どおりアラートにする
+    // （通常ファイルをフォルダとして読むと NSFileReadUnknownError になる）
+    @Test func otherScanErrorKeepsAlert() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        let file = fixture.root.appendingPathComponent("r1.png")
+
+        await content.navigateToFolder(file)
+
+        let error = try #require(content.error) as NSError
+        #expect(error.domain == NSCocoaErrorDomain)
+        #expect(error.code == CocoaError.fileReadUnknown.rawValue)
+        #expect(content.toastMessage == nil)
+        #expect(content.currentFolderURL == file)
+        #expect(!content.isLoading)
+        await tearDown(fixture)
+    }
+
+    @Test func exportJobsSurviveSiblingNavigation() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        content.treeAccessURL = fixture.sandbox
+        let upscaleTask = Task<Void, Never> { try? await Task.sleep(for: .seconds(60)) }
+        let developTask = Task<Void, Never> { try? await Task.sleep(for: .seconds(60)) }
+        content.upscaleExportTask = upscaleTask
+        content.developExportTask = developTask
+
+        await content.navigateToFolder(fixture.sibling)
+
+        #expect(!upscaleTask.isCancelled)
+        #expect(!developTask.isCancelled)
+        upscaleTask.cancel()
+        developTask.cancel()
+        await tearDown(fixture)
+    }
+
+    // MARK: - 許可の取得
+
+    @Test func grantingAncestorSavesAndStartsScope() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        #expect(content.canRequestTreeAccess)
+        #expect(content.navigationBoundaryURL == fixture.root)
+
+        await content.grantTreeAccess(to: fixture.sandbox)
+
+        #expect(FolderPathComponents.isSameFolder(try #require(content.treeAccessURL), fixture.sandbox))
+        #expect(FolderPathComponents.isSameFolder(try #require(content.navigationBoundaryURL), fixture.sandbox))
+        #expect(!content.canRequestTreeAccess)
+        #expect(fixture.scope.started.count == 1)
+        #expect(fixture.store.grants().count == 1)
+        #expect(content.rootFolderURL == fixture.root)
+        #expect(content.toastMessage == nil)
+        await tearDown(fixture)
+    }
+
+    // 祖先以外を選ぶと、トーストを出して保存しない
+    @Test func grantingNonAncestorShowsToastAndDoesNotSave() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+
+        await content.grantTreeAccess(to: fixture.sibling)
+
+        #expect(content.treeAccessURL == nil)
+        #expect(content.toastMessage == String(localized: "toast.folderTree.notAncestor"))
+        #expect(fixture.store.grants().isEmpty)
+        #expect(fixture.scope.bookmarkRequests.value == 0)
+        await tearDown(fixture)
+    }
+
+    // 別ボリュームの祖先（DataDisk のルートに対する "/"）も同じく受け付けない
+    @Test func grantingAncestorOnOtherVolumeShowsToastAndDoesNotSave() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        content.rootFolderURL = URL(fileURLWithPath: "/Volumes/DataDisk/photos", isDirectory: true)
+
+        await content.grantTreeAccess(to: URL(fileURLWithPath: "/", isDirectory: true))
+
+        #expect(content.treeAccessURL == nil)
+        #expect(content.toastMessage == String(localized: "toast.folderTree.notAncestor"))
+        #expect(fixture.store.grants().isEmpty)
+        await tearDown(fixture)
+    }
+
+    // ボリュームのルートを開いているときは上位が無いので許可を求めない
+    @Test func volumeRootCannotRequestAccess() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+
+        content.rootFolderURL = URL(fileURLWithPath: "/Volumes/DataDisk", isDirectory: true)
+        #expect(!content.canRequestTreeAccess)
+        content.rootFolderURL = URL(fileURLWithPath: "/", isDirectory: true)
+        #expect(!content.canRequestTreeAccess)
+        await tearDown(fixture)
+    }
+
+    // 許可すると、ツリーの根が許可したフォルダになり、開いたフォルダまで展開されて該当行が見える
+    @Test func grantedTreeRevealsOpenedRoot() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        let sidebar = SidebarViewModel(content: content)
+        sidebar.syncFolderTreeRoot()
+        await sidebar.folderTree.waitForPendingLoads()
+        #expect(sidebar.folderTree.root == FolderTreeViewModel.normalized(fixture.root))
+
+        await content.grantTreeAccess(to: fixture.sandbox)
+        sidebar.syncFolderTreeRoot()
+        await sidebar.folderTree.waitForPendingLoads()
+
+        let rootRow = FolderTreeViewModel.normalized(fixture.root)
+        #expect(sidebar.folderTree.root == FolderTreeViewModel.normalized(fixture.sandbox))
+        #expect(sidebar.folderTree.children[FolderTreeViewModel.normalized(fixture.sandbox)]?.contains(rootRow) == true)
+        #expect(sidebar.highlightedFolderURL == rootRow)
+        #expect(sidebar.folderTree.scrollRequest?.url == rootRow)
+        await tearDown(fixture)
+    }
+
+    // MARK: - 許可の復元と切替
+
+    // 再起動相当（新しい ViewModel）でも、保存済みの許可をダイアログなしで復元する
+    @Test func savedGrantIsRestoredOnNextLaunch() async throws {
+        let fixture = try makeFixture()
+        await fixture.content.grantTreeAccess(to: fixture.sandbox)
+
+        let relaunched = ContentViewModel()
+        let scope = StubTreeAccessScope()
+        relaunched.treeAccessStore = fixture.store
+        relaunched.treeAccessScope = scope.scope
+        relaunched.rootFolderURL = fixture.root
+        await relaunched.syncTreeAccess(for: fixture.root)
+
+        let restored = try #require(relaunched.treeAccessURL)
+        #expect(FolderPathComponents.isSameFolder(restored, fixture.sandbox))
+        #expect(scope.started.count == 1)
+        await tearDown(fixture)
+    }
+
+    // 同じ許可の範囲内でルートが変わるだけなら、スコープを開き直さない
+    @Test func syncKeepsScopeWhileGrantRemainsValid() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.grantTreeAccess(to: fixture.sandbox)
+
+        await content.syncTreeAccess(for: fixture.sibling)
+
+        #expect(content.treeAccessURL != nil)
+        #expect(fixture.scope.started.count == 1)
+        #expect(fixture.scope.stopped.isEmpty)
+        await tearDown(fixture)
+    }
+
+    // 別のボリュームを開くと前のスコープを解放し、ルートを根に戻す。保存データは残す
+    @Test func syncReleasesScopeForOtherVolume() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.grantTreeAccess(to: fixture.sandbox)
+        let granted = try #require(content.treeAccessURL)
+        let otherRoot = URL(fileURLWithPath: "/Volumes/DataDisk/photos", isDirectory: true)
+
+        content.rootFolderURL = otherRoot
+        await content.syncTreeAccess(for: otherRoot)
+
+        #expect(content.treeAccessURL == nil)
+        #expect(content.navigationBoundaryURL == otherRoot)
+        #expect(fixture.scope.stopped == [granted])
+        #expect(fixture.store.grants().count == 1)
+        await tearDown(fixture)
+    }
+
+    // 保存済みの "/" の許可は、別ボリュームのツリーの根にしない
+    @Test func savedSlashGrantIsNotUsedForOtherVolume() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(URL(fileURLWithPath: "/", isDirectory: true), bookmark: Data("/".utf8))
+        let otherRoot = URL(fileURLWithPath: "/Volumes/DataDisk/photos", isDirectory: true)
+
+        content.rootFolderURL = otherRoot
+        await content.syncTreeAccess(for: otherRoot)
+
+        #expect(content.treeAccessURL == nil)
+        #expect(fixture.scope.started.isEmpty)
+        await tearDown(fixture)
+    }
+
+    // 解決先が祖先でなくなっていたら（移動・改名など）使わないが、保存データは消さない
+    @Test func resolvedURLOutsideAncestorsIsIgnoredButKept() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        fixture.scope.resolvedOverride = fixture.sibling
+
+        await content.syncTreeAccess(for: fixture.root)
+
+        #expect(content.treeAccessURL == nil)
+        #expect(content.navigationBoundaryURL == fixture.root)
+        #expect(fixture.scope.started.isEmpty)
+        #expect(fixture.store.grants().count == 1)
+        await tearDown(fixture)
+    }
+
+    // stale なら作り直して保存する
+    @Test func staleBookmarkIsRefreshed() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        fixture.scope.isStale = true
+
+        await content.syncTreeAccess(for: fixture.root)
+
+        #expect(content.treeAccessURL != nil)
+        #expect(fixture.scope.bookmarkRequests.value == 1)
+        #expect(fixture.store.grants().count == 1)
+        await tearDown(fixture)
+    }
+
+    // 解決を待っている間に別のルートへ切り替わったら、古い許可のスコープを開始しない
+    @Test func syncResultIsDiscardedWhenSupersededDuringResolve() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        fixture.scope.resolveGate.close()
+
+        let sync = Task { await content.syncTreeAccess(for: fixture.root) }
+        while !fixture.scope.resolveGate.hasEntered { await Task.yield() }
+        content.releaseTreeAccess()
+        fixture.scope.resolveGate.open()
+        await sync.value
+
+        #expect(content.treeAccessURL == nil)
+        #expect(fixture.scope.started.isEmpty)
+        await tearDown(fixture)
+    }
+
+    // 解決待ちの間に同じフォルダが開き直されたら、古い selectFolder は読み込みへ進まない。
+    // 表示フォルダが同じなので loadFolderPhotos 側の確認では止まらず、rootEpoch の確認だけが止める
+    @Test func supersededSelectFolderDoesNotLoadAgain() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        fixture.scope.resolveGate.close()
+
+        let first = Task { await content.selectFolder(url: fixture.sibling) }
+        while !fixture.scope.resolveGate.hasEntered { await Task.yield() }
+        await content.selectFolder(url: fixture.sibling)
+        let generation = content.photoStagingGeneration
+        fixture.scope.resolveGate.open()
+        await first.value
+
+        #expect(content.photoStagingGeneration == generation)
+        #expect(content.currentFolderURL == fixture.sibling)
+        #expect(photoNames(content) == ["b1.png"])
+        #expect(!content.isLoading)
+        #expect(fixture.scope.started.count == 1)
+        await tearDown(fixture)
+    }
+
+    // restoreFolder も同じ。実際のブックマークを使い、同じ履歴を開き直す
+    @Test func supersededRestoreFolderDoesNotLoadAgain() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        let bookmark = try fixture.sibling.bookmarkData(
+            options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil
+        )
+        let history = FolderHistory(url: fixture.sibling, bookmark: bookmark)
+        fixture.context.insert(history)
+        fixture.scope.resolveGate.close()
+
+        let first = Task { await content.restoreFolder(history) }
+        while !fixture.scope.resolveGate.hasEntered { await Task.yield() }
+        await content.restoreFolder(history)
+        let generation = content.photoStagingGeneration
+        fixture.scope.resolveGate.open()
+        await first.value
+
+        #expect(content.error == nil)
+        #expect(content.photoStagingGeneration == generation)
+        #expect(photoNames(content) == ["b1.png"])
+        #expect(!content.isLoading)
+        content.releaseBookmarkAccess()
+        await tearDown(fixture)
+    }
+
+    // 許可の解決を待つ間、新しいルートの下に旧ルートの写真を出さない
+    @Test func oldPhotosAreClearedWhileTreeAccessResolves() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.navigateToFolder(fixture.sub)
+        content.selectPhoto(content.photos.first)
+        #expect(!content.photos.isEmpty)
+        #expect(content.selectedPhoto != nil)
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        fixture.scope.resolveGate.close()
+
+        let opening = Task { await content.selectFolder(url: fixture.sibling) }
+        while !fixture.scope.resolveGate.hasEntered { await Task.yield() }
+
+        #expect(content.rootFolderURL == fixture.sibling)
+        #expect(content.photos.isEmpty)
+        #expect(content.selectedPhoto == nil)
+        #expect(content.isLoading)
+
+        fixture.scope.resolveGate.open()
+        await opening.value
+
+        #expect(photoNames(content) == ["b1.png"])
+        #expect(!content.isLoading)
+        await tearDown(fixture)
+    }
+
+    // 解決待ちの間に別のフォルダを開こうとして失敗しても、読み込み中のまま残らない
+    @Test func loadingStateIsClearedWhenSupersedingOpenFails() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+        fixture.scope.resolveGate.close()
+
+        let opening = Task { await content.selectFolder(url: fixture.sibling) }
+        while !fixture.scope.resolveGate.hasEntered { await Task.yield() }
+        #expect(content.isLoading)
+        await content.selectFolder(url: fixture.sandbox.appendingPathComponent("missing", isDirectory: true))
+        fixture.scope.resolveGate.open()
+        await opening.value
+
+        #expect(content.rootFolderURL == nil)
+        #expect(!content.isLoading)
+        await tearDown(fixture)
+    }
+
+    // 古い読み込み要求は、切り替わった後の表示フォルダの一覧を奪わない
+    @Test func loadRequestForNonCurrentFolderIsIgnored() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.navigateToFolder(fixture.sub)
+
+        await content.loadFolderPhotos(fixture.grandchild)
+
+        #expect(photoNames(content) == ["s1.png", "s2.png"])
+        await tearDown(fixture)
+    }
+
+    // フォルダ表示を閉じるときは許可のスコープも解放する（ルートが nil の間は持たない前提のため）
+    @Test func failedSelectFolderReleasesTreeAccess() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.grantTreeAccess(to: fixture.sandbox)
+        let granted = try #require(content.treeAccessURL)
+
+        await content.selectFolder(url: fixture.sandbox.appendingPathComponent("missing", isDirectory: true))
+
+        #expect(content.rootFolderURL == nil)
+        #expect(content.treeAccessURL == nil)
+        #expect(fixture.scope.stopped == [granted])
+        await tearDown(fixture)
+    }
+
+    // MARK: - 許可の解除
+
+    // 兄弟フォルダの表示中に解除すると、ルートへ戻してからスコープを止める。再起動後も残らない
+    @Test func revokeReturnsToRootBeforeReleasing() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.grantTreeAccess(to: fixture.sandbox)
+        let granted = try #require(content.treeAccessURL)
+        await content.navigateToFolder(fixture.sibling)
+        #expect(photoNames(content) == ["b1.png"])
+
+        await content.revokeTreeAccess()
+
+        #expect(content.treeAccessURL == nil)
+        #expect(content.navigationBoundaryURL == fixture.root)
+        #expect(content.currentFolderURL == fixture.root)
+        #expect(photoNames(content) == ["r1.png"])
+        #expect(fixture.scope.stopped == [granted])
+        #expect(fixture.scope.stateAtStop.count == 1)
+        #expect(fixture.scope.stateAtStop.first?.folder == fixture.root)
+        #expect(fixture.scope.stateAtStop.first?.photoNames == ["r1.png"])
+        #expect(fixture.store.grants().isEmpty)
+
+        let relaunched = ContentViewModel()
+        relaunched.treeAccessStore = fixture.store
+        relaunched.treeAccessScope = fixture.scope.scope
+        await relaunched.syncTreeAccess(for: fixture.root)
+        #expect(relaunched.treeAccessURL == nil)
+        await tearDown(fixture)
+    }
+
+    // 表示中のフォルダが範囲内なら読み込み直さない
+    @Test func revokeInsideRootDoesNotReload() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.navigateToFolder(fixture.sub)
+        await content.grantTreeAccess(to: fixture.sandbox)
+        let photosBefore = content.photos.map(\.id)
+
+        await content.revokeTreeAccess()
+
+        #expect(content.currentFolderURL == fixture.sub)
+        #expect(content.photos.map(\.id) == photosBefore)
+        #expect(fixture.scope.stopped.count == 1)
+        await tearDown(fixture)
+    }
+
+    // MARK: - 古いクリックの破棄
+
+    // デバウンス中のクリックの直後に別のフォルダを開くと、新しく開いたフォルダが表示される
+    @Test func debouncedClickDoesNotOverrideNewlyOpenedFolder() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        let sidebar = SidebarViewModel(content: content)
+        content.treeAccessURL = fixture.sandbox
+        sidebar.syncFolderTreeRoot()
+        await sidebar.folderTree.waitForPendingLoads()
+
+        sidebar.folderTree.requestNavigate(fixture.sub)
+        await content.selectFolder(url: fixture.sibling)
+        await sidebar.folderTree.waitForPendingNavigation()
+
+        #expect(content.error == nil)
+        #expect(content.rootFolderURL == fixture.sibling)
+        #expect(content.currentFolderURL == fixture.sibling)
+        #expect(photoNames(content) == ["b1.png"])
+        #expect(sidebar.folderTree.pendingSelection == nil)
         await tearDown(fixture)
     }
 }

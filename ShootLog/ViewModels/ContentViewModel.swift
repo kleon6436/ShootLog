@@ -14,19 +14,31 @@ final class ContentViewModel {
     var isPhotosLibraryPermissionAlertPresented = false
 
     // フォルダ
-    // 開いたフォルダ（ルート）。セキュリティスコープ・履歴・ブックマーク・フォルダツリーの根になる。
+    // 開いたフォルダ（ルート）。セキュリティスコープ・履歴・ブックマークの基準で、上位フォルダの許可（treeAccessURL）が
+    // 無いときはフォルダツリーの根にもなる。
     // 超解像・現像書き出しジョブは「フォルダを閉じる」タイミングでのみ中断する必要があるため、
     // ルートの変更（新規選択・履歴からの復元・写真ライブラリへの切替）を検知してここで打ち切る。
-    // ルート配下のサブフォルダへの移動（currentFolderURL だけの変更）では中断しない
+    // 許可範囲内のフォルダへの移動（currentFolderURL だけの変更）では中断しない
     var rootFolderURL: URL? {
         didSet {
+            rootEpoch &+= 1
             guard oldValue != rootFolderURL else { return }
             cancelUpscaleExportIfNeeded()
             cancelDevelopExportIfNeeded()
         }
     }
-    // いま写真一覧を表示しているフォルダ。ルート自身か、ツリー・パスバーで移動したルート配下のサブフォルダ
+    // ルートを設定するたびに増える番号。同じフォルダの開き直しも含め、
+    // ルートを開く前に受け付けたツリーの移動要求を捨てるために使う
+    @ObservationIgnored private(set) var rootEpoch = 0
+    // いま写真一覧を表示しているフォルダ。ルート自身か、ツリー・パスバーで移動した移動範囲内のフォルダ
     var currentFolderURL: URL?
+    // ルートより上を表示するために許可を得た上位フォルダ。スコープは bookmarkScopedURL と別に持つ。
+    // 処理本体は ContentViewModelFolderTreeAccess.swift 側にある
+    var treeAccessURL: URL?
+    @ObservationIgnored var treeAccessStore = FolderTreeAccessStore()
+    @ObservationIgnored var treeAccessScope: FolderTreeAccessScope = .live
+    // 解決待ちの間に別のルートへ切り替わったり解除されたりした許可の適用を捨てるための世代番号
+    @ObservationIgnored var treeAccessSyncGeneration = 0
     var folderHistories: [FolderHistory] = []
 
     // 実体が存在しないと判定されたフォルダ履歴。レコード自体は削除せず表示からのみ除外する

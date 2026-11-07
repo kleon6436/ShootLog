@@ -1,7 +1,7 @@
 import SwiftUI
 
 // ビューア下端のパスバー（Finder のパスバー風）。選択写真（写真が無ければ表示フォルダ）のフルパスを出す。
-// ルート以下のフォルダ要素はクリックでそのフォルダへ移動し、ルートより上の要素は非活性にする
+// rootURL（移動範囲の上限）以下のフォルダ要素はクリックでそのフォルダへ移動し、それより上の要素は非活性にする
 struct FolderPathBar: View {
     let targetURL: URL
     let rootURL: URL
