@@ -59,12 +59,21 @@ struct FolderTreeSection: View {
 
     private var treeList: some View {
         ScrollViewReader { proxy in
-            List(selection: selection) {
+            // List(selection:) の選択は使わない。macOS の List は DisclosureGroup の行の選択描画を
+            // 行の挿入・移動（根の切り替えや展開）の際に取り残し、選択行の名前が二重に重なって見えるため。
+            // 表示フォルダの強調とクリックでの移動は FolderTreeRow 側で受け持つ
+            List {
                 if vm.canRequestTreeAccess {
                     showAncestorsRow
                 }
                 if let root = vm.folderTree.root {
-                    FolderTreeRow(tree: vm.folderTree, url: root, openedRootURL: openedRootURL, isTreeRoot: true)
+                    FolderTreeRow(
+                        tree: vm.folderTree,
+                        url: root,
+                        openedRootURL: openedRootURL,
+                        highlightedURL: vm.highlightedFolderURL,
+                        isTreeRoot: true
+                    )
                 }
             }
             .listStyle(.sidebar)
@@ -95,18 +104,6 @@ struct FolderTreeSection: View {
         .foregroundStyle(.secondary)
         .accessibilityLabel("sidebar.folderTree.showAncestors")
     }
-
-    // ツリーは独自の選択を持たず、表示フォルダ（またはデバウンス中の要求）をハイライトする。
-    // 行のクリックはデバウンス付きの移動要求として VM へ渡す
-    private var selection: Binding<URL?> {
-        Binding(
-            get: { vm.highlightedFolderURL },
-            set: { newValue in
-                guard let newValue else { return }
-                vm.folderTree.requestNavigate(newValue)
-            }
-        )
-    }
 }
 
 // ツリーの1行。展開済みなら子フォルダの行を再帰的に並べる
@@ -114,6 +111,8 @@ private struct FolderTreeRow: View {
     let tree: FolderTreeViewModel
     let url: URL
     let openedRootURL: URL?
+    // 表示フォルダ（またはデバウンス中の移動要求）。ツリーは独自の選択を持たず、これに一致する行を強調する
+    let highlightedURL: URL?
     var isTreeRoot = false
 
     var body: some View {
@@ -124,14 +123,18 @@ private struct FolderTreeRow: View {
             } else {
                 DisclosureGroup(isExpanded: isExpanded) {
                     ForEach(tree.children[url] ?? [], id: \.self) { child in
-                        FolderTreeRow(tree: tree, url: child, openedRootURL: openedRootURL)
+                        FolderTreeRow(
+                            tree: tree,
+                            url: child,
+                            openedRootURL: openedRootURL,
+                            highlightedURL: highlightedURL
+                        )
                     }
                 } label: {
                     label
                 }
             }
         }
-        .tag(url)
         .id(url)
     }
 
@@ -144,6 +147,10 @@ private struct FolderTreeRow: View {
 
     private var name: String {
         tree.displayName(for: url)
+    }
+
+    private var isHighlighted: Bool {
+        url == highlightedURL
     }
 
     // ツリーの根が上位フォルダのとき、開いているフォルダの行を見分けられるようにする
@@ -181,8 +188,26 @@ private struct FolderTreeRow: View {
                     .accessibilityLabel("sidebar.folderTree.loadFailed")
             }
         }
+        .padding(.vertical, Self.highlightVerticalInset)
+        .padding(.horizontal, Self.highlightHorizontalInset)
+        .background {
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(.quaternary)
+            }
+        }
+        .padding(.horizontal, -Self.highlightHorizontalInset)
+        .contentShape(Rectangle())
+        // 行のクリックはデバウンス付きの移動要求として VM へ渡す
+        .onTapGesture { tree.requestNavigate(url) }
+        .accessibilityAddTraits(isHighlighted ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { tree.requestNavigate(url) }
         .accessibilityValue(isOpenedRootBelowTreeRoot ? Text("a11y.folderTree.openedRoot") : Text(verbatim: ""))
     }
+
+    // 強調の塗りを文字の周りへ広げる量
+    private static let highlightVerticalInset: CGFloat = 2
+    private static let highlightHorizontalInset: CGFloat = 6
 }
 
 // ツリーと写真一覧の境界。ドラッグでツリーの高さを変え、終了時に保存する。
