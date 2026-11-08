@@ -55,6 +55,7 @@ struct ShootLogApp: App {
             // 右側のEXIFパネルはインスペクタ相当として直後に配置する
             CommandGroup(after: .sidebar) {
                 ToggleInspectorCommand()
+                NavigateToEnclosingFolderCommand()
             }
         }
 
@@ -88,6 +89,17 @@ private struct ToggleSidebarCommand: View {
         Button(isSidebarVisible == true ? "menu.view.hideSidebar" : "menu.view.showSidebar") { toggleSidebar?() }
             .keyboardShortcut("\\", modifiers: .command)
             .disabled(toggleSidebar == nil)
+    }
+}
+
+// Viewメニューの「親フォルダへ移動」コマンド。開いたフォルダ（ルート）より上へは移動しない
+private struct NavigateToEnclosingFolderCommand: View {
+    @FocusedValue(\.navigateToEnclosingFolderAction) private var navigateToEnclosingFolder: (() -> Void)?
+
+    var body: some View {
+        Button("menu.view.enclosingFolder") { navigateToEnclosingFolder?() }
+            .keyboardShortcut(.upArrow, modifiers: .command)
+            .disabled(navigateToEnclosingFolder == nil)
     }
 }
 

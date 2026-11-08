@@ -3,9 +3,18 @@ import Foundation
 import ImageIO
 
 // AI超解像書き出しジョブの所有・NSSavePanel提示・入力ファイルのセキュリティスコープ管理を担当する。
-// 処理はモード切替・写真選択変更をまたいで継続し、currentFolderURLの変更（フォルダを閉じる）
-// またはアプリ終了時にのみ中断する（中断はcurrentFolderURLのdidSet経由でcancelUpscaleExportIfNeeded()が呼ばれる）
+// 処理はモード切替・写真選択変更・サブフォルダ移動をまたいで継続し、rootFolderURLの変更（フォルダを閉じる）
+// またはアプリ終了時にのみ中断する（中断はrootFolderURLのdidSet経由でcancelUpscaleExportIfNeeded()が呼ばれる）
 extension ContentViewModel {
+    // 書き出しジョブの入力。ジョブ開始時点の値で固定し、実行中にサブフォルダへ移動しても
+    // 保存先の検証（防御1・防御2）と回転・トリミングが開始時点のフォルダ・写真を基準に効くようにする
+    struct UpscaleExportInput {
+        let currentFolder: URL?
+        let folderPhotoURLs: [URL]
+        let rotation: Int
+        let cropRect: CGRect?
+    }
+
     // MARK: - シート表示
 
     // 選択中写真を対象に設定画面を表示する
@@ -66,12 +75,18 @@ extension ContentViewModel {
         // ブックマークを新規作成・解決する（SecurityScopedBookmark.startAccessingFreshBookmark）。
         // 解放はこのジョブ自身が行う。共有プロパティで持つと、前のジョブのキャンセル後の
         // 後始末が新しいジョブのスコープを止めてしまうため
+        let input = UpscaleExportInput(
+            currentFolder: currentFolderURL,
+            folderPhotoURLs: photos.map(\.fileURL),
+            rotation: currentEditInfo?.rotation ?? 0,
+            cropRect: currentEditInfo?.cropRect
+        )
         let inputAccessURL: URL
         do {
             try UpscaleOutputDestination.validate(
                 destination: destination,
-                currentFolder: currentFolderURL,
-                photoURLs: photos.map(\.fileURL)
+                currentFolder: input.currentFolder,
+                photoURLs: input.folderPhotoURLs
             )
             inputAccessURL = try SecurityScopedBookmark.startAccessingFreshBookmark(for: photo.fileURL)
         } catch let shootLogError as ShootLogError {
@@ -86,7 +101,7 @@ extension ContentViewModel {
         let task = Task { [weak self] in
             defer { inputAccessURL.stopAccessingSecurityScopedResource() }
             guard let self else { return }
-            await self.runUpscaleExport(photo: photo, destination: destination, viewModel: viewModel)
+            await self.runUpscaleExport(photo: photo, destination: destination, input: input, viewModel: viewModel)
         }
         upscaleExportTask?.cancel()
         upscaleExportTask = task
@@ -111,9 +126,16 @@ extension ContentViewModel {
         // 入力ファイルのスコープはキャンセルされたジョブ自身が終了時に解放する
     }
 
-    // MARK: - Private
+    // MARK: - 実行
 
-    private func runUpscaleExport(photo: Photo, destination: URL, viewModel: UpscaleExportViewModel) async {
+    // 入力は startUpscaleExport が開始時点で固定した値だけを使い、実行中の currentFolderURL・photos・
+    // currentEditInfo は読み直さない。テストから固定入力の扱いを確かめるため internal とする
+    func runUpscaleExport(
+        photo: Photo,
+        destination: URL,
+        input: UpscaleExportInput,
+        viewModel: UpscaleExportViewModel
+    ) async {
         guard let descriptor = Self.descriptor(
             for: viewModel.engineKind,
             scaleFactor: viewModel.scaleFactor.rawValue
@@ -132,10 +154,10 @@ extension ContentViewModel {
             try await exporter.export(
                 source: photo.fileURL,
                 destination: destination,
-                rotation: currentEditInfo?.rotation ?? 0,
-                cropRect: currentEditInfo?.cropRect,
-                currentFolder: currentFolderURL,
-                folderPhotoURLs: photos.map(\.fileURL),
+                rotation: input.rotation,
+                cropRect: input.cropRect,
+                currentFolder: input.currentFolder,
+                folderPhotoURLs: input.folderPhotoURLs,
                 jpegQuality: viewModel.jpegQuality.rawValue,
                 progress: stream.continuation
             )

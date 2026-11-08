@@ -20,6 +20,8 @@ enum AppSettingsKeys {
     static let inspectorTab = "sidebar.inspectorTab"
     // 現像編集: プレビュー上のクリッピング警告帯・ヒストグラム凡例ドットを表示するか
     static let developClippingWarnings = "develop.clippingWarnings"
+    // フォルダツリーの上位表示の許可（FolderTreeAccessStore が JSON で保存する）
+    static let folderTreeAccessGrants = "folderTree.accessGrants"
 
     static let defaultViewModeIDDefault = "sidebar"
     static let defaultFavoritesOnlyDefault = false

@@ -81,7 +81,7 @@ UIに表示する文字列は、日本語をコードに直接書かず、ASCII�
 
 キーは `<スコープ>.<要素>[.<用途>]` 形式とし、`common.` `error.` `toolbar.` `menu.` `exif.` `analysis.` `settings.`
 `empty.` `viewMode.` `photo.tag.` `a11y.` `viewer.` `inspector.` `openPanel.` `sidebar.` `editor.` `externalApp.`
-`integration.` `slideshow.` `toast.` `crop.` `upscale.` `develop.` `photosLibrary.` `ai.` `contextMenu.` のいずれかで始める。
+`integration.` `slideshow.` `toast.` `crop.` `upscale.` `superResolution.` `develop.` `photosLibrary.` `ai.` `contextMenu.` のいずれかで始める。
 `menu.` はメニューバー専用、`contextMenu.` は右クリックメニュー専用とし、互いに流用しない。`a11y.` は表示ラベルをそのまま流用できない場合にだけ新設する。
 
 補間を含む文字列は位置指定プレースホルダ（`%1$@` 形式）を使い、語順が言語で変わってもよいようにする。
@@ -131,6 +131,13 @@ ShootLog.app/Contents/MacOS/ShootLog -AppleLanguages "(en)"
 - ファイル一覧は `PhotoRepository.scanImageURLs(in:)` で取得し、作成日時順に並べる。
 - フォルダはOpen PanelまたはFinderからのドラッグ＆ドロップで開く。
 - 同時に表示するフォルダは1つだけ。
+- 開いたフォルダ（ルート、`ContentViewModel.rootFolderURL`）配下のサブフォルダへは、サイドバー上部のフォルダツリー（`FolderTreeView` / `FolderTreeViewModel`）とビューア下端のパスバー（`FolderPathBar`）、表示メニューの「親フォルダへ移動」（`⌘↑`）で移動できる（`ContentViewModel.navigateToFolder`）。一覧は表示フォルダ（`currentFolderURL`）の直下だけで、再帰読み込みはしない。
+- フォルダを開いたとき（`selectFolder` / `restoreFolder`）に上位フォルダの許可が無ければ、Open Panelを自動で非モーダルに出す（`ContentViewModel.promptTreeAccessIfNeeded`、写真の読み込みは止めない）。同じボリューム内の祖先（途中の階層でも可）を許可すると、ツリーの根・パスバー・`⌘↑`の移動範囲が許可したフォルダまで広がり、兄弟フォルダへも移動できる（`ContentViewModel.treeAccessURL` / `navigationBoundaryURL`、`rootFolderURL`の意味は変えない）。パネルをキャンセルしたボリュームと許可を解除したボリュームでは、アプリを終了するまで自動で出し直さない（`declinedTreeAccessVolumePaths`、永続化しない）。パネル表示中にルートが変わったら選択は捨てる。ルートがボリュームのルートなら出さない。許可がなければ移動範囲はルートまで。Sandboxの制約でこのパネルは省略できず、OSのTCCダイアログにも置き換えられない。パネルのボタンはOS既定の表記のままにし、説明文は1文にする。範囲の注意書きは許可が他のボリュームにも及びうる起動ディスク上のルートでだけ出す（`FolderTreeAccessPanelDelegate.message(forRoot:)`）。
+- 許可は読み取り専用のセキュリティスコープブックマークで、`FolderTreeAccessStore`がUserDefaultsへボリュームごとに1件保存し、同じボリュームのフォルダを開くとダイアログなしで復元する。解決後のURLが今のルートの祖先で同じボリューム内か（`FolderPathComponents.isValidTreeAccess`）を毎回検証し、外れていれば使わずルートを根に戻す（保存データは消さない）。`/` の許可は他のボリュームにも及ぶため、ボリュームのルートはパスで判定し（`/Volumes/X` 配下は `/Volumes/X`、それ以外は `/`）、別ボリュームの祖先は受け付けない。無効な選択はパネルの `panel(_:validate:)`（`FolderTreeAccessPanelDelegate`）で理由を示して拒否し、パネルを閉じた後にも検証する。
+- 許可のスコープは`bookmarkScopedURL`とは別に持ち、新しいルートが範囲外になったとき・ルートがnilになったときに`cancelPhotoStaging`の後で解放する。解除はツリー見出しの右クリックから行い、表示中のフォルダが範囲外ならルートへ戻してから解放する（解放すると兄弟フォルダはすぐ読めなくなるため）。書き出しは入力写真ごとに読み取り専用ブックマークでジョブ自身がスコープを持つ（`SecurityScopedBookmark`）。
+- 履歴・セキュリティスコープブックマークはルートだけが対象。ルートの範囲内・許可の範囲内の移動は履歴に追加せず、ルートのブックマークも作らず、ルートのスコープを解放しない。範囲内の判定は `standardizedFileURL.pathComponents` 単位の前方一致（`FolderPathComponents`、シンボリックリンク非解決）で、ツリーは隠しフォルダ・パッケージ・シンボリックリンクを出さない（`FolderTreeRepository`）。
+- 超解像・現像書き出しはルートの変更（別フォルダを開く・写真ライブラリへ切替）でだけ中断し、サブフォルダや許可範囲内の兄弟フォルダへの移動では中断しない。書き出しの入力（表示フォルダ・写真一覧・回転・トリミング・現像パラメータ）はジョブ開始時に固定する（`UpscaleExportInput` / `DevelopExportInput`）。
+- 表示中のルート以外のフォルダが消えていた場合や権限で読めない場合は、アラートを出さずにルートへ戻してトーストで知らせる。それ以外の読み込みエラー（NASのI/Oエラーなど）とルート自体を読めない場合はアラート。
 
 ## iCloud写真ライブラリの読み込み
 
@@ -170,7 +177,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 ビューア高解像度表示と現像編集の体感速度を上げるため、固定解像度のプレビュープロキシを永続キャッシュする。
 
 - `PreviewCacheStore`（`Sendable`）: 長辺 `previewProxyLongEdge`（既定3200px、設定可）のプロキシを HEIC 品質0.9（失敗時 JPEG）で `~/Library/Caches/com.shootlog.app/previews-v2/` へ、CGImage を `NSCache` へ。ファイル名は `sha256(url + mtime + size + proxyLongEdge)` で原本差し替え・解像度変更時に自動失効。上限 `previewCacheMaxBytes`（既定4GiB）を超えたらキャッシュファイルの mtime 昇順で削除。生成は埋め込みプレビュー優先、不足時のみ元画像からダウンサンプル。`ImageDecodeThrottle.shared`（`max(2, min(4, コア数))`、`ImageLoader` のローカルボリューム用スロットと共用）でビューアの対話要求とバックグラウンド生成が同一デコード枠を共有する。同じキャッシュキーの生成は実行中タスクへ合流させ（プレビュー生成・AI被写体認識・AI画質診断が同じ写真を同時に要求しても1回だけデコード・保存）、待ち手が全員キャンセルされた時だけ生成を打ち切る。
-- `ImageLoader.proxyImage(for:)` がラッパ。`PhotoImageViewModel.load` は サムネ(768) → プロキシ(3200) → 表示領域がプロキシ解像度を明確に超える場合のみ `highResImage` を追加要求、の段階表示。ズーム100%時のみ従来のフルデコード。
+- `ImageLoader.proxyImage(for:)` がラッパ。`PhotoImageViewModel.load` は サムネ(768) → プロキシ(3200) → 表示領域がプロキシ解像度を明確に超える場合のみ `highResImage` を追加要求、の段階表示。ズーム100%時のみフルデコード。
 - `PreviewGenerator`（actor）: フォルダ読み込み時に全写真のプロキシを `.utility` でバックグラウンド生成。選択インデックス近傍を優先、`max(2, コア数-2)` ワーカー、フォルダ切替でキャンセル（セキュリティスコープ解放前に停止）。進捗はサイドバー下部に「プレビュー生成中 N枚」。
 - `HighResPrefetcher`: 選択写真の前後を先読み。枚数はボリューム種別で決める（ローカル ±3 / ネットワーク ±1）。呼び先は `proxyImage`。
 - 現像 Stage A の中立ベース（`rawParamsHash == 0`）は PNG ロスレスで `~/Library/Caches/com.shootlog.app/develop-base-v1/`（上限 `developBaseCacheMaxBytes`、既定2GiB）へも永続化。再訪・再起動で `CIRAWFilter`/ImageIO デコードをスキップ。ロッシー圧縮は後段トーンカーブでのブロックノイズ増幅を避けるため使わない。書き出し（`renderFull`）は常にフル解像度 `CIRAWFilter` で、この層を通らない。
@@ -189,6 +196,7 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 ## 現在実装されている機能
 
 - お気に入りの登録・解除、Favorites Only絞り込み
+- サイドバーモードのフォルダツリー（サイドバー上部、展開時の遅延列挙・高さ/折りたたみの保存、許可した上位フォルダからの表示）とビューア下端のパスバー（ルート以下の階層クリックで移動、右クリックでパスコピー/Finderで表示）。写真ライブラリ表示中はどちらも出さない
 - 写真メモの表示（EXIFパネルに保存済みの `Photo.note` を表示するのみ。編集UI・保存経路は未実装）
 - ImageIOによるカメラ、レンズ、絞り、シャッター速度、ISO、焦点距離、撮影日時のEXIF取得
 - サイドバー、フルスクリーン、スライドショーの3表示モード
@@ -196,22 +204,23 @@ macOS純正「写真」Appと同様に、Photosライブラリの写真を読み
 - 回転・トリミング情報のSwiftData保存（元ファイルは変更しない）
 - 絞り、シャッター速度、ISOなどの分析画面
 - Capture One、Lightroom、Photoshop、Affinity Photo、Preview、Finder向けアダプターによる写真起動
-- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、モードプリセット、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight、`ColorWheelView`）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差、`schemaVersion` 3）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 5）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時ホワイトバランスは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
+- RAW現像編集（サイドバーモードの右インスペクタ「編集」タブ）: 露出・コントラスト・ハイライト/シャドウ・白黒レベル・ホワイトバランス（色温度スライダー＋色かぶり、モードプリセット、As Shot 実測/推定ケルビン表示）・自然な彩度/彩度・トーンカーブ（RGB/チャンネル別）・カラー別HSL・4ホイールのトーン域マスク カラーグレーディング（Master/Shadow/Midtone/Highlight、`ColorWheelView`）・シャープ・ノイズ低減、RAWのレンズプロファイル補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正（歪曲・周辺光量・色収差、`schemaVersion` 3）。Core Image ベース、非破壊（`DevelopSettings` に保存、`schemaVersion` 6）。RAWの露出・色温度・色かぶり・レンズ補正は`CIRAWFilter`側へ委譲（`RAWDevelopMapping`、schemaVersion 2）。撮影時ホワイトバランスは RAW が `CIRAWFilter` の as-shot 実測値、非RAW は EXIF/グレーワールド推定（`ImageDevelopmentEngine.asShotNeutral`）。プレビューは現像調整に加え回転・トリミングも焼き込んで書き出しと同じ構図で表示する
 - 現像調整プリセット（`DevelopPreset` に保存、写真をまたいで適用）、調整のコピー＆ペースト、プリセット/ペースト適用の1段Undo。プリセット適用は「置き換え」に加え「現在の調整に加算」（相対適用、`DevelopParameters.applying(delta:)`）を選べる。加算系は加算＋クランプ、トーンカーブは関数合成、カラーグレーディングは成分ごと（Master/Shadow/Midtone/Highlight の hue/saturation/lightness）に加算＋クランプ、`lensCorrectionEnabled` は OR
 - 現像編集の Before/After スプリット比較（`BeforeAfterSplitView`、現像パネル内トグル `⌘⇧Y`）。1枚を縦境界で左右分割し左=編集前・右=編集後。ドラッグ・←→キー（Shiftで大）・VoiceOver 調整アクションで境界移動。編集前画像は `DevelopViewModel.beforeImage` を比較モード時のみ遅延生成（`renderPreview(parameters: .neutral, useRAWParameterMapping: rawMappingActive, rotation:, cropRect:)` で回転・トリミングだけ焼き込み、After（`previewImage`）と同一ジオメトリ・同一 RAW デコード経路にしてピクセル一致・レンズ補正差を排除）。キャッシュキーに `parameters` を含めず、スライダー操作では再生成しない。写真切替・回転/トリミング・色空間・表示サイズ変更で無効化。全画面 Before トグル（`isShowingBefore` / `⌘⌥B`）とは相互排他。比較モード中はクリッピング警告オーバーレイを非表示
 - レンズ補正プロファイル（`LensCorrectionProfile` @Model、機種・レンズ・焦点距離→3補正量。`LensProfileStore.bestMatch` が完全一致→焦点距離補間→焦点距離非依存の順で検索）。v3では検索基盤とテストのみで、UI連携（自動適用・プロファイル作成）は未実装
+- ローカル調整（`DevelopParameters.masks` / `MaskLayer`）: 線形・放射グラデーション、輝度範囲、AI（前景被写体・人物、`SubjectMaskGenerator`）を生成元に、ブラシ編集（追加/消去）を合成する。描画順は index 0 が最下層で下から累積。AIマスクのラスタは blob に含めず子 `@Model` の `MaskRaster` へ分離する。UIは `MaskSectionView` / `MaskEditOverlayView`
 - 現像結果のJPEG/TIFF書き出し（調整・回転・トリミングを焼き込み、原本は保護）。出力カラースペースはsRGB / Display P3を選択可。書き出し時に超解像を続けて適用する現像→超解像チェーンにも対応（回転は現像段で焼き込み済みのため超解像へは `rotation:0` を渡す）
 - プレビュープロキシの永続キャッシュ（`PreviewCacheStore`、`previews-v2`）とフォルダ読み込み時のバックグラウンド生成（`PreviewGenerator`）、現像 Stage A 中立ベースの永続キャッシュ（`develop-base-v1`）。設定画面でプレビュー解像度（2560/3200/4096px）とキャッシュ上限（GB）を変更可。詳細は「画像ロード戦略 > プレビュープロキシ層」
-- AI被写体認識による自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: フォルダ読み込み時に Apple Vision framework の `VNClassifyImageRequest`（`VisionLabelClassifier`）で各写真を粗粒度カテゴリ（人物・動物・食べ物・風景・建物・乗り物・植物・屋内・テキスト・物・その他、`AISubjectCategory`）へ完全オンデバイス分類し、`Photo.aiCategoryRawValues`/`aiRawIdentifiers`/`aiLabelingFetchedAt` へ永続化する（`AILabelingGenerator`、`PreviewGenerator` と同じバックグラウンド生成パターン、フォルダ写真は`PreviewCacheStore`の3200pxプレビュープロキシ、iCloud写真はエクスポート済み高品質JPEGがあれば同様にプロキシ経由、未エクスポートは480px軽量サムネイルへフォールバックし自動エクスポートはしない）。判定閾値は`VisionLabelClassifier`の`hasMinimumPrecision(0.55, forRecall: 0.65)`。Vision の同期推論は協調スレッドプールを塞ぐため、被写体認識と画質診断で共有する`ImageDecodeThrottle.visionInference`（同時2件）で絞り、各生成器のワーカーは4件に固定する。画像を取得・分類できなかった写真は`Photo.aiLabelingFailedAt`/`aiDiagnosisFailedAt`に失敗日時を記録し（成功時はnilへ戻す、いずれもoptional・軽量マイグレーション）、毎回の再処理で進捗表示が終わらなくなるのを防ぐ。再試行は`ContentViewModel.shouldRetryAIFailure`の条件（スキーマ版の更新、フォルダ写真はスキャン時スナップショットの更新日時が失敗後、iCloud写真は24時間経過）に限る。手動の再解析として、グリッドの右クリックメニュー「AIで再解析」（1枚、処理済みでも対象）とツールバーのAIカテゴリメニュー「解析できなかったN枚を再解析」（失敗記録のある写真を一括）を用意する（`ContentViewModel.reanalyzeAI`）。指定写真を先頭に、未処理の写真も含めて被写体認識・画質診断のバッチを組み直す。写真の段階挿入中はフォルダ読み込み側の解析を止めないよう対象へ加えるだけにし、その開始時に拾わせる。閾値・入力解像度の変更時は`Photo.aiLabelingSchemaVersion`（現行3、`AILabelingGenerator.currentSchemaVersion`。3=カテゴリ対応表の誤分類修正）で既存の分類済み写真も次回フォルダ/iCloud読み込み時に自動再分類する（`.omc/plans/ai-classification-accuracy-improvement.md`）。ツールバーの `Favorites Only` 隣に検出カテゴリで複数選択絞り込みできる `AICategoryFilterMenu` を配置し、サイドバーには `.searchable` によるファイル名・カメラ名検索を追加。進捗はサイドバー下部に「被写体認識中 N枚」表示（プレビュー生成中と縦積み表示、位置ズレを避けるためOS標準コンポーネント=`ToolbarItemGroup`/`Menu`/`.searchable`のみで構成）。macOS 27以降限定でFoundation Models framework画像入力による自然言語写真検索を追加予定（`#available(macOS 27, *)`分岐、未実装、詳細はプラン参照）
+- AI被写体認識による自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: フォルダ読み込み時に Apple Vision framework の `VNClassifyImageRequest`（`VisionLabelClassifier`）で各写真を粗粒度カテゴリ（人物・動物・食べ物・風景・建物・乗り物・植物・屋内・テキスト・物・その他、`AISubjectCategory`）へ完全オンデバイス分類し、`Photo.aiCategoryRawValues`/`aiRawIdentifiers`/`aiLabelingFetchedAt` へ永続化する（`AILabelingGenerator`、`PreviewGenerator` と同じバックグラウンド生成パターン、フォルダ写真は`PreviewCacheStore`の3200pxプレビュープロキシ、iCloud写真はエクスポート済み高品質JPEGがあれば同様にプロキシ経由、未エクスポートは480px軽量サムネイルへフォールバックし自動エクスポートはしない）。判定閾値は`VisionLabelClassifier`の`hasMinimumPrecision(0.55, forRecall: 0.65)`。Vision の同期推論は協調スレッドプールを塞ぐため、被写体認識と画質診断で共有する`ImageDecodeThrottle.visionInference`（同時2件）で絞り、各生成器のワーカーは4件に固定する。画像を取得・分類できなかった写真は`Photo.aiLabelingFailedAt`/`aiDiagnosisFailedAt`に失敗日時を記録し（成功時はnilへ戻す、いずれもoptional・軽量マイグレーション）、毎回の再処理で進捗表示が終わらなくなるのを防ぐ。再試行は`ContentViewModel.shouldRetryAIFailure`の条件（スキーマ版の更新、フォルダ写真はスキャン時スナップショットの更新日時が失敗後、iCloud写真は24時間経過）に限る。手動の再解析として、グリッドの右クリックメニュー「AIで再解析」（1枚、処理済みでも対象）とツールバーのAIカテゴリメニュー「解析できなかったN枚を再解析」（失敗記録のある写真を一括）を用意する（`ContentViewModel.reanalyzeAI`）。指定写真を先頭に、未処理の写真も含めて被写体認識・画質診断のバッチを組み直す。写真の段階挿入中はフォルダ読み込み側の解析を止めないよう対象へ加えるだけにし、その開始時に拾わせる。閾値・入力解像度の変更時は`Photo.aiLabelingSchemaVersion`（現行3、`AILabelingGenerator.currentSchemaVersion`。3=カテゴリ対応表の誤分類修正）で既存の分類済み写真も次回フォルダ/iCloud読み込み時に自動再分類する（`.omc/plans/ai-classification-accuracy-improvement.md`）。ツールバーの `Favorites Only` 隣に検出カテゴリで複数選択絞り込みできる `AICategoryFilterMenu` を配置し、サイドバーには `.searchable` によるファイル名・カメラ名検索を追加。進捗はサイドバー下部に「被写体認識中 N枚」表示（プレビュー生成中と縦積み表示、位置ズレを避けるためOS標準コンポーネント=`ToolbarItemGroup`/`Menu`/`.searchable`のみで構成）。macOS 27以降はFoundation Models frameworkの画像入力で写真ごとの説明文を生成し（`PhotoCaptionGenerator`、`Photo.aiCaptionText` / `aiCaptionFetchedAt`）、検索欄の部分一致対象に加える（`SidebarViewModel.displayedPhotos`、`#available(macOS 27, *)`分岐）。説明文を表示するUIは無い
 - AI画像診断（`.omc/plans/ai-photo-quality-diagnosis.md`）: フォルダ/iCloud読み込み時に統合美的スコア・顔品質・露出・構図・シャープネスを自動診断し、右インスペクタの専用カードに「良い点」「改善ポイント」を箇条書き表示。Vision framework の `CalculateImageAestheticsScoresRequest`（macOS 15+）と `VNDetectFaceCaptureQualityRequest` / `VNGenerateAttentionBasedSaliencyImageRequest` を組み合わせ、Core Image 自前計算で露出評価を行う。診断結果は `Photo.aiAestheticsOverallScore` 等に永続化し、フォルダ再訪時に再診断しない（`AILabelingGenerator` と同じバックグラウンド生成パターン）。進捗はサイドバー下部の既存overlayに「画質診断中 N枚」を3行目として追加表示
 
 ## SwiftDataモデル
 
-主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`LensCorrectionProfile`、`FolderHistory`。
+主なモデルは `Photo`、`EditInfo`、`DevelopSettings`、`DevelopPreset`、`MaskRaster`、`LensCorrectionProfile`、`FolderHistory`。
 
 - `Photo`: ファイルURL、撮影日時、EXIF、`isFavorite`、`note`、`exifFetchedAt`、`shootingDateFromMetadata`（撮影日時がEXIF由来か。optional・軽量マイグレーション。false/未取得のフォルダ写真はEXIFパネルに撮影日時を出さない）、撮影時ホワイトバランス（`asShotTemperatureKelvin` / `asShotTint` / `asShotWhiteBalanceIsEstimated` / `asShotWhiteBalanceFetchedAt`、いずれも optional・軽量マイグレーション。`loadEXIFIfNeeded` が EXIF と独立に取得・保存し、取得不能も `asShotWhiteBalanceFetchedAt` を立てて再試行を抑止する。推定値は `asShotWhiteBalanceEstimateVersion` が現行版（`ContentViewModel.asShotWhiteBalanceEstimateVersion`、2=グレーワールド推定の色かぶり符号修正）と異なれば取り直す）
 - `EditInfo`: 写真ID、回転角度、正規化されたトリミング矩形、作成日時
-- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 5）、更新日時。`EditInfo` とは独立。`schemaVersion` 世代: 1=全て標準チェーン / 2=RAW露出・WBを`CIRAWFilter`委譲 / 3=手動レンズ補正 / 4=絶対Kelvin/Tintのホワイトバランス / 5=トーン域マスク カラーグレーディング。version 2〜4 は編集時に現行世代へ自動バンプ（`setParameters`、追加値は中立既定で見た目不変。ただし旧方式のカラーグレーディングが中立でない間は 4 で止めて見た目を凍結、`DevelopSettings.bumpedSchemaVersion`）、version 1 は据え置き
+- `DevelopSettings`: 写真ID、現像調整値（`DevelopParameters` の JSON blob）、スキーマ版（新規は 6）、更新日時。`EditInfo` とは独立。`schemaVersion` 世代: 1=全て標準チェーン / 2=RAW露出・WBを`CIRAWFilter`委譲 / 3=手動レンズ補正 / 4=絶対Kelvin/Tintのホワイトバランス / 5=トーン域マスク カラーグレーディング / 6=`masks`（ローカル調整）を含む blob 世代の記録（読み取り分岐には使わない）。version 2〜4 は編集時に現行世代へ自動バンプ（`setParameters`、追加値は中立既定で見た目不変。ただし旧方式のカラーグレーディングが中立でない間は 4 で止めて見た目を凍結、`DevelopSettings.bumpedSchemaVersion`）、version 1 は据え置き
 - `DevelopSettings` の兄弟 `DevelopPreset`: 名前、現像調整値の JSON blob、スキーマ版、作成日時、並び順。特定の写真に紐付かないグローバルなプリセット
 - `FolderHistory`: フォルダURL、セキュリティブックマーク、最終アクセス日時、表示名
 
@@ -260,7 +269,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 
 ### 実装済み
 
-フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ表示、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 5）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、`PreviewCacheStore` / `PreviewGenerator` / `develop-base-v1`、WYSIWYG 維持）、AI画像診断（統合美的スコア・顔品質・露出・構図・シャープネス、右インスペクタ表示、バックグラウンド自動実行、`PhotoQualityDiagnoser` / `PhotoQualityInsightBuilder` / `PhotoQualityDiagnosisGenerator`）。
+フォルダ読み込み、セキュリティスコープ付き履歴、基本EXIF取得、サムネイル/高解像度画像ロード、SwiftData永続化、お気に入り・メモ表示、3表示モード、非破壊回転・トリミング、分析画面、外部アプリ起動連携、RAW現像編集（Core Image ベース、プレビューに回転・トリミングも反映、RAWの露出・WBはCIRAWFilter委譲、撮影時WBの実測/推定表示、4ホイールのトーン域マスク カラーグレーディング、RAWレンズ補正トグル、非RAW/プロファイル無しRAW向けの手動レンズ補正=歪曲・周辺光量・色収差、`schemaVersion` 6）、現像の Before/After スプリット比較（`⌘⇧Y`）、現像調整プリセット・コピー＆ペースト、現像結果のJPEG/TIFF書き出し（sRGB/Display P3、現像→超解像チェーン対応）、プレビュープロキシの永続キャッシュ＋バックグラウンド生成＋現像 Stage A 中立ベースの永続化（RAW読み込み高速化、`PreviewCacheStore` / `PreviewGenerator` / `develop-base-v1`、WYSIWYG 維持）、AI画像診断（統合美的スコア・顔品質・露出・構図・シャープネス、右インスペクタ表示、バックグラウンド自動実行、`PhotoQualityDiagnoser` / `PhotoQualityInsightBuilder` / `PhotoQualityDiagnosisGenerator`）。
 
 ### 制限付き・検証継続中
 
@@ -273,13 +282,13 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 - ネットワークドライブの性能最適化は継続改善する。
 - 全操作要素のアクセシビリティ、エラー通知の網羅性、macOS 26のLiquid Glass対応は継続監査する。
 - iCloud写真ライブラリ連携（`.omc/plans/icloud-photo-library-integration.md`）: Phase A〜D（権限基盤・一覧取得とサムネイル表示・フルサイズ表示とEXIF統合・キャッシュeviction）まで実装済み。詳細は「iCloud写真ライブラリの読み込み」章を参照。実機でのiCloud上のRAW写真表示、「Optimize Mac Storage」有効時のネットワーク経由ダウンロード体感、お気に入り・メモ表示・分析画面の実動作、キャッシュ削除の動作確認は未実施（実機・iCloud写真ライブラリが必要なため継続）。RAW現像編集・書き出し・超解像連携、限定アクセス時のブラウジングUIは引き続きスコープ外。
-- AI被写体認識・自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: Phase A〜D（データモデル・`VisionLabelClassifier`のカテゴリマッピングテーブル・`AILabelingGenerator`・ツールバーのカテゴリフィルタ/検索UI/進捗表示・ローカライズ）まで実装済み、ビルド成功。実RAWフォルダでの分類所要時間・体感速度、iCloud写真ライブラリ経由での分類動作、`VisionLabelClassifier`のマッピングテーブル網羅性（「その他」への分類率）、ツールバー新規ボタン・検索欄・進捗overlayの実機デザインQA（整列崩れ・ライトダーク可読性・ウィンドウ幅追従）は実機検証待ち。macOS 27以降限定のFoundation Models自然言語検索（Phase F）は未実装（実装着手前にApple公式リリースノートでのAPI最終確認が前提条件）。精度向上（判定閾値`hasMinimumPrecision(0.55, forRecall: 0.65)`への厳格化、入力をプレビュープロキシ/エクスポート済み高品質JPEGへ変更、`aiLabelingSchemaVersion`による既存写真の自動再分類、`.omc/plans/ai-classification-accuracy-improvement.md`）はビルド・全テストgreenだが、実RAWフォルダでの`.unknown`率変化・カテゴリ分布比較、iCloud写真（エクスポート済み/未エクスポート双方）での動作、既存フォルダ再訪問時の自動再分類は実機検証待ち。
-- AI画像診断（`.omc/plans/ai-photo-quality-diagnosis.md`）: Phase A〜C（対応OS引き上げ・データモデル・診断ロジック・バックグラウンド生成器・UI・進捗表示）実装済み、ビルド・テストgreen。macOS 15への引き上げにより macOS 14ユーザーはアプリ自体を起動できなくなる（対応環境表で明示済み）。`CalculateImageAestheticsScoresRequest` の処理コスト・GPU競合（`AILabelingGenerator` との同時実行）は実機での計測待ち。`CIEdges` ベースのシャープネス指標は真のブレ検出APIでなく精度が限定的（`DetectLensSmudgeRequest` への将来置き換え考慮）。Saliency重心ベースの構図判定は過度に簡略化（実際の良い構図（三分割法等）との乖離あり、継続検証）。顔品質スコアが小さい顔・複数人物シーン・極端なポーズで不安定。ルールベース閾値が実写真データなしでは大雑把（指摘の偏り可能性あり、実フォルダでの「良い点/改善ポイント分布」確認が必須）。RAW 3200pxプロキシ経由での診断がフル解像度でのブレ・ノイズ判定に影響する可能性（既存分析画面と同じ「欠損データ処理」方針で対応）。
+- AI被写体認識・自動ラベリング・フィルタリング（`.omc/plans/ai-subject-labeling-filtering.md`）: Phase A〜D（データモデル・`VisionLabelClassifier`のカテゴリマッピングテーブル・`AILabelingGenerator`・ツールバーのカテゴリフィルタ/検索UI/進捗表示・ローカライズ）まで実装済み。実RAWフォルダでの分類所要時間・体感速度、iCloud写真ライブラリ経由での分類動作、`VisionLabelClassifier`のマッピングテーブル網羅性（「その他」への分類率）、ツールバー新規ボタン・検索欄・進捗overlayの実機デザインQA（整列崩れ・ライトダーク可読性・ウィンドウ幅追従）は実機検証待ち。macOS 27以降限定のFoundation Models説明文生成と説明文の部分一致検索（`PhotoCaptionGenerator`）は実装済み。精度向上（判定閾値`hasMinimumPrecision(0.55, forRecall: 0.65)`への厳格化、入力をプレビュープロキシ/エクスポート済み高品質JPEGへ変更、`aiLabelingSchemaVersion`による既存写真の自動再分類、`.omc/plans/ai-classification-accuracy-improvement.md`）は実装済みだが、実RAWフォルダでの`.unknown`率変化・カテゴリ分布比較、iCloud写真（エクスポート済み/未エクスポート双方）での動作、既存フォルダ再訪問時の自動再分類は実機検証待ち。
+- AI画像診断（`.omc/plans/ai-photo-quality-diagnosis.md`）: Phase A〜C（対応OS引き上げ・データモデル・診断ロジック・バックグラウンド生成器・UI・進捗表示）実装済み。`CalculateImageAestheticsScoresRequest` の処理コスト・GPU競合（`AILabelingGenerator` との同時実行）は実機での計測待ち。`CIEdges` ベースのシャープネス指標は真のブレ検出APIでなく精度が限定的（`DetectLensSmudgeRequest` への将来置き換え考慮）。Saliency重心ベースの構図判定は過度に簡略化（実際の良い構図（三分割法等）との乖離あり、継続検証）。顔品質スコアが小さい顔・複数人物シーン・極端なポーズで不安定。ルールベース閾値が実写真データなしでは大雑把（指摘の偏り可能性あり、実フォルダでの「良い点/改善ポイント分布」確認が必須）。RAW 3200pxプロキシ経由での診断がフル解像度でのブレ・ノイズ判定に影響する可能性（既存分析画面と同じ「欠損データ処理」方針で対応）。
 
 ### 未着手・スコープ外
 
-- 写真メモの編集・保存UI（`ContentViewModel.saveNote` は呼び出し経路が無く削除済み）
-- ローカル調整（マスク・レイヤー）、レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
+- 写真メモの編集・保存UI
+- レンズ補正プロファイルの自動適用/作成UI・外部プロファイル取り込み（lensfun形式等）
 - 複数フォルダの同時表示
 - 外部アプリとの双方向同期
 - GPS地図表示、顔検出、比較ビュー
@@ -306,7 +315,7 @@ Material・Liquid Glassはシステム外観に追従するため、その上に
 ```swift
 protocol ViewModeProtocol: Identifiable {
     var id: String { get }
-    var displayName: String { get }
+    var displayName: LocalizedStringResource { get }
     var symbolName: String { get }
     var keyboardShortcut: KeyEquivalent? { get }
 }

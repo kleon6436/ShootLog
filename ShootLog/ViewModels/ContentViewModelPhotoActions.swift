@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import Foundation
 
@@ -124,6 +125,23 @@ extension ContentViewModel {
               PhotoActionAvailability(photo: photo).canCopyPath else { return }
         pasteboardWriter.writeFileURL(photo.fileURL)
         showToast(String(localized: "toast.copied.path"))
+    }
+
+    // パスバーの「パスをコピー」。写真を表示していなければ（空のフォルダ等）表示フォルダのパスをコピーする
+    func copyPathBarPathToPasteboard() {
+        if selectedPhoto != nil {
+            copyFilePathToPasteboard()
+            return
+        }
+        guard let currentFolderURL else { return }
+        pasteboardWriter.writeFileURL(currentFolderURL)
+        showToast(String(localized: "toast.copied.path"))
+    }
+
+    // パスバーの「Finderで表示」。写真を表示していなければ表示フォルダを選択した状態で開く
+    func revealPathBarTargetInFinder() {
+        guard let url = selectedPhoto?.fileURL ?? currentFolderURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     // Step 3: 選択時に EXIF を遅延ロードして Photo に永続化する

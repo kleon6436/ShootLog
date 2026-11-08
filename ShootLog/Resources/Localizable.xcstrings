@@ -373,6 +373,23 @@
         }
       }
     },
+    "a11y.folderTree.openedRoot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opened folder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているフォルダ"
+          }
+        }
+      }
+    },
     "a11y.history.delete %@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -823,6 +840,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AI超解像で書き出す"
+          }
+        }
+      }
+    },
+    "a11y.viewer.pathBar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Path"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルパス"
           }
         }
       }
@@ -2233,6 +2267,23 @@
         }
       }
     },
+    "contextMenu.folderTree.revokeAccess" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Showing Parent Folders"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上位フォルダの表示をやめる"
+          }
+        }
+      }
+    },
     "contextMenu.openWith" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2246,6 +2297,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "外部アプリで開く"
+          }
+        }
+      }
+    },
+    "contextMenu.pathBar.copyPath" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Path"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスをコピー"
+          }
+        }
+      }
+    },
+    "contextMenu.pathBar.revealInFinder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finderで表示"
           }
         }
       }
@@ -5766,6 +5851,23 @@
         }
       }
     },
+    "error.folderTreeAccess.notAncestor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a parent of the opened folder on the same volume."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているフォルダと同じボリュームにある上位フォルダを選択してください"
+          }
+        }
+      }
+    },
     "error.photoDataSaveFailed" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6661,6 +6763,23 @@
         }
       }
     },
+    "menu.view.enclosingFolder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enclosing Folder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "親フォルダへ移動"
+          }
+        }
+      }
+    },
     "menu.view.hideInspector" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6793,6 +6912,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開く"
+          }
+        }
+      }
+    },
+    "openPanel.folderTree.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To show parent folders in the folder tree, allow read-only access to this folder and everything inside it."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーに上位フォルダを表示するには、このフォルダ以下の読み取りを許可してください。"
+          }
+        }
+      }
+    },
+    "openPanel.folderTree.message.startupVolume" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To show parent folders in the folder tree, allow read-only access to this folder and everything inside it. Choosing the startup disk root also allows reading other connected volumes and folders such as Desktop and Documents."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーに上位フォルダを表示するには、このフォルダ以下の読み取りを許可してください。起動ディスクのルートを選ぶと、接続中の他のボリュームやデスクトップ、書類なども読み取れるようになります。"
           }
         }
       }
@@ -7652,6 +7805,108 @@
         }
       }
     },
+    "sidebar.folder.noPhotos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Photos in This Folder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このフォルダには写真がありません"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.collapse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse Folder Tree"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーを折りたたむ"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.expand" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand Folder Tree"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーを展開"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load folder contents"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダの内容を読み込めませんでした"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.resize" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder Tree Height"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダツリーの高さ"
+          }
+        }
+      }
+    },
+    "sidebar.folderTree.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folders"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダ"
+          }
+        }
+      }
+    },
     "sidebar.search.prompt.aiEnabled" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8055,6 +8310,57 @@
         }
       }
     },
+    "toast.folder.accessFailedFallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t read the folder. Returned to the opened folder."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダを読み込めないため、開いたフォルダへ戻りました"
+          }
+        }
+      }
+    },
+    "toast.folder.missingFallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder not found. Returned to the opened folder."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダが見つからないため、開いたフォルダへ戻りました"
+          }
+        }
+      }
+    },
+    "toast.folderTree.notAncestor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a parent of the opened folder on the same volume."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているフォルダと同じボリュームにある上位フォルダを選択してください"
+          }
+        }
+      }
+    },
     "toast.successTag.added %@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -8271,9 +8577,7 @@
         }
       }
     },
-    "toolbar.subtitle.photoCount %@" : {
-
-    },
+    "toolbar.subtitle.photoCount %@" : {},
     "toolbar.subtitle.photoCount %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8989,6 +9293,40 @@
         }
       }
     },
+    "viewer.pathBar.collapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden Path Components"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "省略された階層"
+          }
+        }
+      }
+    },
+    "viewer.pathBar.navigate.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to %1$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ へ移動"
+          }
+        }
+      }
+    },
     "viewer.previousPhoto" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -9056,9 +9394,7 @@
         }
       }
     },
-    "viewer.zoom.fitPercent %@" : {
-
-    },
+    "viewer.zoom.fitPercent %@" : {},
     "viewer.zoom.fitPercent %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9076,9 +9412,7 @@
         }
       }
     },
-    "viewer.zoom.percent %@" : {
-
-    },
+    "viewer.zoom.percent %@" : {},
     "viewer.zoom.percent %lld" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -54,6 +54,9 @@ final class SidebarViewModel: ContentViewModelProxy {
     // .task(id:) が load(photo:) を呼んで追従させる（キーボード送りも含め選択経路が1本化される）
     let developViewModel: DevelopViewModel
 
+    // サイドバー上部のフォルダツリー。ルートとの同期は FolderTreeView の .task(id:) が setRoot で行う
+    let folderTree: FolderTreeViewModel
+
     // 検索テキスト
     var searchText: String = ""
     // ツールバーのAIカテゴリフィルタで選択中のカテゴリ
@@ -102,6 +105,10 @@ final class SidebarViewModel: ContentViewModelProxy {
     init(content: ContentViewModel) {
         self.content = content
         self.developViewModel = DevelopViewModel(content: content)
+        self.folderTree = FolderTreeViewModel(
+            rootEpoch: { [weak content] in content?.rootEpoch ?? 0 },
+            navigate: { [weak content] url in await content?.navigateToFolder(url) }
+        )
         let storedTab = UserDefaults.standard.string(forKey: AppSettingsKeys.inspectorTab)
         self.inspectorTab = storedTab.flatMap(InspectorTab.init(rawValue:)) ?? .exif
     }
@@ -192,6 +199,41 @@ final class SidebarViewModel: ContentViewModelProxy {
     func copyFileName() { content.copyFileNameToPasteboard() }
     func copyFilePath() { content.copyFilePathToPasteboard() }
     func setSidebarVisible(_ isVisible: Bool) { content.setSidebarVisible(isVisible) }
+
+    // MARK: - フォルダツリー・パスバー
+
+    var rootFolderURL: URL? { content.rootFolderURL }
+    var currentFolderURL: URL? { content.currentFolderURL }
+    var navigationBoundaryURL: URL? { content.navigationBoundaryURL }
+    var treeAccessURL: URL? { content.treeAccessURL }
+    func revokeTreeAccess() {
+        Task { await content.revokeTreeAccess() }
+    }
+
+    // 根の設定直後は onChange の reveal が根より先に走って空振りするため、ここで必ず見せ直す
+    func syncFolderTreeRoot() {
+        folderTree.setRoot(content.navigationBoundaryURL)
+        if let currentFolderURL = content.currentFolderURL {
+            folderTree.reveal(currentFolderURL)
+        }
+    }
+    // フォルダを開いているときだけツリー・パスバーを出す（写真ライブラリ表示中は出さない）
+    var isFolderSource: Bool {
+        if case .folder = content.currentPhotoSource { return true }
+        return false
+    }
+    // ツリーのハイライト。デバウンス中・移動処理中は要求した行を先に光らせる
+    var highlightedFolderURL: URL? {
+        folderTree.pendingSelection ?? content.currentFolderURL.map(FolderTreeViewModel.normalized)
+    }
+    // パスバー・⌘↑ からの移動。ツリーの移動要求と同じ入口を通し、待機中のツリー側の要求に負けないようにする
+    func navigateToFolder(_ url: URL) { folderTree.requestNavigate(url, isDebounced: false) }
+    func navigateToEnclosingFolder() {
+        guard content.canNavigateToEnclosingFolder, let currentFolderURL = content.currentFolderURL else { return }
+        navigateToFolder(currentFolderURL.deletingLastPathComponent())
+    }
+    func copyPathBarPath() { content.copyPathBarPathToPasteboard() }
+    func revealPathBarTargetInFinder() { content.revealPathBarTargetInFinder() }
 
     // MARK: - 写真を対象にした操作の実行
 

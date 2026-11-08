@@ -14,15 +14,40 @@ final class ContentViewModel {
     var isPhotosLibraryPermissionAlertPresented = false
 
     // フォルダ
-    // 超解像書き出しジョブは「フォルダを閉じる」タイミングでのみ中断する必要があるため、
-    // フォルダURLの変更（新規選択・履歴からの復元）を検知してここで打ち切る
-    var currentFolderURL: URL? {
+    // 開いたフォルダ（ルート）。セキュリティスコープ・履歴・ブックマークの基準で、上位フォルダの許可（treeAccessURL）が
+    // 無いときはフォルダツリーの根にもなる。
+    // 超解像・現像書き出しジョブは「フォルダを閉じる」タイミングでのみ中断する必要があるため、
+    // ルートの変更（新規選択・履歴からの復元・写真ライブラリへの切替）を検知してここで打ち切る。
+    // 許可範囲内のフォルダへの移動（currentFolderURL だけの変更）では中断しない
+    var rootFolderURL: URL? {
         didSet {
-            guard oldValue != currentFolderURL else { return }
+            rootEpoch &+= 1
+            guard oldValue != rootFolderURL else { return }
             cancelUpscaleExportIfNeeded()
             cancelDevelopExportIfNeeded()
         }
     }
+    // ルートを設定するたびに増える番号。同じフォルダの開き直しも含め、
+    // ルートを開く前に受け付けたツリーの移動要求を捨てるために使う
+    @ObservationIgnored private(set) var rootEpoch = 0
+    // いま写真一覧を表示しているフォルダ。ルート自身か、ツリー・パスバーで移動した移動範囲内のフォルダ
+    var currentFolderURL: URL?
+    // ルートより上を表示するために許可を得た上位フォルダ。スコープは bookmarkScopedURL と別に持つ。
+    // 処理本体は ContentViewModelFolderTreeAccess.swift 側にある
+    var treeAccessURL: URL?
+    @ObservationIgnored var treeAccessStore = FolderTreeAccessStore()
+    @ObservationIgnored var treeAccessScope: FolderTreeAccessScope = .live
+    // 解決待ちの間に別のルートへ切り替わったり解除されたりした許可の適用を捨てるための世代番号
+    @ObservationIgnored var treeAccessSyncGeneration = 0
+    // 上位フォルダを選ばせるパネル。テストではパネルを出さないスタブに差し替える
+    @ObservationIgnored var treeAccessPrompt: @MainActor (URL) async -> URL? = { root in
+        await ContentViewModel.presentTreeAccessPanel(forRoot: root)
+    }
+    @ObservationIgnored var isPresentingTreeAccessPanel = false
+    // パネルを出してから許可を反映し終えるまでのタスク。テストで完了を待つために持つ
+    @ObservationIgnored var treeAccessPromptTask: Task<Void, Never>?
+    // パネルをキャンセル・許可を解除したボリューム（volumeRoot のパス）。アプリの終了まで自動表示しない
+    @ObservationIgnored var declinedTreeAccessVolumePaths: Set<String> = []
     var folderHistories: [FolderHistory] = []
 
     // 実体が存在しないと判定されたフォルダ履歴。レコード自体は削除せず表示からのみ除外する
@@ -116,8 +141,8 @@ final class ContentViewModel {
     // ContentViewModelDevelopPreset.swift から更新する
     var developPresets: [DevelopPreset] = []
 
-    // AI超解像書き出し。ジョブ（Task）はモード切替・写真選択変更をまたいで継続し、
-    // currentFolderURLの変更（フォルダを閉じる）またはアプリ終了時にのみ中断する。
+    // AI超解像書き出し。ジョブ（Task）はモード切替・写真選択変更・サブフォルダ移動をまたいで継続し、
+    // rootFolderURLの変更（フォルダを閉じる）またはアプリ終了時にのみ中断する。
     // ContentViewModelUpscale.swift から参照するため internal とする
     var isUpscaleExportPresented: Bool = false
     var upscaleExportViewModel: UpscaleExportViewModel?

@@ -28,6 +28,11 @@ private struct InspectorVisibilityStateKey: FocusedValueKey {
     typealias Value = Bool
 }
 
+// FocusedValue キー: Viewメニューの「親フォルダへ移動」（⌘↑）から表示フォルダの親へ移動するために使う
+private struct NavigateToEnclosingFolderActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var openFolderAction: (() -> Void)? {
         get { self[OpenFolderActionKey.self] }
@@ -53,6 +58,11 @@ extension FocusedValues {
         get { self[InspectorVisibilityStateKey.self] }
         set { self[InspectorVisibilityStateKey.self] = newValue }
     }
+
+    var navigateToEnclosingFolderAction: (() -> Void)? {
+        get { self[NavigateToEnclosingFolderActionKey.self] }
+        set { self[NavigateToEnclosingFolderActionKey.self] = newValue }
+    }
 }
 
 // アプリのルートビュー。フォルダ選択状態と表示モードに応じてビューを切り替える
@@ -74,6 +84,13 @@ struct ContentView: View {
         return { vm.requestInspectorToggle() }
     }
 
+    // ツリーとパスバーで移動先を確認できるサイドバーモードで、表示フォルダが移動範囲の上限より下にあるときだけ有効にする
+    private var navigateToEnclosingFolderAction: (() -> Void)? {
+        guard vm.isSidebarModeActive, vm.canNavigateToEnclosingFolder else { return nil }
+        // ツリーの移動要求と同じ入口（FolderTreeViewModel）を通すため、サイドバーモードの VM 経由で呼ぶ
+        return { ViewModeRegistry.shared.sidebarViewModel(content: vm).navigateToEnclosingFolder() }
+    }
+
     private var sidebarVisibilityState: Bool? {
         vm.isSidebarModeActive ? vm.isSidebarVisible : nil
     }
@@ -93,6 +110,7 @@ struct ContentView: View {
             .focusedSceneValue(\.toggleInspectorAction, inspectorToggleAction)
             .focusedSceneValue(\.sidebarVisibilityState, sidebarVisibilityState)
             .focusedSceneValue(\.inspectorVisibilityState, inspectorVisibilityState)
+            .focusedSceneValue(\.navigateToEnclosingFolderAction, navigateToEnclosingFolderAction)
             .background { WindowChromeConfigurator(isToolbarVisible: vm.isToolbarVisible) }
     }
 
