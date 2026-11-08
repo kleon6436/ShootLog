@@ -39,6 +39,15 @@ final class ContentViewModel {
     @ObservationIgnored var treeAccessScope: FolderTreeAccessScope = .live
     // 解決待ちの間に別のルートへ切り替わったり解除されたりした許可の適用を捨てるための世代番号
     @ObservationIgnored var treeAccessSyncGeneration = 0
+    // 上位フォルダを選ばせるパネル。テストではパネルを出さないスタブに差し替える
+    @ObservationIgnored var treeAccessPrompt: @MainActor (URL) async -> URL? = { root in
+        await ContentViewModel.presentTreeAccessPanel(forRoot: root)
+    }
+    @ObservationIgnored var isPresentingTreeAccessPanel = false
+    // パネルを出してから許可を反映し終えるまでのタスク。テストで完了を待つために持つ
+    @ObservationIgnored var treeAccessPromptTask: Task<Void, Never>?
+    // パネルをキャンセル・許可を解除したボリューム（volumeRoot のパス）。アプリの終了まで自動表示しない
+    @ObservationIgnored var declinedTreeAccessVolumePaths: Set<String> = []
     var folderHistories: [FolderHistory] = []
 
     // 実体が存在しないと判定されたフォルダ履歴。レコード自体は削除せず表示からのみ除外する

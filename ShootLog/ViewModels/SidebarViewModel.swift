@@ -206,8 +206,6 @@ final class SidebarViewModel: ContentViewModelProxy {
     var currentFolderURL: URL? { content.currentFolderURL }
     var navigationBoundaryURL: URL? { content.navigationBoundaryURL }
     var treeAccessURL: URL? { content.treeAccessURL }
-    var canRequestTreeAccess: Bool { content.canRequestTreeAccess }
-    func requestTreeAccess() { content.requestTreeAccess() }
     func revokeTreeAccess() {
         Task { await content.revokeTreeAccess() }
     }

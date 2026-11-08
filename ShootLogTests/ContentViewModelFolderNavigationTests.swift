@@ -25,6 +25,14 @@ struct ContentViewModelFolderNavigationTests {
         let defaultsSuiteName: String
         let scope: StubTreeAccessScope
         let store: FolderTreeAccessStore
+        let prompt: StubTreeAccessPrompt
+    }
+
+    // 自動で出す上位フォルダのパネルの代わり。呼ばれたルートを記録し、決めておいた選択を返す
+    @MainActor
+    private final class StubTreeAccessPrompt {
+        var requestedRoots: [URL] = []
+        var selection: URL?
     }
 
     // スコープ操作の呼び出しを記録するスタブ。ブックマークの中身はパスの文字列とする
@@ -129,13 +137,18 @@ struct ContentViewModelFolderNavigationTests {
         }
         content.treeAccessStore = store
         content.treeAccessScope = scope.scope
+        let prompt = StubTreeAccessPrompt()
+        content.treeAccessPrompt = { [prompt] root in
+            prompt.requestedRoots.append(root)
+            return prompt.selection
+        }
 
         content.rootFolderURL = root
         content.currentFolderURL = root
         content.currentPhotoSource = .folder(root)
         return Fixture(
             content: content, context: context, sandbox: sandbox, root: root, sub: sub, grandchild: grandchild,
-            sibling: sibling, defaultsSuiteName: suiteName, scope: scope, store: store
+            sibling: sibling, defaultsSuiteName: suiteName, scope: scope, store: store, prompt: prompt
         )
     }
 
@@ -855,6 +868,86 @@ struct ContentViewModelFolderNavigationTests {
         #expect(content.currentFolderURL == fixture.sub)
         #expect(content.photos.map(\.id) == photosBefore)
         #expect(fixture.scope.stopped.count == 1)
+        await tearDown(fixture)
+    }
+
+    // MARK: - 上位フォルダのパネルの自動表示
+
+    // 許可の無いフォルダを開くとパネルが自動で出て、選んだ上位フォルダが許可になる
+    @Test func openingFolderPromptsForAncestorAndGrantsSelection() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.prompt.selection = fixture.sandbox
+
+        await content.selectFolder(url: fixture.sibling)
+        await content.treeAccessPromptTask?.value
+
+        #expect(fixture.prompt.requestedRoots == [fixture.sibling])
+        #expect(FolderPathComponents.isSameFolder(try #require(content.treeAccessURL), fixture.sandbox))
+        #expect(fixture.store.grants().count == 1)
+        #expect(content.rootFolderURL == fixture.sibling)
+        await tearDown(fixture)
+    }
+
+    // キャンセルしたボリュームでは、別のフォルダを開いてもパネルを出し直さない
+    @Test func cancelledPromptIsNotShownAgainOnSameVolume() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+
+        await content.selectFolder(url: fixture.sibling)
+        await content.treeAccessPromptTask?.value
+        await content.selectFolder(url: fixture.root)
+        await content.treeAccessPromptTask?.value
+
+        #expect(fixture.prompt.requestedRoots == [fixture.sibling])
+        #expect(content.treeAccessURL == nil)
+        #expect(fixture.store.grants().isEmpty)
+        await tearDown(fixture)
+    }
+
+    // 保存済みの許可で上位が表示できるときはパネルを出さない
+    @Test func savedGrantSuppressesPrompt() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        fixture.store.save(fixture.sandbox, bookmark: Data(fixture.sandbox.path.utf8))
+
+        await content.selectFolder(url: fixture.sibling)
+        await content.treeAccessPromptTask?.value
+
+        #expect(fixture.prompt.requestedRoots.isEmpty)
+        #expect(FolderPathComponents.isSameFolder(try #require(content.treeAccessURL), fixture.sandbox))
+        await tearDown(fixture)
+    }
+
+    // 許可を解除した後に同じボリュームのフォルダを開いても、パネルを出し直さない
+    @Test func revokedVolumeIsNotPromptedAgain() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        await content.grantTreeAccess(to: fixture.sandbox)
+        await content.revokeTreeAccess()
+
+        await content.selectFolder(url: fixture.sibling)
+        await content.treeAccessPromptTask?.value
+
+        #expect(fixture.prompt.requestedRoots.isEmpty)
+        #expect(content.treeAccessURL == nil)
+        await tearDown(fixture)
+    }
+
+    // パネル表示中に別のルートへ切り替わったら、旧ルート向けの選択は使わない
+    @Test func promptResultIsDiscardedWhenRootChanges() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        content.treeAccessPrompt = { [content, fixture] _ in
+            content.rootFolderURL = fixture.root
+            return fixture.sandbox
+        }
+
+        await content.selectFolder(url: fixture.sibling)
+        await content.treeAccessPromptTask?.value
+
+        #expect(content.treeAccessURL == nil)
+        #expect(fixture.store.grants().isEmpty)
         await tearDown(fixture)
     }
 

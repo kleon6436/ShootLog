@@ -42,21 +42,47 @@ extension ContentViewModel {
         return !FolderPathComponents.isSameFolder(rootFolderURL, FolderPathComponents.volumeRoot(of: rootFolderURL))
     }
 
-    func requestTreeAccess() {
-        guard canRequestTreeAccess, let rootFolderURL else { return }
+    // ルートを開いた直後に呼ぶ。許可が無ければ Open Panel を自動で出す（Sandbox の制約でパネルは省略できない）。
+    // 写真の読み込みは止めないよう、パネルは別タスクで非モーダルに出す。
+    // キャンセル・解除したボリュームでは、アプリを終了するまで再び自動では出さない
+    func promptTreeAccessIfNeeded() {
+        guard canRequestTreeAccess, !isPresentingTreeAccessPanel, let root = rootFolderURL else { return }
+        let volumePath = FolderPathComponents.volumeRoot(of: root).path
+        guard !declinedTreeAccessVolumePaths.contains(volumePath) else { return }
+        isPresentingTreeAccessPanel = true
+        let epoch = rootEpoch
+        let prompt = treeAccessPrompt
+        treeAccessPromptTask = Task {
+            let selected = await prompt(root)
+            isPresentingTreeAccessPanel = false
+            // パネル表示中に別のルートへ切り替わったら、旧ルート向けの選択は使わない
+            guard epoch == rootEpoch else { return }
+            guard let selected else {
+                declinedTreeAccessVolumePaths.insert(volumePath)
+                return
+            }
+            await grantTreeAccess(to: selected)
+        }
+    }
+
+    // 上位フォルダを選ばせる Open Panel。選ばれなければ nil
+    static func presentTreeAccessPanel(forRoot root: URL) async -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.directoryURL = FolderPathComponents.volumeRoot(of: rootFolderURL)
-        panel.message = String(localized: FolderTreeAccessPanelDelegate.message(forRoot: rootFolderURL))
+        panel.directoryURL = FolderPathComponents.volumeRoot(of: root)
+        panel.message = String(localized: FolderTreeAccessPanelDelegate.message(forRoot: root))
         // 無効な選択はパネルを閉じる前に拒否する。閉じた後は Powerbox の権限が付与済みの可能性があるため。
         // panel.delegate は弱参照なので、パネルを閉じるまでここで保持する
-        let delegate = FolderTreeAccessPanelDelegate(root: rootFolderURL)
+        let delegate = FolderTreeAccessPanelDelegate(root: root)
         panel.delegate = delegate
-        let response = withExtendedLifetime(delegate) { panel.runModal() }
-        guard response == .OK, let url = panel.url else { return }
-        Task { await grantTreeAccess(to: url) }
+        let response = await withCheckedContinuation { continuation in
+            panel.begin { continuation.resume(returning: $0) }
+        }
+        withExtendedLifetime(delegate) {}
+        guard response == .OK else { return nil }
+        return panel.url
     }
 
     // Open Panel で選ばれたフォルダを検証し、有効なら許可として保存してスコープを開始する。
@@ -119,6 +145,8 @@ extension ContentViewModel {
         guard let access = treeAccessURL, let rootFolderURL else { return }
         treeAccessSyncGeneration &+= 1
         treeAccessStore.remove(forVolumeOf: access)
+        // 解除した直後に同じボリュームのフォルダを開いても、パネルを自動で出し直さない
+        declinedTreeAccessVolumePaths.insert(FolderPathComponents.volumeRoot(of: rootFolderURL).path)
         treeAccessURL = nil
         if let currentFolderURL, !FolderPathComponents.isFolder(currentFolderURL, inside: rootFolderURL) {
             self.currentFolderURL = rootFolderURL

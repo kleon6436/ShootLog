@@ -66,6 +66,7 @@ extension ContentViewModel {
             let epoch = rootEpoch
             await syncTreeAccess(for: url)
             guard epoch == rootEpoch else { return }
+            promptTreeAccessIfNeeded()
             await loadFolderPhotos(url)
         } catch {
             clearFolderState()
@@ -194,6 +195,7 @@ extension ContentViewModel {
             let epoch = rootEpoch
             await syncTreeAccess(for: url)
             guard epoch == rootEpoch else { return }
+            promptTreeAccessIfNeeded()
             await loadFolderPhotos(url)
         } catch {
             // 旧ルートのスコープは解放済みのため、旧ルートの表示を残さない

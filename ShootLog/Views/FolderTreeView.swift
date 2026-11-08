@@ -63,9 +63,6 @@ struct FolderTreeSection: View {
             // 行の挿入・移動（根の切り替えや展開）の際に取り残し、選択行の名前が二重に重なって見えるため。
             // 表示フォルダの強調とクリックでの移動は FolderTreeRow 側で受け持つ
             List {
-                if vm.canRequestTreeAccess {
-                    showAncestorsRow
-                }
                 if let root = vm.folderTree.root {
                     FolderTreeRow(
                         tree: vm.folderTree,
@@ -91,18 +88,6 @@ struct FolderTreeSection: View {
 
     private var openedRootURL: URL? {
         vm.rootFolderURL.map(FolderTreeViewModel.normalized)
-    }
-
-    private var showAncestorsRow: some View {
-        Button {
-            vm.requestTreeAccess()
-        } label: {
-            Label("sidebar.folderTree.showAncestors", systemImage: "arrow.up.circle")
-                .lineLimit(1)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .accessibilityLabel("sidebar.folderTree.showAncestors")
     }
 }
 

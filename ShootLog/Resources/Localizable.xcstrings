@@ -6922,13 +6922,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows this folder and everything inside it as read-only."
+            "value" : "To show parent folders in the folder tree, allow read-only access to this folder and everything inside it."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このフォルダ以下を読み取り専用で表示します。"
+            "value" : "フォルダツリーに上位フォルダを表示するには、このフォルダ以下の読み取りを許可してください。"
           }
         }
       }
@@ -6939,13 +6939,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows this folder and everything inside it as read-only. Choosing the startup disk root also allows reading other connected volumes and folders such as Desktop and Documents."
+            "value" : "To show parent folders in the folder tree, allow read-only access to this folder and everything inside it. Choosing the startup disk root also allows reading other connected volumes and folders such as Desktop and Documents."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このフォルダ以下を読み取り専用で表示します。起動ディスクのルートを選ぶと、接続中の他のボリュームやデスクトップ、書類なども読み取れるようになります。"
+            "value" : "フォルダツリーに上位フォルダを表示するには、このフォルダ以下の読み取りを許可してください。起動ディスクのルートを選ぶと、接続中の他のボリュームやデスクトップ、書類なども読み取れるようになります。"
           }
         }
       }
@@ -7890,23 +7890,6 @@
         }
       }
     },
-    "sidebar.folderTree.showAncestors" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Parent Folders…"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "上位フォルダを表示…"
-          }
-        }
-      }
-    },
     "sidebar.folderTree.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8594,9 +8577,7 @@
         }
       }
     },
-    "toolbar.subtitle.photoCount %@" : {
-
-    },
+    "toolbar.subtitle.photoCount %@" : {},
     "toolbar.subtitle.photoCount %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9413,9 +9394,7 @@
         }
       }
     },
-    "viewer.zoom.fitPercent %@" : {
-
-    },
+    "viewer.zoom.fitPercent %@" : {},
     "viewer.zoom.fitPercent %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9433,9 +9412,7 @@
         }
       }
     },
-    "viewer.zoom.percent %@" : {
-
-    },
+    "viewer.zoom.percent %@" : {},
     "viewer.zoom.percent %lld" : {
       "extractionState" : "manual",
       "localizations" : {
