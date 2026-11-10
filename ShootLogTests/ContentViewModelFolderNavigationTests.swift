@@ -137,6 +137,8 @@ struct ContentViewModelFolderNavigationTests {
         }
         content.treeAccessStore = store
         content.treeAccessScope = scope.scope
+        // 履歴のブックマークは実体を作らず、パスの文字列で代用する
+        content.makeNavigationHistoryBookmark = { url in Data(url.path.utf8) }
         let prompt = StubTreeAccessPrompt()
         content.treeAccessPrompt = { [prompt] root in
             prompt.requestedRoots.append(root)
@@ -201,8 +203,8 @@ struct ContentViewModelFolderNavigationTests {
 
     // MARK: - 移動
 
-    // 移動先の直下の写真だけが一覧に入り、ルート・履歴は変わらない
-    @Test func navigatesIntoSubfolderWithoutTouchingRootOrHistory() async throws {
+    // 移動先の直下の写真だけが一覧に入り、ルートは変わらず、移動先が履歴の先頭に追加される
+    @Test func navigatesIntoSubfolderAndRecordsHistory() async throws {
         let fixture = try makeFixture()
         let content = fixture.content
         fixture.context.insert(FolderHistory(url: fixture.root, bookmark: Data()))
@@ -216,8 +218,10 @@ struct ContentViewModelFolderNavigationTests {
         #expect(content.currentPhotoSource == .folder(fixture.sub))
         #expect(content.rootFolderURL == fixture.root)
         #expect(photoNames(content) == ["s1.png", "s2.png"])
-        #expect(content.folderHistories.count == historyCount)
-        #expect(try fixture.context.fetchCount(FetchDescriptor<FolderHistory>()) == historyCount)
+        #expect(content.folderHistories.count == historyCount + 1)
+        #expect(try fixture.context.fetchCount(FetchDescriptor<FolderHistory>()) == historyCount + 1)
+        #expect(content.folderHistories.first?.url.standardizedFileURL == fixture.sub.standardizedFileURL)
+        #expect(content.folderHistories.first?.securityBookmark == Data(fixture.sub.path.utf8))
         #expect(content.error == nil)
         await tearDown(fixture)
     }
@@ -283,6 +287,8 @@ struct ContentViewModelFolderNavigationTests {
         #expect(content.currentPhotoSource == .folder(fixture.root))
         #expect(content.toastMessage == String(localized: "toast.folder.missingFallback"))
         #expect(photoNames(content) == ["r1.png"])
+        // 読み込めずにルートへ戻った移動先は履歴に残さない
+        #expect(try fixture.context.fetchCount(FetchDescriptor<FolderHistory>()) == 0)
         await tearDown(fixture)
     }
 
@@ -396,8 +402,8 @@ struct ContentViewModelFolderNavigationTests {
 
     // MARK: - 上位フォルダの許可がある状態の移動
 
-    // 兄弟フォルダへ移動しても、ルート・履歴の件数と順序は変わらない
-    @Test func navigatesToSiblingWithinGrantWithoutTouchingHistory() async throws {
+    // 兄弟フォルダへ移動してもルートは変わらず、兄弟フォルダが履歴の先頭に追加される
+    @Test func navigatesToSiblingWithinGrantAndRecordsHistory() async throws {
         let fixture = try makeFixture()
         let content = fixture.content
         let older = FolderHistory(url: fixture.sub, bookmark: Data())
@@ -415,7 +421,9 @@ struct ContentViewModelFolderNavigationTests {
         #expect(content.currentPhotoSource == .folder(fixture.sibling))
         #expect(content.rootFolderURL == fixture.root)
         #expect(photoNames(content) == ["b1.png"])
-        #expect(content.folderHistories.map(\.persistentModelID) == historyOrder)
+        #expect(content.folderHistories.count == historyOrder.count + 1)
+        #expect(content.folderHistories.first?.url.standardizedFileURL == fixture.sibling.standardizedFileURL)
+        #expect(Array(content.folderHistories.dropFirst().map(\.persistentModelID)) == historyOrder)
         #expect(content.error == nil)
         await tearDown(fixture)
     }

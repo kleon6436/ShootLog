@@ -37,6 +37,9 @@ final class ContentViewModel {
     var treeAccessURL: URL?
     @ObservationIgnored var treeAccessStore = FolderTreeAccessStore()
     @ObservationIgnored var treeAccessScope: FolderTreeAccessScope = .live
+    // ツリー・パスバーで移動したフォルダを履歴へ残すときのブックマーク作成。テストではスタブに差し替える
+    @ObservationIgnored var makeNavigationHistoryBookmark: @Sendable (URL) throws -> Data =
+        ContentViewModel.navigationHistoryBookmark(for:)
     // 解決待ちの間に別のルートへ切り替わったり解除されたりした許可の適用を捨てるための世代番号
     @ObservationIgnored var treeAccessSyncGeneration = 0
     // 上位フォルダを選ばせるパネル。テストではパネルを出さないスタブに差し替える

@@ -95,8 +95,9 @@ extension ContentViewModel {
     }
 
     // 移動範囲内（上限自身を含む）のフォルダへ写真一覧の表示を切り替える。
-    // 履歴への追加・ブックマーク作成・スコープの解放はしない（ルートまたは上位の許可のスコープが
-    // 配下にも及ぶため、そのまま保持して使い続ける）。selectFolder / restoreFolder を通らない専用経路にしておく
+    // ルートは変えず、スコープも解放しない（ルートまたは上位の許可のスコープが配下にも及ぶため、
+    // そのまま保持して使い続ける）。selectFolder / restoreFolder を通らない専用経路にしておく。
+    // 読み込めたフォルダは、次回そのフォルダを直接開けるよう履歴へ追加する（recordNavigationHistory）
     func navigateToFolder(_ url: URL) async {
         guard let navigationBoundaryURL,
               FolderPathComponents.isFolder(url, inside: navigationBoundaryURL) else { return }
@@ -116,6 +117,35 @@ extension ContentViewModel {
         currentFolderURL = url
         currentPhotoSource = .folder(url)
         await loadFolderPhotos(url)
+        await recordNavigationHistory(url)
+    }
+
+    // 移動先を履歴へ追加する。読み込みに失敗してルートへ戻った・別のフォルダへ切り替わった場合は残さない。
+    // ブックマークを作れなくても移動自体は成功しているため、アラートは出さずに履歴だけ見送る
+    private func recordNavigationHistory(_ url: URL) async {
+        guard let currentFolderURL, FolderPathComponents.isSameFolder(currentFolderURL, url) else { return }
+        let rootEpoch = rootEpoch
+        let makeBookmark = makeNavigationHistoryBookmark
+        // ネットワークボリュームでは作成に時間がかかりうるため、メインアクター外で作る
+        let bookmark = await Task.detached(priority: .utility) { try? makeBookmark(url) }.value
+        guard let bookmark, let context = modelContext, rootEpoch == self.rootEpoch,
+              let currentFolderURL = self.currentFolderURL,
+              FolderPathComponents.isSameFolder(currentFolderURL, url) else { return }
+        addToHistory(url: url, bookmark: bookmark, context: context)
+    }
+
+    // ルートのスコープ（読み書き）の配下なら読み書き、上位フォルダの許可（読み取り専用）の配下なら
+    // 読み取り専用のブックマークになる。読み取り専用のスコープからは読み書きのブックマークを作れないため順に試す
+    nonisolated static func navigationHistoryBookmark(for url: URL) throws -> Data {
+        do {
+            return try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+        } catch {
+            return try url.bookmarkData(
+                options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        }
     }
 
     // ⌘↑（親フォルダへ移動）用。移動範囲の上限より上へは出ない
