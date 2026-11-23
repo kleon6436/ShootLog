@@ -78,6 +78,11 @@ schemes:
       config: Debug
       targets:
         - ShootLogTests
+      # Performance は SHOOTLOG_PERF=1 を設定して性能ベンチマークを有効にする（Default では無効）
+      testPlans:
+        - path: ShootLog.xctestplan
+          defaultPlan: true
+        - path: Performance.xctestplan
     profile:
       config: Release
     analyze:

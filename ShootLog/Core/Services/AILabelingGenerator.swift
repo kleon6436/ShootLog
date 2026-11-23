@@ -169,7 +169,11 @@ actor AILabelingGenerator {
         progress: @escaping @Sendable (Int, Int) -> Void,
         onResult: @escaping @Sendable (URL, VisionLabelClassification?) -> Void
     ) async -> Bool {
-        await PrioritizedBatchRunner.run(
+        // 被写体認識と画質診断はそれぞれ1区間を持つ。並行して走るため、「AI 解析の完了まで」は
+        // 2区間のうち早い開始から遅い終了までの範囲として Instruments で読む
+        let batchSignpost = PerformanceSignposts.begin(PerformanceSignposts.ai, "ai.batchTotal")
+        defer { batchSignpost.end(cancelled: Task.isCancelled) }
+        return await PrioritizedBatchRunner.run(
             items: targets,
             maxWorkers: Self.maxWorkers,
             progress: progress,

@@ -17,8 +17,10 @@ extension ContentViewModel {
             currentDevelopSettings = nil
             return
         }
+        let editStateSignpost = PerformanceSignposts.viewer.beginInterval("viewer.loadEditState")
         loadEditInfo(for: photo)
         loadDevelopSettings(for: photo)
+        PerformanceSignposts.viewer.endInterval("viewer.loadEditState", editStateSignpost)
         Task { await loadEXIFIfNeeded(for: photo) }
     }
 

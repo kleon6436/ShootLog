@@ -254,6 +254,7 @@ extension ContentViewModel {
         // この読み込み専用の世代を発行する（以降の await 明けで最新かどうかを判定する）
         photoStagingGeneration &+= 1
         let generation = photoStagingGeneration
+        PerformanceSignposts.beginFirstThumbnails(generation: generation)
         guard applyFileAttributesSnapshots([:], generation: generation) else { return }
 
         do {
@@ -263,7 +264,10 @@ extension ContentViewModel {
             let urls = scanResult.urls
             let snapshots = scanResult.snapshots
             guard applyFileAttributesSnapshots(snapshots, generation: generation) else { return }
+            let syncState = PerformanceSignposts.folderLoad.beginInterval("folderLoad.syncPhotos")
             syncPhotos(urls: urls, context: context)
+            PerformanceSignposts.folderLoad.endInterval("folderLoad.syncPhotos", syncState)
+            PerformanceSignposts.setFirstThumbnailsExpectedCount(urls.count, generation: generation)
             selectPhoto(photos.first)
             await startPreviewGeneration(urls: urls, snapshots: snapshots)
             startFolderBackgroundAnalysis(snapshots: snapshots)
