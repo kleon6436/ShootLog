@@ -77,6 +77,42 @@ struct PerformanceBenchmarks {
     }
 }
 
+extension PerformanceBenchmarks {
+    static let folderPhotoCount = 1_000
+    static let syncRepetitions = 10
+
+    // AC-F2 の補助: syncPhotos が既存の Photo を引く部分。別フォルダの写真 5,000 枚がストアにある状態で、
+    // 1,000 枚のフォルダの URL を全件 fetch で引く場合（旧）と URL 述語で引く場合（新）を比べる。
+    // 毎回新しいコンテキストで引き、実体化のコストを含めて測る
+    @Test func syncPhotosExistingLookup() throws {
+        let (_, context, _) = try makeStore()
+        let folderURLs = (0..<Self.folderPhotoCount).map {
+            URL(fileURLWithPath: "/tmp/ShootLogPerf/folder/\($0).jpg")
+        }
+        for url in folderURLs { context.insert(Photo(fileURL: url)) }
+        try context.save()
+
+        let clock = ContinuousClock()
+        var fullScan: [Duration] = []
+        var predicate: [Duration] = []
+        for _ in 0..<Self.syncRepetitions {
+            let fresh = ModelContext(context.container)
+            fullScan.append(clock.measure {
+                let all = (try? fresh.fetch(FetchDescriptor<Photo>())) ?? []
+                _ = Dictionary(all.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
+            })
+            let fresh2 = ModelContext(context.container)
+            predicate.append(clock.measure {
+                let rows = (try? fresh2.photos(withFileURLs: folderURLs)) ?? []
+                _ = Dictionary(rows.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
+            })
+        }
+        print(BenchmarkReport(name: "AC-F2 syncPhotos lookup (full fetch)", samples: fullScan).summary)
+        print(BenchmarkReport(name: "AC-F2 syncPhotos lookup (URL predicate)", samples: predicate).summary)
+        #expect(predicate.count == Self.syncRepetitions)
+    }
+}
+
 // 計測値の中央値・p95 を出力用にまとめる
 struct BenchmarkReport {
     let name: String

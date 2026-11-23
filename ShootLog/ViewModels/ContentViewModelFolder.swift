@@ -416,10 +416,15 @@ extension ContentViewModel {
     }
 
     // 先頭 initialPhotoBatchSize 件だけを同期的にinsert/saveしてグリッドを即時表示し、
-    // 残りは photoStagingTask で分割して挿入する
+    // 残りは photoStagingTask で分割して挿入する。
+    // 既存の Photo はこのフォルダの URL の分だけを引く。以前はストアの全 Photo（別フォルダ・iCloud 写真を含む）を
+    // 実体化していたため、ライブラリが大きいほどフォルダを開く瞬間に MainActor が止まっていた。
+    // URL の述語が失敗した場合だけ、重複挿入を避けるため従来の全件 fetch に戻す
     private func syncPhotos(urls: [URL], context: ModelContext) {
-        let all = (try? context.fetch(FetchDescriptor<Photo>())) ?? []
-        let byURL = Dictionary(all.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
+        let existing = (try? context.photos(withFileURLs: urls))
+            ?? (try? context.fetch(FetchDescriptor<Photo>()))
+            ?? []
+        let byURL = Dictionary(existing.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
 
         let firstBatchCount = min(urls.count, Self.initialPhotoBatchSize)
         photos = urls[..<firstBatchCount].map { resolvePhoto(for: $0, existing: byURL, context: context) }

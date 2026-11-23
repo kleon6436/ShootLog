@@ -19,4 +19,23 @@ extension ModelContext {
         descriptor.fetchLimit = 1
         return (try? fetch(descriptor))?.first
     }
+
+    // SQLite の 1 文あたりのバインド変数の上限に当たらないよう、IN 句の要素数を区切る
+    static let photoURLFetchChunkSize = 500
+
+    /// 指定した URL の Photo だけを返す。表示フォルダの写真を引くために使い、別フォルダの写真は実体化しない。
+    /// URL 型の述語は PhotoURLPredicateGateTests がインメモリ・ディスク上のストアで確かめている
+    func photos(withFileURLs urls: [URL]) throws -> [Photo] {
+        var result: [Photo] = []
+        result.reserveCapacity(urls.count)
+        var start = urls.startIndex
+        while start < urls.endIndex {
+            let end = min(start + Self.photoURLFetchChunkSize, urls.endIndex)
+            let chunk = Array(urls[start..<end])
+            let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { chunk.contains($0.fileURL) })
+            result.append(contentsOf: try fetch(descriptor))
+            start = end
+        }
+        return result
+    }
 }

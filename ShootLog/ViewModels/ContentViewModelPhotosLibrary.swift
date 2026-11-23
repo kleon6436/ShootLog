@@ -104,7 +104,10 @@ extension ContentViewModel {
         for assets: [PHAsset],
         context: ModelContext
     ) async -> (byIdentifier: [String: Photo], originalFileNames: [String: String]) {
-        let all = (try? context.fetch(FetchDescriptor<Photo>())) ?? []
+        // フォルダ写真まで実体化しないよう、iCloud 写真（localIdentifier を持つ行）だけを引く
+        let all = (try? context.fetch(FetchDescriptor<Photo>(
+            predicate: #Predicate { $0.phAssetLocalIdentifier != nil }
+        ))) ?? []
         let byIdentifier = Dictionary(
             all.compactMap { photo in
                 photo.phAssetLocalIdentifier.map { ($0, photo) }
