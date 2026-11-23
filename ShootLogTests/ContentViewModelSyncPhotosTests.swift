@@ -120,6 +120,30 @@ struct ContentViewModelSyncPhotosTests {
         await tearDown(fixture)
     }
 
+    // ストアに同じ URL の行が2つある場合（過去の重複挿入の名残）でも、一覧には1枚だけ入り、
+    // 既存の行のどちらかを再利用して3つ目の行は作らない（syncPhotos の「先に見つかった行を使う」挙動）
+    @Test func duplicateStoredRowsForOneURLYieldSingleEntry() async throws {
+        let fixture = try makeFixture()
+        let content = fixture.content
+        let url = fixture.urls[3]
+        let firstRow = Photo(fileURL: url)
+        let secondRow = Photo(fileURL: url)
+        fixture.context.insert(firstRow)
+        fixture.context.insert(secondRow)
+        try fixture.context.save()
+        let storedIDs: Set = [firstRow.persistentModelID, secondRow.persistentModelID]
+
+        await content.loadFolderPhotos(fixture.folder)
+        await waitForStaging(content)
+
+        let entries = content.photos.filter { $0.fileURL == url }
+        #expect(entries.count == 1)
+        #expect(entries.first.map { storedIDs.contains($0.persistentModelID) } == true)
+        #expect(try rowCounts(fixture)[url] == 2)
+        #expect(content.photos.count == Self.photoCount)
+        await tearDown(fixture)
+    }
+
     // 既存の行（別フォルダを開いたときに作られたもの・編集情報を持つもの）を作り直さずに再利用する
     @Test func reusesExistingPhotoRowsAndIgnoresOtherFolders() async throws {
         let fixture = try makeFixture()
