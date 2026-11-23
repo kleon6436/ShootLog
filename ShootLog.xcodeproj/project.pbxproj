@@ -70,6 +70,7 @@
 		3DB863D2D45699FDB4A78B65 /* SidebarModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12E9306D3A3C4A2213D21AC /* SidebarModeView.swift */; };
 		3E26BCAE712B2BDF1AFC26C8 /* ImageDevelopmentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D367A1563A7C929CA8EA42 /* ImageDevelopmentEngine.swift */; };
 		3E6885F171CB87415FAB8E97 /* PhotosLibraryPermissionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A26571D74BFB1166D01B3DB /* PhotosLibraryPermissionServiceTests.swift */; };
+		3FAC4A9CCA7B4001868A48A1 /* PhotoCaptionGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC79A6A47D25F0410C92FB92 /* PhotoCaptionGeneratorTests.swift */; };
 		402F1D828FAA2B63A457C7D8 /* DevelopViewModelPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84926A62C0F137B9994F8C8 /* DevelopViewModelPresetTests.swift */; };
 		40F9A27F3AB730F493F2CF13 /* PreviewAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3E1646FCCD5020BEABA0153 /* PreviewAdapter.swift */; };
 		41B828C1E59DBF780CE1B64D /* ToneCurveEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1E1D67D6950CC7482E2E54 /* ToneCurveEditorView.swift */; };
@@ -456,6 +457,7 @@
 		C945AEC510B01C4FAF16C1BC /* ContentViewModelFolderNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModelFolderNavigationTests.swift; sourceTree = "<group>"; };
 		C981DCCCDD5EE800CE3EE736 /* EditorToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorToolbarView.swift; sourceTree = "<group>"; };
 		CA9FD1DF9230C5E0AA46A301 /* DevelopExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopExporter.swift; sourceTree = "<group>"; };
+		CC79A6A47D25F0410C92FB92 /* PhotoCaptionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoCaptionGeneratorTests.swift; sourceTree = "<group>"; };
 		CD3CF56320660D67965170C3 /* LensCorrectionFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LensCorrectionFilter.swift; sourceTree = "<group>"; };
 		CD6B40E47A098C322668F578 /* LensProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LensProfileStoreTests.swift; sourceTree = "<group>"; };
 		CEB52DBBEC1B924F2ED47CE0 /* FolderTreeViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderTreeViewModelTests.swift; sourceTree = "<group>"; };
@@ -777,6 +779,7 @@
 				4EF5D33B14E49023182B7C27 /* MaskRasterResolvingTests.swift */,
 				2D9CF5AFBB4DBAEF572C3E3B /* MaskRasterTests.swift */,
 				E8C4D54C1C08DFAACA845BBF /* PhotoActionAvailabilityTests.swift */,
+				CC79A6A47D25F0410C92FB92 /* PhotoCaptionGeneratorTests.swift */,
 				AC97BB71DCE926FF17786016 /* PhotoQualityDiagnosisGeneratorTests.swift */,
 				AF2B32A716115B3C9DFEB032 /* PhotoQualityInsightBuilderTests.swift */,
 				4A26571D74BFB1166D01B3DB /* PhotosLibraryPermissionServiceTests.swift */,
@@ -1198,6 +1201,7 @@
 				4D83D2D2C7E63BE3CA502885 /* MaskRasterTests.swift in Sources */,
 				F16643E3A7DBF8C11A5AA859 /* PerformanceBenchmarks.swift in Sources */,
 				1342D8D049BDD69F259B77D8 /* PhotoActionAvailabilityTests.swift in Sources */,
+				3FAC4A9CCA7B4001868A48A1 /* PhotoCaptionGeneratorTests.swift in Sources */,
 				BCC8F57B26F3A5CB4D7B0797 /* PhotoQualityDiagnosisGeneratorTests.swift in Sources */,
 				C8BFF6C6C1B86C21D8A0ABBD /* PhotoQualityInsightBuilderTests.swift in Sources */,
 				3E6885F171CB87415FAB8E97 /* PhotosLibraryPermissionServiceTests.swift in Sources */,
@@ -1326,7 +1330,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				OTHER_SWIFT_FLAGS = "";
@@ -1416,7 +1420,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

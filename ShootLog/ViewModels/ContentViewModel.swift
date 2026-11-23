@@ -99,6 +99,9 @@ final class ContentViewModel {
     // 被写体認識の実行主体。差し替えの扱いは qualityDiagnosisGenerator と同じ
     @ObservationIgnored
     var aiLabelingGenerator: AILabelingGenerator = .shared
+    // 説明文生成の実行主体。テストではモデルの利用可否を固定した生成器へ差し替える
+    @ObservationIgnored
+    var photoCaptionGenerator: PhotoCaptionGenerator = .shared
     // 手動の再解析で、分類済み・診断済みでも対象に含める写真。結果が届いた写真から外す。
     // 処理本体は ContentViewModelAILabeling.swift 側にある
     var aiLabelingReanalysisURLs: Set<URL> = []

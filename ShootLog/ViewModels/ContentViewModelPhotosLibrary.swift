@@ -119,7 +119,7 @@ extension ContentViewModel {
                 assetsNeedingOriginalFileNames.compactMap { asset in
                     guard let originalFileName = PHAssetResource
                         .assetResources(for: asset)
-                        .first?.originalFilename else { return nil }
+                        .first?.filename else { return nil }
                     return (asset.localIdentifier, originalFileName)
                 },
                 uniquingKeysWith: { first, _ in first }

@@ -29,7 +29,7 @@ struct SidebarModeView: View {
         } detail: {
             viewerColumn
         }
-        .searchable(text: $vm.searchText, placement: .sidebar, prompt: Text(searchPrompt))
+        .searchable(text: $vm.searchText, placement: .sidebar, prompt: Text(Self.searchPrompt))
         .toolbar { toolbarItems }
         .overlay(alignment: .bottom) {
             // トースト（お気に入り登録など）
@@ -142,7 +142,7 @@ struct SidebarModeView: View {
                 if vm.isLoading {
                     ProgressView("common.loading")
                         .padding(Spacing.medium)
-                        .glassOrMaterial(cornerRadius: CornerRadius.medium)
+                        .glass(cornerRadius: CornerRadius.medium)
                         .padding(.bottom, Spacing.medium)
                 } else {
                     let messages = [
@@ -178,7 +178,7 @@ struct SidebarModeView: View {
                             }
                         }
                         .padding(Spacing.medium)
-                        .glassOrMaterial(cornerRadius: CornerRadius.medium)
+                        .glass(cornerRadius: CornerRadius.medium)
                         .padding(.bottom, Spacing.medium)
                     }
                 }
@@ -335,21 +335,15 @@ struct SidebarModeView: View {
         columnVisibility != .detailOnly
     }
 
-    private var searchPrompt: LocalizedStringResource {
-        if #available(macOS 27, *) {
-            "sidebar.search.prompt.aiEnabled"
-        } else {
-            "sidebar.search.prompt.fileNameOnly"
-        }
-    }
+    // 検索はファイル名・カメラ名に加えて AI の説明文も対象にする（最低OSで Foundation Models が使えるため常に同じ文言）
+    private static let searchPrompt: LocalizedStringResource = "sidebar.search.prompt.aiEnabled"
 
     // 標準ツールバーの中身。
     // サイドバートグルは OS 標準ボタンを外して独自ボタン1つに統一しているため常時表示する。
     // 配置は Xcode 同様の位置連動を得るため .navigation（サイドバー領域の先頭）とし、
     // 「フォルダを開く」まで含めて1クラスタにする。末尾側は役割ごとに
     // 「表示モード」「絞り込み」「その他の操作」の3クラスタへ分け、
-    // macOS 26 では ToolbarSpacer(.fixed) で明示的に離してガラスのまとまりを分ける
-    // （macOS 15 では区切りが入らず同じ順序で素直に並ぶ）
+    // ToolbarSpacer(.fixed) で明示的に離してガラスのまとまりを分ける
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -371,9 +365,7 @@ struct SidebarModeView: View {
             ModeTogglePicker(currentModeID: $vm.currentModeID, modes: vm.availableModes)
         }
 
-        if #available(macOS 26, *) {
-            ToolbarSpacer(.fixed, placement: .primaryAction)
-        }
+        ToolbarSpacer(.fixed, placement: .primaryAction)
 
         // クラスタB: 一覧の絞り込み（お気に入り・AIカテゴリ）
         ToolbarItemGroup(placement: .primaryAction) {
@@ -391,9 +383,7 @@ struct SidebarModeView: View {
             )
         }
 
-        if #available(macOS 26, *) {
-            ToolbarSpacer(.fixed, placement: .primaryAction)
-        }
+        ToolbarSpacer(.fixed, placement: .primaryAction)
 
         // クラスタC: 分析・外部アプリ・設定。
         // 「フォルダを開く」は.navigationクラスタに持つため、共有グループには渡さない
@@ -411,10 +401,8 @@ struct SidebarModeView: View {
         // 左サイドバートグル（.navigation配置）と異なり、サイドバー境界にもEXIFパネルの
         // 開閉状態にも追従させず、常に同じ位置に置く。
         // 連続する ToolbarItemGroup は隙間なく詰めて描画されるため、
-        // macOS 26 以降は ToolbarSpacer で明示的に離す（Xcodeと同じ見た目の分離）
-        if #available(macOS 26, *) {
-            ToolbarSpacer(.flexible, placement: .primaryAction)
-        }
+        // ToolbarSpacer で明示的に離す（Xcodeと同じ見た目の分離）
+        ToolbarSpacer(.flexible, placement: .primaryAction)
 
         ToolbarItemGroup(placement: .primaryAction) {
             Button(action: toggleInspector) {

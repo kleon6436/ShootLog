@@ -1,6 +1,5 @@
 import AppKit
 import SwiftData
-import UniformTypeIdentifiers
 import Foundation
 
 // フォルダの選択・履歴管理・写真読み込みを担当する
@@ -344,9 +343,7 @@ extension ContentViewModel {
                 token: aiLabelingToken
             )
             await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
-            if #available(macOS 27, *) {
-                await self.startPhotoCaption(photoIndex: photoIndex, token: photoCaptionToken)
-            }
+            await self.startPhotoCaption(photoIndex: photoIndex, token: photoCaptionToken)
         }
     }
 
@@ -385,12 +382,13 @@ extension ContentViewModel {
         )
     }
 
-    @available(macOS 27, *)
-    private func startPhotoCaption(photoIndex: [URL: Int], token photoCaptionToken: Int) async {
+    // テストから生成の開始有無を確かめられるよう internal にし、開始したかを返す
+    @discardableResult
+    func startPhotoCaption(photoIndex: [URL: Int], token photoCaptionToken: Int) async -> Bool {
         let captionURLs = photos
             .filter { $0.aiCaptionFetchedAt == nil }
             .map(\.fileURL)
-        await PhotoCaptionGenerator.shared.start(
+        return await photoCaptionGenerator.start(
             urls: captionURLs,
             around: 0,
             progress: { [weak self] done, total in
@@ -488,9 +486,7 @@ extension ContentViewModel {
         await aiLabelingGenerator.cancel()
         await qualityDiagnosisGenerator.cancel()
         await EXIFPrefetcher.shared.cancel()
-        if #available(macOS 27, *) {
-            await PhotoCaptionGenerator.shared.cancel()
-        }
+        await photoCaptionGenerator.cancel()
     }
 
     // ブックマーク解決後のURLが保存済みのURLと異なる（フォルダの名称変更・移動）場合に、
@@ -554,14 +550,8 @@ extension ContentViewModel {
 
     private func loadFileURL(from provider: NSItemProvider) async -> URL? {
         await withCheckedContinuation { continuation in
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                    continuation.resume(returning: url)
-                } else if let url = item as? URL {
-                    continuation.resume(returning: url)
-                } else {
-                    continuation.resume(returning: nil)
-                }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                continuation.resume(returning: url)
             }
         }
     }

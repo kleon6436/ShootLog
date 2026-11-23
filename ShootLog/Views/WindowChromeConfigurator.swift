@@ -90,10 +90,8 @@ struct WindowChromeConfigurator: NSViewRepresentable {
                 window.titlebarAppearsTransparent = true
                 window.styleMask.insert(.fullSizeContentView)
                 window.isMovableByWindowBackground = false
-                if #available(macOS 15, *) {
-                    // サイドバー境界に追従する区切り線をシステムに任せる
-                    window.titlebarSeparatorStyle = .automatic
-                }
+                // サイドバー境界に追従する区切り線をシステムに任せる
+                window.titlebarSeparatorStyle = .automatic
             }
 
             // NSToolbarはSwiftUIの構築順により後から差し替わる場合があるため、

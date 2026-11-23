@@ -273,7 +273,9 @@ struct DevelopSectionCard<Content: View>: View {
     /// 折りたたみ時の要約は目視では見えるので、VoiceOver にも展開状態と併せて伝える。
     private var accessibilityValueText: Text {
         if !isExpanded, let summary {
-            return expansionStateValue + Text(verbatim: ", ") + Text(summary)
+            // Text 同士の + は非推奨のため補間で連結する。キー "%@, %@" は区切りだけの書式で、
+            // 既に String Catalog にある
+            return Text("\(expansionStateValue), \(summary)")
         }
         return expansionStateValue
     }

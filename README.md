@@ -22,7 +22,7 @@ macOS向けの写真管理・閲覧アプリです。写真フォルダを読み
 
 ## 対応環境
 
-- macOS 14 Sonoma以降
+- macOS 27.2以降
 - Swift 6.0
 - SwiftUI、AppKit、SwiftData、ImageIO
 - App Sandbox有効

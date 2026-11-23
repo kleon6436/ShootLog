@@ -161,14 +161,10 @@ struct FolderPathBar: View {
     }
 }
 
-// パスバーは機能層のため、macOS 26 では Liquid Glass、それ未満では Material を敷く。
-// どちらもシステム外観に追従し、前景は呼び出し側の .secondary 系に任せる
+// パスバーは機能層のため Liquid Glass を敷く。
+// システム外観に追従するため、前景は呼び出し側の .secondary 系に任せる
 private struct PathBarBackground: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 26, *) {
-            content.glassEffect(.regular, in: Rectangle())
-        } else {
-            content.background(.bar)
-        }
+        content.glassEffect(.regular, in: Rectangle())
     }
 }

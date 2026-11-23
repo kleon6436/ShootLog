@@ -120,14 +120,14 @@ final class SidebarViewModel: ContentViewModelProxy {
         }
     }
 
-    // searchText（ファイル名・カメラ名の部分一致）、showFavoritesOnly、AIカテゴリのAND条件で絞り込む
+    // searchText（ファイル名・カメラ名・AI説明文の部分一致）、showFavoritesOnly、AIカテゴリのAND条件で絞り込む
     var displayedPhotos: [Photo] {
         let trimmedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return content.photos.filter { photo in
             var matchesSearch = trimmedSearchText.isEmpty
                 || photo.displayFileName.localizedCaseInsensitiveContains(trimmedSearchText)
                 || (photo.cameraModel?.localizedCaseInsensitiveContains(trimmedSearchText) ?? false)
-            if #available(macOS 27, *), !matchesSearch, !trimmedSearchText.isEmpty {
+            if !matchesSearch, !trimmedSearchText.isEmpty {
                 matchesSearch = photo.aiCaptionText?.localizedCaseInsensitiveContains(trimmedSearchText) ?? false
             }
             let matchesFavorite = !showFavoritesOnly || photo.isFavorite
