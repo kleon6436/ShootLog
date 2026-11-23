@@ -16,8 +16,6 @@ protocol CaptionModelAvailabilityProviding: Sendable {
 }
 
 struct SystemCaptionModelAvailabilityProvider: CaptionModelAvailabilityProviding {
-    static let shared = SystemCaptionModelAvailabilityProvider()
-
     func availability() -> CaptionModelAvailability {
         switch SystemLanguageModel.default.availability {
         case .available:
@@ -40,7 +38,7 @@ actor PhotoCaptionGenerator {
     private var activeBatchID: UUID?
     private var activeProgress: (@Sendable (Int, Int) -> Void)?
 
-    init(availabilityProvider: any CaptionModelAvailabilityProviding = SystemCaptionModelAvailabilityProvider.shared) {
+    init(availabilityProvider: any CaptionModelAvailabilityProviding = SystemCaptionModelAvailabilityProvider()) {
         self.availabilityProvider = availabilityProvider
     }
 
