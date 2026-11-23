@@ -102,22 +102,13 @@ final class AnalysisViewModel {
     // EXIFから取得できたカメラモデルの重複なし一覧（ソート済み）。refresh() で再計算する
     private(set) var availableCameras: [String] = []
 
-    // 集計の元になる非同期取得状態の指標。EXIF一括取得・AI分類の進行で変化する。
-    // View はこの値の変化を監視して refresh() を呼び、ヘッダー・カメラ一覧・チャートを最新化する
-    struct DataSignature: Equatable {
-        let exifFetchedCount: Int
-        let aiLabeledCount: Int
-    }
+    // 集計の元になる写真の内容が変わったことの合図。EXIF一括取得・AI分類の進行で変化する。
+    // View はこの値の変化を監視して refresh() を呼び、ヘッダー・カメラ一覧・チャートを最新化する。
+    // 以前は描画のたびに全写真を走査して取得済み件数を数えていたが、写真を変更する関数が進める
+    // ContentViewModel.analysisRevision をそのまま使う（読むと観測も登録される）
+    var dataSignature: Int { analysisRevision() }
 
-    var dataSignature: DataSignature {
-        var exifFetched = 0
-        var aiLabeled = 0
-        for photo in photos {
-            if photo.exifFetchedAt != nil { exifFetched += 1 }
-            if photo.aiLabelingFetchedAt != nil { aiLabeled += 1 }
-        }
-        return DataSignature(exifFetchedCount: exifFetched, aiLabeledCount: aiLabeled)
-    }
+    @ObservationIgnored private let analysisRevision: @MainActor () -> Int
 
     // カメラフィルター適用後の写真
     private(set) var filteredPhotos: [Photo] = []
@@ -133,8 +124,9 @@ final class AnalysisViewModel {
     // タブと選択状態に応じたチャートデータ（オーバーレイ時は2系列）
     private(set) var currentData: [DataPoint] = []
 
-    init(photos: [Photo]) {
+    init(photos: [Photo], analysisRevision: @escaping @MainActor () -> Int) {
         self.photos = photos
+        self.analysisRevision = analysisRevision
         refresh()
     }
 

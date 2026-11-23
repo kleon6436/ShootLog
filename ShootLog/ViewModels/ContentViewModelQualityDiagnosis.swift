@@ -105,6 +105,11 @@ extension ContentViewModel {
     // 毎回再診断すると読めない写真がある限り進捗表示が終わらないため、再試行は shouldRetryAIFailure に従う。
     // Vision が一部スコアしか返せなかった（diagnosis は非nil）ときは診断済みとして扱う。
     private func apply(_ diagnosis: PhotoQualityDiagnosis?, to photo: Photo) {
+        // 失敗記録の有無は失敗写真の一括再解析の対象を決める。診断スコアは一覧の絞り込みに使わないので進めない
+        let wasFailed = photo.aiDiagnosisFailedAt != nil
+        defer {
+            if wasFailed != (photo.aiDiagnosisFailedAt != nil) { bumpAIFailureRevision() }
+        }
         guard let diagnosis else {
             photo.aiDiagnosisFailedAt = Date()
             photo.aiDiagnosisSchemaVersion = PhotoQualityDiagnosisGenerator.currentSchemaVersion

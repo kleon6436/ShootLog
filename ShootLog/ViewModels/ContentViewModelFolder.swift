@@ -407,12 +407,18 @@ extension ContentViewModel {
                     guard let self else { return }
                     guard photoCaptionToken == self.photoCaptionToken else { return }
                     guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
-                    let photo = self.photos[index]
-                    photo.aiCaptionText = caption
-                    photo.aiCaptionFetchedAt = Date()
+                    self.applyCaption(caption, to: self.photos[index])
                 }
             }
         )
+    }
+
+    // 説明文を Photo へ反映する。説明文は検索欄の部分一致の対象なので、変わったときだけ photoContentRevision を進める
+    func applyCaption(_ caption: String?, to photo: Photo) {
+        let changed = photo.aiCaptionText != caption
+        photo.aiCaptionText = caption
+        photo.aiCaptionFetchedAt = Date()
+        if changed { bumpPhotoContentRevision() }
     }
 
     // 先頭 initialPhotoBatchSize 件だけを同期的にinsert/saveしてグリッドを即時表示し、

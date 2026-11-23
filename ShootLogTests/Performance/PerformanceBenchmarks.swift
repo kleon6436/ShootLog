@@ -139,3 +139,63 @@ struct BenchmarkReport {
         )
     }
 }
+
+extension PerformanceBenchmarks {
+    static let renderPassPhotoCount = 1_000
+    static let renderPassRepetitions = 200
+
+    // 2-3 の基準: サイドバーの1回の画面更新で displayedPhotos を4回、displayedIndex を1回読む
+    // （SidebarModeView.swift の一覧・a11y の位置読み上げ・先読みの各参照に合わせる）。
+    // 検索と AI カテゴリの絞り込みを有効にし、全件フィルタが走る条件で測る
+    @Test func sidebarDisplayedPhotosRenderPass() {
+        let content = ContentViewModel()
+        let sidebar = SidebarViewModel(content: content)
+        let categories: [AISubjectCategory] = [.person, .animal, .landscape, .food]
+        let photos = (0..<Self.renderPassPhotoCount).map { index in
+            let photo = Photo(fileURL: URL(fileURLWithPath: "/tmp/ShootLogPerf/render/IMG_\(index).jpg"))
+            if index.isMultiple(of: 3) { photo.cameraModel = "Nikon Z8" }
+            photo.aiCategoryRawValues = [categories[index % categories.count].rawValue]
+            if index.isMultiple(of: 5) { photo.aiCaptionText = "A dog running on the beach" }
+            photo.isFavorite = index.isMultiple(of: 2)
+            return photo
+        }
+        content.photos = photos
+        content.selectedPhoto = photos[Self.renderPassPhotoCount / 2]
+        sidebar.searchText = "IMG_1"
+        sidebar.selectedAICategories = [.person, .animal]
+
+        let clock = ContinuousClock()
+        var samples: [Duration] = []
+        samples.reserveCapacity(Self.renderPassRepetitions)
+        var checksum = 0
+        for _ in 0..<Self.renderPassRepetitions {
+            samples.append(clock.measure {
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedIndex ?? 0
+            })
+        }
+        print(BenchmarkReport(name: "2-3 sidebar render pass (1,000 photos)", samples: samples).summary)
+
+        // AI の結果が1件届くたびに描画される場合（毎回 revision が進み、メモが外れる）
+        var invalidatedSamples: [Duration] = []
+        invalidatedSamples.reserveCapacity(Self.renderPassRepetitions)
+        for index in 0..<Self.renderPassRepetitions {
+            content.toggleFavorite(photos[index])
+            invalidatedSamples.append(clock.measure {
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedPhotos.count
+                checksum &+= sidebar.displayedIndex ?? 0
+            })
+        }
+        print(BenchmarkReport(
+            name: "2-3 sidebar render pass after a photo change (1,000 photos)",
+            samples: invalidatedSamples
+        ).summary)
+        #expect(checksum > 0)
+    }
+}

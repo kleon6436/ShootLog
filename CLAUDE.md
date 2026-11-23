@@ -63,6 +63,7 @@ View（SwiftUI）        — レイアウトと表示。状態変更はViewModel
 - ViewModelはView型を直接生成しない。
 - 表示モードの切り替えは `ContentView` が `currentModeID` を見て行う。
 - `ViewModeRegistry` はモードとモード用ViewModelの登録を管理する。
+- 派生配列（`SidebarViewModel.displayedPhotos`、`ContentViewModel.visiblePhotos` / `aiAnalysisFailedPhotos`）は `@ObservationIgnored` のメモに保持し、`ContentViewModel` の変更番号を鍵にする（`AnalysisViewModel.dataSignature` は `analysisRevision` をそのまま読む）。`photosArrayRevision` は `photos` の差し替え・追加（`didSet`）、`photoContentRevision` は絞り込みの入力（`isFavorite`・`cameraModel`・`aiCategoryRawValues`・`aiCaptionText`）が実際に変わったとき、`aiFailureRevision` は AI の失敗記録の有無が変わったとき、`analysisRevision` は EXIF・被写体認識の結果の反映で進む。これらの値は `apply(_:to:)`・`toggleFavorite`・`applyCaption` など番号を進める `ContentViewModel` の関数から書き、`Photo` を直接書き換えない（メモが古いまま残る）。絞り込みが無効な一覧は `photoContentRevision` を読まない（背景の結果1件ごとの再描画を避けるため）。
 
 ## ローカライズ
 
