@@ -9,8 +9,7 @@ extension ContentViewModel {
     // 選択中写真の EditInfo を SwiftData から取得する（なければ nil）
     func loadEditInfo(for photo: Photo) {
         guard let context = modelContext else { return }
-        let all = (try? context.fetch(FetchDescriptor<EditInfo>())) ?? []
-        currentEditInfo = all.first(where: { $0.photoID == photo.id })
+        currentEditInfo = context.editInfo(forPhotoID: photo.id)
     }
 
     // 90° 右回転。EditInfo がなければ新規作成する。
@@ -63,13 +62,10 @@ extension ContentViewModel {
     // developSettingsOrCreate と同じく photoID を検証してから返す。
     // 現行のproduction経路（selectPhoto が必ず loadEditInfo を呼ぶ）では起きないが、
     // 将来の誤用に対する防御として持たせる。
-    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadEditInfo と同じ
-    // 「全件 fetch して first(where:)」パターンを踏襲する
     private func editInfoOrCreate(for photo: Photo, context: ModelContext) -> EditInfo {
         if let existing = currentEditInfo, existing.photoID == photo.id { return existing }
 
-        let all = (try? context.fetch(FetchDescriptor<EditInfo>())) ?? []
-        if let stored = all.first(where: { $0.photoID == photo.id }) {
+        if let stored = context.editInfo(forPhotoID: photo.id) {
             currentEditInfo = stored
             return stored
         }
