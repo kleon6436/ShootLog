@@ -196,47 +196,22 @@ extension View {
 // MARK: - リキッドグラスヘルパー（同一モジュール内で使用可能）
 //
 // ToastView.swift から移設。責務の所在をデザインシステムに一元化する。
-// macOS 26 以降はリキッドグラス、それ以前は Material でフォールバックする。
+// 形状ごとの glassEffect 指定を呼び出し側へ散らさないためにヘルパーとして残す。
 
 extension View {
-    // macOS 26 以降はリキッドグラス、それ以前は regularMaterial で角丸背景
-    @ViewBuilder
-    func glassOrMaterial(cornerRadius: CGFloat) -> some View {
-        if #available(macOS 26, *) {
-            self.glassEffect(in: RoundedRectangle(cornerRadius: cornerRadius))
-        } else {
-            self
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        }
+    // 角丸背景
+    func glass(cornerRadius: CGFloat) -> some View {
+        glassEffect(in: RoundedRectangle(cornerRadius: cornerRadius))
     }
 
-    // カプセル形状版。
-    // 以前は macOS 26 未満で白文字＋黒背景を固定していたため、同じ部品が
-    // OSバージョンによって正反対の配色になっていた。どちらの分岐も外観追従の
-    // 背景＋ .primary の前景に統一する
-    @ViewBuilder
-    func glassOrMaterialCapsule() -> some View {
-        if #available(macOS 26, *) {
-            self
-                .foregroundStyle(.primary)
-                .glassEffect(in: Capsule())
-        } else {
-            self
-                .foregroundStyle(.primary)
-                .background(.regularMaterial, in: Capsule())
-        }
+    // カプセル形状版。ガラスは外観に追従するため、前景も固定色にせず .primary にする
+    func glassCapsule() -> some View {
+        foregroundStyle(.primary)
+            .glassEffect(in: Capsule())
     }
 
     // 真円版（ナビゲーションボタン用）
-    @ViewBuilder
-    func glassOrMaterialCircle() -> some View {
-        if #available(macOS 26, *) {
-            self.glassEffect(in: Circle())
-        } else {
-            self
-                .background(.ultraThinMaterial)
-                .clipShape(Circle())
-        }
+    func glassCircle() -> some View {
+        glassEffect(in: Circle())
     }
 }

@@ -41,25 +41,7 @@ extension ContentViewModel {
                     // 別の写真へ書き込まないよう、URL が一致する場合だけ反映する
                     if let index = photoIndex[url], self.photos.indices.contains(index),
                        self.photos[index].fileURL == url {
-                        let photo = self.photos[index]
-                        if let result {
-                            photo.aiCategoryRawValues = result.categories.map(\.rawValue)
-                            photo.aiRawIdentifiers = result.rawIdentifiers
-                            photo.aiLabelingFetchedAt = Date()
-                            photo.aiLabelingFailedAt = nil
-                            self.addDetectedAICategories(result.categories)
-                        } else {
-                            // キャンセル時は onResult が呼ばれないため、ここに来るのは実際の失敗だけ。
-                            // 既存の分類結果があれば残す。ただし旧スキーマ版の結果は誤分類を含み得るため、
-                            // 現行版の印を付けて残すと「現行版の結果」として扱われ続けてしまう。消してから失敗を記録する
-                            if (photo.aiLabelingSchemaVersion ?? 1) < AILabelingGenerator.currentSchemaVersion {
-                                photo.aiCategoryRawValues = []
-                                photo.aiRawIdentifiers = []
-                                photo.aiLabelingFetchedAt = nil
-                            }
-                            photo.aiLabelingFailedAt = Date()
-                        }
-                        photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
+                        self.apply(result, to: self.photos[index])
                     }
                     self.aiLabelingCompletedCount += 1
                     // 書き込み後に保存し、数百〜数千枚の分類ではチャンク単位にI/Oする。
@@ -71,6 +53,37 @@ extension ContentViewModel {
                 }
             }
         )
+    }
+
+    // 被写体認識の結果（nil は失敗）を Photo へ反映する（保存は呼び出し側でチャンク単位に行う）。
+    // テストから結果の反映を直接確かめられるよう internal にする
+    func apply(_ result: VisionLabelClassification?, to photo: Photo) {
+        let previousCategories = photo.aiCategoryRawValues
+        let wasFailed = photo.aiLabelingFailedAt != nil
+        let wasLabeled = photo.aiLabelingFetchedAt != nil
+        if let result {
+            photo.aiCategoryRawValues = result.categories.map(\.rawValue)
+            photo.aiRawIdentifiers = result.rawIdentifiers
+            photo.aiLabelingFetchedAt = Date()
+            photo.aiLabelingFailedAt = nil
+            addDetectedAICategories(result.categories)
+        } else {
+            // キャンセル時は onResult が呼ばれないため、ここに来るのは実際の失敗だけ。
+            // 既存の分類結果があれば残す。ただし旧スキーマ版の結果は誤分類を含み得るため、
+            // 現行版の印を付けて残すと「現行版の結果」として扱われ続けてしまう。消してから失敗を記録する
+            if (photo.aiLabelingSchemaVersion ?? 1) < AILabelingGenerator.currentSchemaVersion {
+                photo.aiCategoryRawValues = []
+                photo.aiRawIdentifiers = []
+                photo.aiLabelingFetchedAt = nil
+            }
+            photo.aiLabelingFailedAt = Date()
+        }
+        photo.aiLabelingSchemaVersion = AILabelingGenerator.currentSchemaVersion
+        // 同じカテゴリの再分類では一覧を作り直さない（AIカテゴリの絞り込み中に結果が届くたびの再描画を避ける）
+        let categoriesChanged = photo.aiCategoryRawValues != previousCategories
+        if categoriesChanged { bumpPhotoContentRevision() }
+        if wasFailed != (photo.aiLabelingFailedAt != nil) { bumpAIFailureRevision() }
+        if categoriesChanged || wasLabeled != (photo.aiLabelingFetchedAt != nil) { bumpAnalysisRevision() }
     }
 
     // 未分類、または分類ロジックの世代が古い写真を再分類の対象にする。
@@ -126,11 +139,6 @@ extension ContentViewModel {
 // MARK: - 手動の再解析
 
 extension ContentViewModel {
-    /// 被写体認識・画質診断で失敗を記録した写真。ツールバーの一括再解析の対象
-    var aiAnalysisFailedPhotos: [Photo] {
-        photos.filter { $0.aiLabelingFailedAt != nil || $0.aiDiagnosisFailedAt != nil }
-    }
-
     /// `urls` に含まれる写真を先頭へ寄せる。それぞれの中では元の並び（写真一覧の順）を保つ
     static func prioritizing(_ urls: Set<URL>, in photos: [Photo]) -> [Photo] {
         guard !urls.isEmpty else { return photos }

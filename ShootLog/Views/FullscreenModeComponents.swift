@@ -12,7 +12,7 @@ struct NavButton: View {
             Image(systemName: direction == .prev ? "chevron.left" : "chevron.right")
                 .foregroundStyle(Color.onViewerCanvas)
                 .frame(width: 44, height: 44)
-                .glassOrMaterialCircle()
+                .glassCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.control))
         .accessibilityLabel(direction == .prev ? "viewer.previousPhoto" : "viewer.nextPhoto")
@@ -105,7 +105,7 @@ struct EXIFCaptionCapsule: View {
         .foregroundStyle(.primary)
         .padding(.horizontal, 14)
         .frame(height: 36)
-        .glassOrMaterialCapsule()
+        .glassCapsule()
         .accessibilityElement(children: .combine)
     }
 }

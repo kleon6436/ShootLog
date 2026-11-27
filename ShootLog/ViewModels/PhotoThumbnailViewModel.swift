@@ -17,5 +17,6 @@ final class PhotoThumbnailViewModel {
         } else {
             thumbnail = await ImageLoader.shared.thumbnail(for: photo.fileURL, snapshot: snapshot)
         }
+        if thumbnail != nil { PerformanceSignposts.markThumbnailShown() }
     }
 }

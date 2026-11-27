@@ -17,8 +17,10 @@ extension ContentViewModel {
             currentDevelopSettings = nil
             return
         }
+        let editStateSignpost = PerformanceSignposts.viewer.beginInterval("viewer.loadEditState")
         loadEditInfo(for: photo)
         loadDevelopSettings(for: photo)
+        PerformanceSignposts.viewer.endInterval("viewer.loadEditState", editStateSignpost)
         Task { await loadEXIFIfNeeded(for: photo) }
     }
 
@@ -26,16 +28,18 @@ extension ContentViewModel {
     // 選択中写真が未選択、または絞り込みで一覧から外れている場合は先頭要素を選ぶ
     // （旧実装は selectedIndex の `?? 0` フォールバックにより未選択時に1枚飛ばすバグがあった）
     func selectNext() {
-        selectNext(in: { [weak self] in self?.visiblePhotos ?? [] })
+        selectNext(in: { [weak self] in self?.visiblePhotoList ?? IndexedPhotoList([]) })
     }
 
     // 表示中の一覧（呼び出し側の絞り込み適用後）基準で次の写真を選択する。
     // サイドバーは検索・AIカテゴリでさらに絞り込んだ一覧を表示しているため、その一覧を渡す。
-    // 段階挿入完了待ち後の再試行でも同じ基準で一覧を引き直せるよう、配列ではなく取得関数で受け取る
-    func selectNext(in listProvider: @escaping @MainActor () -> [Photo]) {
-        let list = listProvider()
+    // 段階挿入完了待ち後の再試行でも同じ基準で一覧を引き直せるよう、配列ではなく取得関数で受け取る。
+    // 位置はメモ済みの索引で引き、キー送りのたびに全件を走査しない
+    func selectNext(in listProvider: @escaping @MainActor () -> IndexedPhotoList) {
+        let indexedList = listProvider()
+        let list = indexedList.photos
         guard !list.isEmpty else { return }
-        guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
+        guard let selectedPhoto, let index = indexedList.index(of: selectedPhoto) else {
             selectPhoto(list.first)
             return
         }
@@ -61,13 +65,14 @@ extension ContentViewModel {
     }
 
     func selectPrevious() {
-        selectPrevious(in: visiblePhotos)
+        selectPrevious(in: visiblePhotoList)
     }
 
     // 表示中の一覧（呼び出し側の絞り込み適用後）基準で前の写真を選択する
-    func selectPrevious(in list: [Photo]) {
+    func selectPrevious(in indexedList: IndexedPhotoList) {
+        let list = indexedList.photos
         guard !list.isEmpty else { return }
-        guard let selectedPhoto, let index = list.firstIndex(where: { $0.id == selectedPhoto.id }) else {
+        guard let selectedPhoto, let index = indexedList.index(of: selectedPhoto) else {
             selectPhoto(list.first)
             return
         }
@@ -85,6 +90,7 @@ extension ContentViewModel {
     // グリッド・リストからの直接トグル用
     func toggleFavorite(_ photo: Photo) {
         photo.isFavorite.toggle()
+        bumpPhotoContentRevision()
         guard let context = modelContext, saveOrReportError(context) else { return }
         showToast(photo.isFavorite
             ? String(localized: "toast.favorite.added")
@@ -216,6 +222,7 @@ extension ContentViewModel {
     // 読み取った EXIF を Photo へ反映する（保存は呼び出し側でまとめて行う）
     // フォルダのEXIF先読み結果を別extensionから共通利用するためinternalにする。
     func apply(_ exif: EXIFInfo, to photo: Photo) {
+        let cameraModelChanged = photo.cameraModel != exif.cameraModel
         photo.cameraMake   = exif.cameraMake
         photo.cameraModel  = exif.cameraModel
         photo.lensModel    = exif.lensModel
@@ -236,6 +243,9 @@ extension ContentViewModel {
             photo.shootingDateFromMetadata = false
         }
         photo.exifFetchedAt = Date()
+        // カメラ名は検索の対象。EXIF の反映は分析画面の再集計の合図になる
+        if cameraModelChanged { bumpPhotoContentRevision() }
+        bumpAnalysisRevision()
     }
 
     // MARK: - External App

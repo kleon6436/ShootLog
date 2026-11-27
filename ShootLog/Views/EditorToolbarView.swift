@@ -1,8 +1,8 @@
 import SwiftUI
 
 // 中央ビューアの下端中央に浮かべる編集ツールバー（現像・回転・トリミング・お気に入り・超解像・リセット）。
-// ツールバーやHUDと同じ「機能層のフローティングコントロール」なので、macOS 26 以降は
-// GlassEffectContainer + カプセル型のリキッドグラス、それ以前は regularMaterial のカプセルで描く。
+// ツールバーやHUDと同じ「機能層のフローティングコントロール」なので、
+// GlassEffectContainer + カプセル型のリキッドグラスで描く。
 // コンテンツ層のカード（.contentCard）とは別系統であることに注意する
 struct EditorToolbarView: View {
     let editInfo: EditInfo?
@@ -25,16 +25,10 @@ struct EditorToolbarView: View {
             .padding(.bottom, Self.bottomInset)
     }
 
-    // macOS 26 以降は複数のガラス要素を1つの容器にまとめて合成コストと見えを揃える。
-    // 中身は同一なので、分岐するのは背景の描き方だけに留める
-    @ViewBuilder
+    // 複数のガラス要素を1つの容器にまとめて合成コストと見えを揃える
     private var glassCapsule: some View {
-        if #available(macOS 26, *) {
-            GlassEffectContainer {
-                buttonRow.glassEffect(in: Capsule())
-            }
-        } else {
-            buttonRow.background(.regularMaterial, in: Capsule())
+        GlassEffectContainer {
+            buttonRow.glassEffect(in: Capsule())
         }
     }
 

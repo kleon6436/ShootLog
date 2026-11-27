@@ -76,6 +76,14 @@ def patch_xcscheme() -> None:
         "Scheme.version",
     )
 
+    # testPlans を指定すると XcodeGen は buildArchitectures の既定値も書き出す。
+    # Xcode が保存する形（既定値は省略）に合わせて取り除く
+    text = text.replace(
+        'buildImplicitDependencies = "YES"\n      buildArchitectures = "Automatic"\n',
+        'buildImplicitDependencies = "YES"\n',
+        1,
+    )
+
     text = replace_or_skip(
         text,
         'buildImplicitDependencies = "YES"\n      runPostActionsOnFailure = "NO">',

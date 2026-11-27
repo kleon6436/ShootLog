@@ -1011,6 +1011,10 @@ final class DevelopViewModel {
 
         isRendering = true
         let target = PhotoImageViewModel.targetMaxPixelSize(for: displaySize)
+        // RAW パラメータを CIRAWFilter へ委譲する描画（スライダーを離した後の再デコード）は別区間で測る
+        let renderSignpost = useRAWParameterMapping
+            ? PerformanceSignposts.begin(PerformanceSignposts.develop, "develop.rawRedraw")
+            : PerformanceSignposts.begin(PerformanceSignposts.develop, "develop.renderPreview")
         let rendered = await engine.renderPreview(
             url: photo.fileURL,
             parameters: params,
@@ -1024,6 +1028,7 @@ final class DevelopViewModel {
             asShotWhiteBalance: asShotWhiteBalance,
             maskRasters: resolvedMaskRasters(for: params)
         )
+        renderSignpost.end(cancelled: generation != renderGeneration)
         // supersede されていたら後始末は最新世代に任せる。
         guard generation == renderGeneration else { return }
 

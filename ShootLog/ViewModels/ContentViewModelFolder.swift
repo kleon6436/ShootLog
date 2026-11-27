@@ -1,6 +1,5 @@
 import AppKit
 import SwiftData
-import UniformTypeIdentifiers
 import Foundation
 
 // フォルダの選択・履歴管理・写真読み込みを担当する
@@ -254,6 +253,7 @@ extension ContentViewModel {
         // この読み込み専用の世代を発行する（以降の await 明けで最新かどうかを判定する）
         photoStagingGeneration &+= 1
         let generation = photoStagingGeneration
+        PerformanceSignposts.beginFirstThumbnails(generation: generation)
         guard applyFileAttributesSnapshots([:], generation: generation) else { return }
 
         do {
@@ -263,7 +263,10 @@ extension ContentViewModel {
             let urls = scanResult.urls
             let snapshots = scanResult.snapshots
             guard applyFileAttributesSnapshots(snapshots, generation: generation) else { return }
+            let syncState = PerformanceSignposts.folderLoad.beginInterval("folderLoad.syncPhotos")
             syncPhotos(urls: urls, context: context)
+            PerformanceSignposts.folderLoad.endInterval("folderLoad.syncPhotos", syncState)
+            PerformanceSignposts.setFirstThumbnailsExpectedCount(urls.count, generation: generation)
             selectPhoto(photos.first)
             await startPreviewGeneration(urls: urls, snapshots: snapshots)
             startFolderBackgroundAnalysis(snapshots: snapshots)
@@ -340,9 +343,7 @@ extension ContentViewModel {
                 token: aiLabelingToken
             )
             await self.startAIQualityDiagnosis(token: aiQualityDiagnosisToken, around: 0)
-            if #available(macOS 27, *) {
-                await self.startPhotoCaption(photoIndex: photoIndex, token: photoCaptionToken)
-            }
+            await self.startPhotoCaption(photoIndex: photoIndex, token: photoCaptionToken)
         }
     }
 
@@ -381,12 +382,13 @@ extension ContentViewModel {
         )
     }
 
-    @available(macOS 27, *)
-    private func startPhotoCaption(photoIndex: [URL: Int], token photoCaptionToken: Int) async {
+    // テストから生成の開始有無を確かめられるよう internal にし、開始したかを返す
+    @discardableResult
+    func startPhotoCaption(photoIndex: [URL: Int], token photoCaptionToken: Int) async -> Bool {
         let captionURLs = photos
             .filter { $0.aiCaptionFetchedAt == nil }
             .map(\.fileURL)
-        await PhotoCaptionGenerator.shared.start(
+        return await photoCaptionGenerator.start(
             urls: captionURLs,
             around: 0,
             progress: { [weak self] done, total in
@@ -405,19 +407,30 @@ extension ContentViewModel {
                     guard let self else { return }
                     guard photoCaptionToken == self.photoCaptionToken else { return }
                     guard let index = photoIndex[url], self.photos.indices.contains(index) else { return }
-                    let photo = self.photos[index]
-                    photo.aiCaptionText = caption
-                    photo.aiCaptionFetchedAt = Date()
+                    self.applyCaption(caption, to: self.photos[index])
                 }
             }
         )
     }
 
+    // 説明文を Photo へ反映する。説明文は検索欄の部分一致の対象なので、変わったときだけ photoContentRevision を進める
+    func applyCaption(_ caption: String?, to photo: Photo) {
+        let changed = photo.aiCaptionText != caption
+        photo.aiCaptionText = caption
+        photo.aiCaptionFetchedAt = Date()
+        if changed { bumpPhotoContentRevision() }
+    }
+
     // 先頭 initialPhotoBatchSize 件だけを同期的にinsert/saveしてグリッドを即時表示し、
-    // 残りは photoStagingTask で分割して挿入する
+    // 残りは photoStagingTask で分割して挿入する。
+    // 既存の Photo はこのフォルダの URL の分だけを引く。以前はストアの全 Photo（別フォルダ・iCloud 写真を含む）を
+    // 実体化していたため、ライブラリが大きいほどフォルダを開く瞬間に MainActor が止まっていた。
+    // URL の述語が失敗した場合だけ、重複挿入を避けるため従来の全件 fetch に戻す
     private func syncPhotos(urls: [URL], context: ModelContext) {
-        let all = (try? context.fetch(FetchDescriptor<Photo>())) ?? []
-        let byURL = Dictionary(all.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
+        let existing = (try? context.photos(withFileURLs: urls))
+            ?? (try? context.fetch(FetchDescriptor<Photo>()))
+            ?? []
+        let byURL = Dictionary(existing.map { ($0.fileURL, $0) }, uniquingKeysWith: { first, _ in first })
 
         let firstBatchCount = min(urls.count, Self.initialPhotoBatchSize)
         photos = urls[..<firstBatchCount].map { resolvePhoto(for: $0, existing: byURL, context: context) }
@@ -484,9 +497,7 @@ extension ContentViewModel {
         await aiLabelingGenerator.cancel()
         await qualityDiagnosisGenerator.cancel()
         await EXIFPrefetcher.shared.cancel()
-        if #available(macOS 27, *) {
-            await PhotoCaptionGenerator.shared.cancel()
-        }
+        await photoCaptionGenerator.cancel()
     }
 
     // ブックマーク解決後のURLが保存済みのURLと異なる（フォルダの名称変更・移動）場合に、
@@ -550,14 +561,8 @@ extension ContentViewModel {
 
     private func loadFileURL(from provider: NSItemProvider) async -> URL? {
         await withCheckedContinuation { continuation in
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                    continuation.resume(returning: url)
-                } else if let url = item as? URL {
-                    continuation.resume(returning: url)
-                } else {
-                    continuation.resume(returning: nil)
-                }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                continuation.resume(returning: url)
             }
         }
     }

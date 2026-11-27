@@ -33,6 +33,10 @@ final class PhotoImageViewModel {
         isLoadingHighRes = false
         guard let photo else { return }
         let fileURL = photo.fileURL
+        // iCloud 写真はエクスポート待ちが主なので、プロキシ表示の区間はフォルダ写真だけで計測する。
+        // 途中で return したときも区間を閉じる（開いたままだと Instruments の集計が崩れる）
+        var proxySignpost: PerformanceSignposts.Interval?
+        defer { proxySignpost?.end(cancelled: true) }
 
         if let localIdentifier = photo.phAssetLocalIdentifier {
             thumbnail = await PhotosLibraryThumbnailProvider.shared.thumbnail(
@@ -51,6 +55,7 @@ final class PhotoImageViewModel {
                 return
             }
         } else {
+            if !useFullResolution { proxySignpost = PerformanceSignposts.begin(PerformanceSignposts.viewer, "viewer.selectToProxyShown") }
             let loadedThumbnail = await ImageLoader.shared.thumbnail(for: fileURL, snapshot: snapshot)
             // サムネイル取得中に写真が切り替わっていたら代入も高解像度ロードもスキップする
             // （旧タスクが後から再開して前の写真のサムネイルを上書きするのを防ぐ）
@@ -72,6 +77,8 @@ final class PhotoImageViewModel {
             if let proxy {
                 highRes = proxy
             }
+            proxySignpost?.end(cancelled: false)
+            proxySignpost = nil
 
             let displayNeed = Self.targetMaxPixelSize(for: displaySize)
             let proxyEdge = CGFloat(PreviewCacheStore.shared.proxyLongEdge)

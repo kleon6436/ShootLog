@@ -7,8 +7,8 @@ struct AnalysisView: View {
     @State private var vm: AnalysisViewModel
     @Environment(\.dismiss) private var dismiss
 
-    init(photos: [Photo]) {
-        _vm = State(initialValue: AnalysisViewModel(photos: photos))
+    init(photos: [Photo], analysisRevision: @escaping @MainActor () -> Int) {
+        _vm = State(initialValue: AnalysisViewModel(photos: photos, analysisRevision: analysisRevision))
     }
 
     var body: some View {

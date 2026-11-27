@@ -4,8 +4,8 @@ attributes:
 options:
   bundleIdPrefix: com.shootlog
   deploymentTarget:
-    macOS: "15.0"
-  xcodeVersion: "16.0"
+    macOS: "27.2"
+  xcodeVersion: "27.2"
   generateEmptyDirectories: true
   createIntermediateGroups: true
   developmentLanguage: ja
@@ -15,7 +15,7 @@ settings:
   base:
     PRODUCT_NAME: ShootLog
     SWIFT_VERSION: "6.0"
-    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    MACOSX_DEPLOYMENT_TARGET: "27.2"
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
     SWIFT_STRICT_CONCURRENCY: complete
@@ -78,6 +78,11 @@ schemes:
       config: Debug
       targets:
         - ShootLogTests
+      # Performance は SHOOTLOG_PERF=1 を設定して性能ベンチマークを有効にする（Default では無効）
+      testPlans:
+        - path: ShootLog.xctestplan
+          defaultPlan: true
+        - path: Performance.xctestplan
     profile:
       config: Release
     analyze:

@@ -19,14 +19,14 @@ struct AnalysisViewModelTests {
     }
 
     @Test func cachesExifCountAndAvailableCameras() {
-        let viewModel = AnalysisViewModel(photos: makePhotos())
+        let viewModel = AnalysisViewModel(photos: makePhotos(), analysisRevision: { 0 })
 
         #expect(viewModel.exifCount == 7)
         #expect(viewModel.availableCameras == ["Camera A", "Camera B", "Camera C"])
     }
 
     @Test func selectedCameraUpdatesFilteredPhotosAndCurrentData() {
-        let viewModel = AnalysisViewModel(photos: makePhotos())
+        let viewModel = AnalysisViewModel(photos: makePhotos(), analysisRevision: { 0 })
         let allData = viewModel.currentData
 
         viewModel.selectedCamera = "Camera B"
@@ -41,7 +41,7 @@ struct AnalysisViewModelTests {
     }
 
     @Test func selectedPageAndFavoritesOverlayUpdateCurrentData() {
-        let viewModel = AnalysisViewModel(photos: makePhotos())
+        let viewModel = AnalysisViewModel(photos: makePhotos(), analysisRevision: { 0 })
         let apertureData = viewModel.currentData
 
         viewModel.selectedPage = .iso
@@ -55,16 +55,17 @@ struct AnalysisViewModelTests {
     // シート表示後にEXIFが一括取得されるケース。refresh() で件数・カメラ一覧・チャートが追随すること
     @Test func refreshPicksUpEXIFLoadedAfterInit() {
         let photos = (0..<3).map { Photo(fileURL: URL(fileURLWithPath: "/tmp/late-\($0).jpg")) }
-        let viewModel = AnalysisViewModel(photos: photos)
+        let content = ContentViewModel()
+        content.photos = photos
+        let viewModel = AnalysisViewModel(photos: photos, analysisRevision: { content.analysisRevision })
         let initialSignature = viewModel.dataSignature
         #expect(viewModel.exifCount == 0)
         #expect(viewModel.availableCameras.isEmpty)
         #expect(viewModel.currentData.isEmpty)
 
+        // 分析シートの一括取得と同じく apply(_:to:) を通して反映し、合図（revision）が進むことを確かめる
         for photo in photos {
-            photo.cameraModel = "Camera Z"
-            photo.aperture = 4.0
-            photo.exifFetchedAt = Date()
+            content.apply(EXIFInfo(cameraModel: "Camera Z", aperture: 4.0), to: photo)
         }
         #expect(viewModel.dataSignature != initialSignature)
 

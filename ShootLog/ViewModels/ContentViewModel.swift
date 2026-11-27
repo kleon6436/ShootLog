@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import Foundation
 
@@ -62,8 +63,24 @@ final class ContentViewModel {
         folderHistories.filter { !unavailableHistoryIDs.contains($0.persistentModelID) }
     }
 
-    // 写真
-    var photos: [Photo] = []
+    // 写真。配列の差し替え・段階挿入のどちらも photosArrayRevision を進める（件数が同じ別配列への差し替えも含む）
+    var photos: [Photo] = [] {
+        didSet { photosArrayRevision &+= 1 }
+    }
+
+    // 派生配列（visiblePhotos・SidebarViewModel.displayedPhotos など）のメモの鍵にする変更番号。
+    // Photo の各プロパティを描画のたびに全件読むと、バックグラウンドの EXIF・AI の結果1件ごとに
+    // 一覧全体を作り直すことになるため、用途ごとに番号を分け、関係する値が実際に変わったときだけ進める。
+    // 進めるのは Photo を変更する ContentViewModel の関数（apply(_:to:)・toggleFavorite など）の中だけ
+    /// photos 配列そのものの変更（差し替え・段階挿入）
+    private(set) var photosArrayRevision = 0
+    /// 一覧の絞り込みに使う値（isFavorite・cameraModel・aiCategoryRawValues・aiCaptionText）の変更。
+    /// 絞り込みが無効なときの一覧はこの番号を読まないので、背景の結果が届いても再描画されない
+    private(set) var photoContentRevision = 0
+    /// 被写体認識・画質診断の失敗記録の有無（aiAnalysisFailedPhotos の入力）の変更
+    private(set) var aiFailureRevision = 0
+    /// 分析画面の再集計の合図。EXIF と被写体認識の結果の反映で進む
+    private(set) var analysisRevision = 0
     // フォルダスキャン時にまとめて取得した原本属性。iCloud写真には適用しない一時キャッシュ
     var fileAttributesSnapshots: [URL: FileAttributesSnapshot] = [:]
     var currentPhotoSource: PhotoSourceKind?
@@ -99,6 +116,9 @@ final class ContentViewModel {
     // 被写体認識の実行主体。差し替えの扱いは qualityDiagnosisGenerator と同じ
     @ObservationIgnored
     var aiLabelingGenerator: AILabelingGenerator = .shared
+    // 説明文生成の実行主体。テストではモデルの利用可否を固定した生成器へ差し替える
+    @ObservationIgnored
+    var photoCaptionGenerator: PhotoCaptionGenerator = .shared
     // 手動の再解析で、分類済み・診断済みでも対象に含める写真。結果が届いた写真から外す。
     // 処理本体は ContentViewModelAILabeling.swift 側にある
     var aiLabelingReanalysisURLs: Set<URL> = []
@@ -155,28 +175,89 @@ final class ContentViewModel {
 
     // 選択中写真のインデックス（未フィルタの photos 基準）
     var selectedIndex: Int {
-        photos.firstIndex(where: { $0.id == selectedPhoto?.id }) ?? 0
+        allPhotoList.index(of: selectedPhoto) ?? 0
+    }
+
+    // 派生配列のメモ。getter は毎回、鍵に使う観測対象の入力を読んで観測を登録し、
+    // 鍵が変わったときだけ作り直す。メモ自体を観測対象にすると、body の評価中に観測対象を書き換える
+    // ことになり再描画が繰り返されるため @ObservationIgnored にする
+    @ObservationIgnored private var allPhotoListMemo: (arrayRevision: Int, list: IndexedPhotoList)?
+    @ObservationIgnored private var visiblePhotoListMemo:
+        (arrayRevision: Int, contentRevision: Int?, showFavoritesOnly: Bool, list: IndexedPhotoList)?
+    @ObservationIgnored private var aiAnalysisFailedPhotosMemo:
+        (arrayRevision: Int, failureRevision: Int, photos: [Photo])?
+
+    // 未フィルタの photos と索引。並びは配列の変更でしか変わらない
+    private var allPhotoList: IndexedPhotoList {
+        let arrayRevision = photosArrayRevision
+        if let memo = allPhotoListMemo, memo.arrayRevision == arrayRevision { return memo.list }
+        let list = IndexedPhotoList(photos)
+        allPhotoListMemo = (arrayRevision, list)
+        return list
+    }
+
+    // visiblePhotos と索引。キー送りの位置検索にも使う。
+    // お気に入りのみ表示が無効なときは内容の変更番号を読まない（お気に入り以外の結果で再描画させない）
+    var visiblePhotoList: IndexedPhotoList {
+        let arrayRevision = photosArrayRevision
+        let showFavoritesOnly = showFavoritesOnly
+        let contentRevision = showFavoritesOnly ? photoContentRevision : nil
+        if let memo = visiblePhotoListMemo,
+           memo.arrayRevision == arrayRevision,
+           memo.contentRevision == contentRevision,
+           memo.showFavoritesOnly == showFavoritesOnly {
+            return memo.list
+        }
+        let list = IndexedPhotoList(showFavoritesOnly ? photos.filter(\.isFavorite) : photos)
+        visiblePhotoListMemo = (arrayRevision, contentRevision, showFavoritesOnly, list)
+        return list
+    }
+
+    /// 被写体認識・画質診断で失敗を記録した写真。ツールバーの一括再解析の対象。
+    /// ツールバーが描画のたびに件数を読むため、失敗記録の有無が変わったときだけ作り直す
+    var aiAnalysisFailedPhotos: [Photo] {
+        let arrayRevision = photosArrayRevision
+        let failureRevision = aiFailureRevision
+        if let memo = aiAnalysisFailedPhotosMemo,
+           memo.arrayRevision == arrayRevision, memo.failureRevision == failureRevision {
+            return memo.photos
+        }
+        let failed = photos.filter { $0.aiLabelingFailedAt != nil || $0.aiDiagnosisFailedAt != nil }
+        aiAnalysisFailedPhotosMemo = (arrayRevision, failureRevision, failed)
+        return failed
+    }
+
+    func bumpPhotoContentRevision() {
+        photoContentRevision &+= 1
+    }
+
+    func bumpAIFailureRevision() {
+        aiFailureRevision &+= 1
+    }
+
+    func bumpAnalysisRevision() {
+        analysisRevision &+= 1
     }
 
     // 連携アプリ設定。ContentViewの@Queryから渡される（SwiftDataの変更をObservationで
     // 検知しツールバーの外部アプリメニューへ反映するため、ここでの直接fetchは行わない）
     private var integrationSettings: [IntegrationAppSetting] = []
 
+    // ツールバーの外部アプリメニューに表示する、利用可能な外部アプリ一覧。
+    // 作り直しは refreshExternalApps() が行う（観測対象の stored プロパティなのでメニューへ反映される）
+    private(set) var externalApps: [any ExternalAppProtocol] = []
+
     // showFavoritesOnly を適用した写真配列。フルスクリーン/スライドショーの写真切替・
     // カウンタ表示、selectNext()/selectPrevious() の絞り込み基準として使う単一の真実源
     // （searchText の絞り込みは SidebarViewModel.displayedPhotos 側の責務のためここには含めない）
-    var visiblePhotos: [Photo] {
-        guard showFavoritesOnly else { return photos }
-        return photos.filter { $0.isFavorite }
-    }
+    var visiblePhotos: [Photo] { visiblePhotoList.photos }
 
     // visiblePhotos 内での選択中写真の位置。絞り込みによって選択中写真が一覧から
     // 外れている場合（お気に入りのみ表示をONにした直後、表示中写真のお気に入りを
     // 解除した直後）は nil を返す。0 へフォールバックするとカウンタ・ページドットが
     // 実際の表示写真と異なる位置を指してしまうため
     var visibleIndex: Int? {
-        guard let selectedPhoto else { return nil }
-        return visiblePhotos.firstIndex(where: { $0.id == selectedPhoto.id })
+        visiblePhotoList.index(of: selectedPhoto)
     }
 
     // パスボード書き込み口。通常はシステムのパスボードを使い、テストではスタブへ差し替える
@@ -321,6 +402,7 @@ final class ContentViewModel {
         loadHistories()
         loadDevelopPresets()
         collectOrphanedMaskRastersOnce(in: context)
+        refreshExternalApps()
     }
 
     // 孤児になった MaskRaster の回収。全 DevelopSettings の fetch を伴うので起動時に1回だけ、
@@ -344,6 +426,45 @@ final class ContentViewModel {
     // ContentViewの@Queryが検知したIntegrationAppSettingの変更を反映する
     func updateIntegrationSettings(_ settings: [IntegrationAppSetting]) {
         integrationSettings = settings
+        refreshExternalApps()
+    }
+
+    // 外部アプリ一覧を作り直す。インストール状況の照会（Launch Services）を伴うため、
+    // 参照のたびではなく設定の変更時とアプリが前面に戻ったとき（他のアプリを入れた・消した直後）だけ行う。
+    // SwiftUI の Menu には開いたことを確実に知る手段が無いため、メニューを開いたときには作り直さない
+    func refreshExternalApps() {
+        externalApps = resolveExternalApps()
+    }
+
+    // アプリが前面に戻るたびに外部アプリ一覧を作り直す。ContentView の .task から呼び、
+    // ビューが消えると .task のキャンセルで監視も終わる
+    func observeAppActivation() async {
+        for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+            refreshExternalApps()
+        }
+    }
+
+    // ContentView の onChange の比較に使う、連携アプリ設定の値の一覧。
+    // 設定画面は IntegrationAppSetting をその場で書き換えるため、配列（同じオブジェクト・同じ順序）の
+    // 比較では変更を検知できない。外部アプリ一覧に効く値だけを取り出して比べる
+    struct IntegrationSettingValue: Equatable {
+        let identifier: String
+        let isEnabled: Bool
+        let sortOrder: Int
+        let isCustom: Bool
+        let customDisplayName: String?
+    }
+
+    static func integrationSettingValues(_ settings: [IntegrationAppSetting]) -> [IntegrationSettingValue] {
+        settings.map {
+            IntegrationSettingValue(
+                identifier: $0.identifier,
+                isEnabled: $0.isEnabled,
+                sortOrder: $0.sortOrder,
+                isCustom: $0.isCustom,
+                customDisplayName: $0.customDisplayName
+            )
+        }
     }
 
     // MARK: - Analysis
@@ -379,11 +500,10 @@ final class ContentViewModel {
         ViewModeRegistry.shared.enabledModes
     }
 
-    // ツールバーの外部アプリメニューに表示する、利用可能な外部アプリ一覧。
     // IntegrationAppSetting（有効/無効・表示順序・カスタムアプリ）とアダプター実装を突き合わせて組み立てる。
     // settingsはContentViewの@Query経由でupdateIntegrationSettings(_:)により渡される
     // （ここでmodelContext.fetchを直接呼ぶとObservationが変更を追跡できずツールバーに反映されない）
-    var externalApps: [any ExternalAppProtocol] {
+    private func resolveExternalApps() -> [any ExternalAppProtocol] {
         let builtInAdapters = ExternalAppRegistry.shared.builtInAdapters
         let settings = integrationSettings
 

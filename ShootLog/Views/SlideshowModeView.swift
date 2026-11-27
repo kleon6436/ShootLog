@@ -29,7 +29,7 @@ struct SlideshowModeView: View {
                                 .fontWeight(isSelected ? .semibold : .regular)
                                 .foregroundStyle(isSelected ? Color.onViewerCanvas : Color.onViewerCanvasSecondary)
                                 .frame(width: 44, height: 44)
-                                .glassOrMaterialCircle()
+                                .glassCircle()
                         }
                         .buttonStyle(HUDButtonStyle(font: HUDTypography.label))
                         .animation(.easeInOut(duration: 0.15), value: vm.interval)
@@ -58,7 +58,7 @@ struct SlideshowModeView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.onViewerCanvasSecondary)
                             .frame(width: 44, height: 44)
-                            .glassOrMaterialCircle()
+                            .glassCircle()
                     }
                     .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
                     .accessibilityLabel("viewer.backToSidebar")
@@ -114,7 +114,7 @@ struct SlideshowModeView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .glassOrMaterial(cornerRadius: 20)
+                .glass(cornerRadius: 20)
                 .padding(.bottom, 12)
             }
 

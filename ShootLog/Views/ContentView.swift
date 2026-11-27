@@ -180,14 +180,18 @@ struct ContentView: View {
         .task {
             vm.configure(context: modelContext)
         }
-        .onChange(of: integrationSettings, initial: true) { _, newValue in
-            vm.updateIntegrationSettings(newValue)
+        .task {
+            await vm.observeAppActivation()
+        }
+        // 設定画面は IntegrationAppSetting をその場で書き換えるため、配列ではなく値の一覧で変更を検知する
+        .onChange(of: ContentViewModel.integrationSettingValues(integrationSettings), initial: true) {
+            vm.updateIntegrationSettings(integrationSettings)
         }
         .sheet(isPresented: Binding(
             get: { vm.showAnalysis },
             set: { vm.showAnalysis = $0 }
         )) {
-            AnalysisView(photos: vm.photos)
+            AnalysisView(photos: vm.photos, analysisRevision: { [vm] in vm.analysisRevision })
         }
         .sheet(isPresented: Binding(
             get: { vm.isUpscaleExportPresented },

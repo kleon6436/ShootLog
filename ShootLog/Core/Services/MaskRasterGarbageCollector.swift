@@ -32,13 +32,11 @@ enum MaskRasterGarbageCollector {
     }
 
     /// 写真 1 枚分だけを対象にした軽量版。写真切り替え時に「離れる写真」へ対して呼ぶ。
-    /// フェッチは `#Predicate` での UUID フィルタが不安定なケースに備え、
-    /// `loadDevelopSettings` と同じ「全件 fetch して first(where:)」パターンを踏襲する。
+    /// 写真 ID の等値述語で1件だけ引く（`ModelContext.developSettings(forPhotoID:)`）。
     /// - Returns: 削除した `MaskRaster` の件数。
     @discardableResult
     static func collect(forPhotoID photoID: UUID, in context: ModelContext) -> Int {
-        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
-        guard let settings = all.first(where: { $0.photoID == photoID }) else { return 0 }
+        guard let settings = context.developSettings(forPhotoID: photoID) else { return 0 }
         let deletedCount = collect(for: settings, in: context)
         if deletedCount > 0 {
             do {

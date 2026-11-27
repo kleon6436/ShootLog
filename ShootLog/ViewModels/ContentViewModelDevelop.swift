@@ -7,18 +7,15 @@ extension ContentViewModel {
     // MARK: - Develop
 
     // 選択中写真の DevelopSettings を SwiftData から取得する（なければ nil）
-    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadEditInfo と同じ
-    // 「全件 fetch して first(where:)」パターンを踏襲する（ContentViewModelEdit.swift参照）
     func loadDevelopSettings(for photo: Photo) {
         guard let context = modelContext else { return }
-        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
-        currentDevelopSettings = all.first(where: { $0.photoID == photo.id })
+        currentDevelopSettings = context.developSettings(forPhotoID: photo.id)
     }
 
     // 指定写真の DevelopSettings を返す（なければ nil）。選択切り替え直後は currentDevelopSettings が
     // 既に次の写真を指していることがあるため、photoID が一致するときだけキャッシュを使う。
     // 選択中写真のキャッシュは selectPhoto で loadDevelopSettings 済み（行が無ければ nil）なので
-    // 引き直さない（描画のたびに全件 fetch しないため）。それ以外の写真はストアから引く
+    // 引き直さない（描画のたびにストアを引かないため）。それ以外の写真はストアから引く
     func developSettings(forPhotoID photoID: UUID) -> DevelopSettings? {
         if let cached = currentDevelopSettings, cached.photoID == photoID { return cached }
         if selectedPhoto?.id == photoID { return nil }
@@ -36,8 +33,6 @@ extension ContentViewModel {
     // 写真 ID を指定して現像調整値を保存する。DevelopViewModel のデバウンス保存・写真切り替え時の
     // フラッシュはこの経路を使う（selectedPhoto は保存時点で既に別写真へ切り替わっていることがあるため）。
     // currentDevelopSettings キャッシュは、対象が選択中写真のときだけ追従させる
-    // フェッチは #Predicate での UUID フィルタが不安定なケースに備え、loadDevelopSettings と
-    // 同じ「全件 fetch して first(where:)」パターンを踏襲する
     //
     // 中立なら原則として行を削除するが、次のどちらかなら行を残して中立値を書き込む:
     // - keepingRecord（呼び出し側が 1 段 Undo を保持している）。プリセット/ペーストで中立になった直後に
@@ -131,7 +126,6 @@ extension ContentViewModel {
     // キャッシュが一致すればそれを、なければストアから引き直した DevelopSettings を返す
     private func storedDevelopSettings(forPhotoID photoID: UUID, context: ModelContext) -> DevelopSettings? {
         if let cached = currentDevelopSettings, cached.photoID == photoID { return cached }
-        let all = (try? context.fetch(FetchDescriptor<DevelopSettings>())) ?? []
-        return all.first(where: { $0.photoID == photoID })
+        return context.developSettings(forPhotoID: photoID)
     }
 }

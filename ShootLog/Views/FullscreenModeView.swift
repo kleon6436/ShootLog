@@ -210,16 +210,10 @@ struct FullscreenModeView: View {
         }
     }
 
-    @ViewBuilder
     private var topRightControlCluster: some View {
-        if #available(macOS 26, *) {
-            GlassEffectContainer {
-                topRightControlClusterContent
-                    .glassEffect(in: Capsule())
-            }
-        } else {
+        GlassEffectContainer {
             topRightControlClusterContent
-                .glassOrMaterialCapsule()
+                .glassEffect(in: Capsule())
         }
     }
 
@@ -231,7 +225,7 @@ struct FullscreenModeView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .glassOrMaterialCapsule()
+            .glassCapsule()
     }
 
     @ViewBuilder
@@ -290,7 +284,7 @@ struct FullscreenModeView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 36)
-        .glassOrMaterialCapsule()
+        .glassCapsule()
     }
 
     // MARK: - 派生値

@@ -11,7 +11,7 @@ macOS向けの写真管理・閲覧アプリ。ユーザーが選択したフォ
 
 | 項目 | 値 |
 |------|----|
-| 対象OS | macOS 15以降 |
+| 対象OS | macOS 27.2以降 |
 | Swift | 6.0 |
 | UI | SwiftUI / AppKit |
 | 永続化 | SwiftData |
@@ -215,7 +215,7 @@ Sigma fp Lのカラーモード検出は実機サンプルで十分に検証さ�
 
 - 操作可能な要素には、用途が伝わる `.accessibilityLabel` を付ける。
 - 写真ビューア（フルスクリーン・スライドショー・サイドバーモードの右ペイン）の背景は `Color.viewerCanvas` を使い、システム外観に追従させる。ライトでは中間グレー、ダークでは黒になる。ライトで純白を使わないのは、写真の白飛び・ハイライトを目視判定できなくなるため。
-- macOS 26以降のLiquid Glassは `#available(macOS 26, *)` で分岐し、macOS 26未満向けの代替UIも用意する。両分岐で同じ意味の配色になるようにする（一方だけを固定色にしない）。
+- 最低OSが macOS 27.2 のため、Liquid Glass は `#available` で分岐せず常に使う（代替UIは持たない）。形状ごとの指定は `DesignSystem.swift` の `glass(cornerRadius:)` / `glassCapsule()` / `glassCircle()` ヘルパーにまとめる。
 - UIのレイアウトやインタラクションは `Docs/UI_モックアップ.html` とApple HIGを参照する。
 
 ### 色の扱い

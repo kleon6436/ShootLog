@@ -205,7 +205,7 @@ struct RotateButton: View {
             Image(systemName: "rotate.right")
                 .foregroundStyle(Color.onViewerCanvasSecondary)
                 .frame(width: 44, height: 44)
-                .glassOrMaterialCircle()
+                .glassCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
         .help("toolbar.rotate.help")
@@ -223,7 +223,7 @@ struct UpscaleButton: View {
             Image(systemName: "wand.and.sparkles")
                 .foregroundStyle(Color.onViewerCanvasSecondary)
                 .frame(width: 44, height: 44)
-                .glassOrMaterialCircle()
+                .glassCircle()
         }
         .buttonStyle(HUDButtonStyle(font: HUDTypography.icon))
         .help("toolbar.upscale.help")
@@ -246,6 +246,6 @@ struct CounterBadge: View {
             .monospacedDigit()
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .glassOrMaterialCapsule()
+            .glassCapsule()
     }
 }

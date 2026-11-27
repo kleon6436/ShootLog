@@ -1,0 +1,21 @@
+{
+  "configurations" : [
+    {
+      "id" : "6F1C2A10-6B0E-4C6F-9C1E-2D8A1F3B0001",
+      "name" : "Default",
+      "options" : {}
+    }
+  ],
+  "defaultOptions" : {},
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:ShootLog.xcodeproj",
+        "identifier" : "BABFB158B561E6AEDCCCCF59",
+        "name" : "ShootLogTests"
+      }
+    }
+  ],
+  "version" : 1
+}

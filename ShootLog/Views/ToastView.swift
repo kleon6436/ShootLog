@@ -9,9 +9,9 @@ struct ToastView: View {
             .font(.subheadline)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .glassOrMaterialCapsule()
+            .glassCapsule()
     }
 }
 
-// リキッドグラスヘルパー（glassOrMaterial 系）は DesignSystem.swift に移設。
+// リキッドグラスヘルパー（glass 系）は DesignSystem.swift に移設。
 // 同一モジュール内のためここでは import 不要でそのまま参照できる。

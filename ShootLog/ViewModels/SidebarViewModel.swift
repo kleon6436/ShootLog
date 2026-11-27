@@ -120,17 +120,56 @@ final class SidebarViewModel: ContentViewModelProxy {
         }
     }
 
-    // searchText（ファイル名・カメラ名の部分一致）、showFavoritesOnly、AIカテゴリのAND条件で絞り込む
-    var displayedPhotos: [Photo] {
-        let trimmedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return content.photos.filter { photo in
+    // displayedPhotos のメモの鍵。件数は含めない（含めると revision の進め忘れが件数の変化で隠れるため）
+    private struct DisplayedPhotosKey: Equatable {
+        let arrayRevision: Int
+        // 絞り込みが無効なときは nil。Photo の値を読まない一覧を、背景の結果が届くたびに作り直さないため
+        let contentRevision: Int?
+        let searchText: String
+        let showFavoritesOnly: Bool
+        let aiCategories: Set<AISubjectCategory>
+    }
+
+    // メモは観測対象にしない。getter が body の評価中に書き換えるため、観測対象だと
+    // "Modifying state during view update" になり再描画が繰り返される
+    @ObservationIgnored private var displayedPhotosMemo: (key: DisplayedPhotosKey, list: IndexedPhotoList)?
+
+    // searchText（ファイル名・カメラ名・AI説明文の部分一致）、showFavoritesOnly、AIカテゴリのAND条件で絞り込む
+    var displayedPhotos: [Photo] { displayedPhotoList.photos }
+
+    // displayedPhotos と索引。1回の画面更新で一覧・カウンタ・先読みが何度も読むため、
+    // 入力（配列・Photo の内容の変更番号・検索文字列・お気に入り・AIカテゴリ）が変わったときだけ作り直す。
+    // 入力は毎回読むので、メモが当たったときも SwiftUI の観測は登録される。
+    // 内容の変更番号は Photo の値で絞り込むときだけ読む（旧実装も絞り込みが無効なら Photo の値を読まなかった）
+    var displayedPhotoList: IndexedPhotoList {
+        let searchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let showFavoritesOnly = showFavoritesOnly
+        let aiCategories = selectedAICategories
+        let filtersByContent = !searchText.isEmpty || showFavoritesOnly || !aiCategories.isEmpty
+        let key = DisplayedPhotosKey(
+            arrayRevision: content.photosArrayRevision,
+            contentRevision: filtersByContent ? content.photoContentRevision : nil,
+            searchText: searchText,
+            showFavoritesOnly: showFavoritesOnly,
+            aiCategories: aiCategories
+        )
+        if let memo = displayedPhotosMemo, memo.key == key { return memo.list }
+        let list = IndexedPhotoList(Self.filter(content.photos, by: key))
+        displayedPhotosMemo = (key, list)
+        return list
+    }
+
+    private static func filter(_ photos: [Photo], by key: DisplayedPhotosKey) -> [Photo] {
+        let trimmedSearchText = key.searchText
+        let selectedAICategories = key.aiCategories
+        return photos.filter { photo in
             var matchesSearch = trimmedSearchText.isEmpty
                 || photo.displayFileName.localizedCaseInsensitiveContains(trimmedSearchText)
                 || (photo.cameraModel?.localizedCaseInsensitiveContains(trimmedSearchText) ?? false)
-            if #available(macOS 27, *), !matchesSearch, !trimmedSearchText.isEmpty {
+            if !matchesSearch, !trimmedSearchText.isEmpty {
                 matchesSearch = photo.aiCaptionText?.localizedCaseInsensitiveContains(trimmedSearchText) ?? false
             }
-            let matchesFavorite = !showFavoritesOnly || photo.isFavorite
+            let matchesFavorite = !key.showFavoritesOnly || photo.isFavorite
             let matchesAICategory = selectedAICategories.isEmpty
                 || !selectedAICategories.isDisjoint(
                     with: Set(photo.aiCategoryRawValues.compactMap(AISubjectCategory.init(rawValue:)))
@@ -174,12 +213,11 @@ final class SidebarViewModel: ContentViewModelProxy {
     func loadEditInfo(for photo: Photo) { content.loadEditInfo(for: photo) }
     // 上下矢印キーでの写真送りは、実際にリストへ表示している displayedPhotos
     // （お気に入り・検索・AIカテゴリの絞り込み後）を基準にする
-    func selectNext() { content.selectNext(in: { [weak self] in self?.displayedPhotos ?? [] }) }
-    func selectPrevious() { content.selectPrevious(in: displayedPhotos) }
+    func selectNext() { content.selectNext(in: { [weak self] in self?.displayedPhotoList ?? IndexedPhotoList([]) }) }
+    func selectPrevious() { content.selectPrevious(in: displayedPhotoList) }
     // カウンタ・VoiceOver の位置読み上げも、キー送りと同じ displayedPhotos 基準にする
     var displayedIndex: Int? {
-        guard let selectedPhoto = content.selectedPhoto else { return nil }
-        return displayedPhotos.firstIndex(where: { $0.id == selectedPhoto.id })
+        displayedPhotoList.index(of: content.selectedPhoto)
     }
     var displayedCounterText: String { counterText(in: displayedPhotos) }
     func loadEXIFIfNeeded(for photo: Photo) async { await content.loadEXIFIfNeeded(for: photo) }

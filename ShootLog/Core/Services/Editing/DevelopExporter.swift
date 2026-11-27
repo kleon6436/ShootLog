@@ -57,6 +57,9 @@ struct DevelopExporter: Sendable {
         folderPhotoURLs: [URL],
         upscaleProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws {
+        let exportSignpost = PerformanceSignposts.begin(PerformanceSignposts.develop, "develop.export")
+        var didFinish = false
+        defer { exportSignpost.end(cancelled: !didFinish) }
         try UpscaleOutputDestination.validate(
             destination: destination,
             currentFolder: currentFolder,
@@ -108,6 +111,7 @@ struct DevelopExporter: Sendable {
             superResolutionModelID: superResolution?.engine.modelID,
             isTrainedAlgorithmicMedia: superResolution?.descriptor.isTrainedAlgorithmicMedia ?? false
         )
+        didFinish = true
     }
 
     // MARK: - 超解像段
